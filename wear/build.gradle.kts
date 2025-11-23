@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "dev.sadakat.qit"
+    namespace = "dev.sadakat.qit.wear"
     compileSdk = 36
 
     defaultConfig {
@@ -37,13 +37,6 @@ android {
     buildFeatures {
         compose = true
     }
-    lint {
-        checkReleaseBuilds = false
-        abortOnError = false
-    }
-    tasks.matching { it.name.startsWith("lint") }.configureEach {
-        enabled = false
-    }
 }
 
 dependencies {
@@ -54,19 +47,24 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 
-    // Compose
+    // Wear Compose
+    implementation(libs.wear.compose.material)
+    implementation(libs.wear.compose.foundation)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
-    implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
-    implementation(libs.androidx.compose.material3)
+
+    // Wearable Data Layer
+    implementation(libs.play.services.wearable)
+
+    // Media3 for audio playback
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.session)
 
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
