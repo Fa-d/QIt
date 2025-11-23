@@ -87,6 +87,15 @@ class WatchSyncRepository(
         }
 
     /**
+     * Sync all playlists to watch (requires playlistDao to fetch all playlists)
+     */
+    suspend fun syncAllPlaylistsToWatch(): Result<Unit> {
+        // This method will be called from a higher level with the actual playlists
+        // For now, return a placeholder
+        return Result.failure(Exception("Use syncPlaylistsToWatch with actual playlists"))
+    }
+
+    /**
      * Sync songs metadata to watch
      */
     suspend fun syncSongsToWatch(songs: List<Song>): Result<Unit> =

@@ -54,6 +54,24 @@ class PlaylistRepository(
     }
 
     /**
+     * Get playlist with songs as Flow
+     */
+    fun getPlaylistWithSongs(playlistId: String): Flow<List<Song>> {
+        return playlistDao.observePlaylistById(playlistId).map { playlist ->
+            if (playlist == null) {
+                emptyList()
+            } else {
+                val songIds = if (playlist.songIds.isEmpty()) {
+                    emptyList()
+                } else {
+                    playlist.songIds.split(",")
+                }
+                songDao.getSongsByIds(songIds).map { it.toSong() }
+            }
+        }
+    }
+
+    /**
      * Create a new playlist
      */
     suspend fun createPlaylist(name: String, description: String? = null): Playlist {
@@ -67,6 +85,13 @@ class PlaylistRepository(
         )
         playlistDao.insertPlaylist(PlaylistEntity.fromPlaylist(playlist))
         return playlist
+    }
+
+    /**
+     * Insert playlist
+     */
+    suspend fun insertPlaylist(playlist: Playlist) {
+        playlistDao.insertPlaylist(PlaylistEntity.fromPlaylist(playlist))
     }
 
     /**

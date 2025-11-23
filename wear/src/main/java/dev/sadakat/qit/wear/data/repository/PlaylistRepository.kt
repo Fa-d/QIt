@@ -53,6 +53,24 @@ class PlaylistRepository(
     }
 
     /**
+     * Get playlist with songs as Flow
+     */
+    fun getPlaylistWithSongs(playlistId: String): Flow<List<Song>> {
+        return playlistDao.observePlaylistById(playlistId).map { playlist ->
+            if (playlist == null) {
+                emptyList()
+            } else {
+                val songIds = if (playlist.songIds.isEmpty()) {
+                    emptyList()
+                } else {
+                    playlist.songIds.split(",")
+                }
+                songDao.getSongsByIds(songIds).map { it.toSong() }
+            }
+        }
+    }
+
+    /**
      * Get downloaded songs for a playlist
      */
     suspend fun getDownloadedSongsForPlaylist(playlistId: String): List<Song> {
