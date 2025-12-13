@@ -12,7 +12,9 @@ import dev.sadakat.qit.infrastructure.persistence.repository.DataStoreSettingsRe
 import dev.sadakat.qit.infrastructure.persistence.repository.RoomMusicRepository
 import dev.sadakat.qit.infrastructure.persistence.repository.RoomPlaylistRepository
 import dev.sadakat.qit.infrastructure.wearable.BasicStreamingRepository
+import dev.sadakat.qit.infrastructure.wearable.WearableDownloadRepository
 import dev.sadakat.qit.infrastructure.wearable.WearableSyncRepository
+import dev.sadakat.qit.shared.domain.repository.DownloadRepository
 import dev.sadakat.qit.shared.domain.repository.MusicRepository
 import dev.sadakat.qit.shared.domain.repository.PlaylistRepository
 import dev.sadakat.qit.shared.domain.repository.SettingsRepository
@@ -56,6 +58,12 @@ abstract class RepositoryModule {
     abstract fun bindStreamingRepository(
         impl: BasicStreamingRepository
     ): StreamingRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDownloadRepository(
+        impl: WearableDownloadRepository
+    ): DownloadRepository
 
     companion object {
         @Provides

@@ -2,6 +2,7 @@ package dev.sadakat.qit.wear.presentation.screens
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -16,7 +17,9 @@ import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.ScalingLazyColumn
 import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.items
-import dev.sadakat.qit.shared.model.Song
+import dev.sadakat.qit.shared.domain.entity.Song
+import dev.sadakat.qit.wear.presentation.components.DownloadIndicatorIcon
+import dev.sadakat.qit.wear.presentation.viewmodel.DownloadViewModel
 import dev.sadakat.qit.wear.presentation.viewmodel.PlaybackViewModel
 import dev.sadakat.qit.wear.presentation.viewmodel.PlaylistViewModel
 
@@ -25,7 +28,8 @@ fun SongListScreen(
     playlistId: String,
     onSongClick: () -> Unit,
     playlistViewModel: PlaylistViewModel = hiltViewModel(),
-    playbackViewModel: PlaybackViewModel = hiltViewModel()
+    playbackViewModel: PlaybackViewModel = hiltViewModel(),
+    downloadViewModel: DownloadViewModel = hiltViewModel()
 ) {
     val playlist by playlistViewModel.selectedPlaylist.collectAsState()
     val songs by playlistViewModel.playlistSongs.collectAsState()
@@ -59,6 +63,7 @@ fun SongListScreen(
             items(songs) { song ->
                 SongChip(
                     song = song,
+                    showDownloadStatus = true,
                     onClick = {
                         playbackViewModel.setPlaylist(songs, songs.indexOf(song))
                         playbackViewModel.play()
@@ -73,7 +78,8 @@ fun SongListScreen(
 @Composable
 fun SongChip(
     song: Song,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    showDownloadStatus: Boolean = false
 ) {
     Chip(
         label = {
@@ -92,6 +98,15 @@ fun SongChip(
                 )
             }
         },
+        icon = if (showDownloadStatus && song.isAvailableOnWatch()) {
+            {
+                // Show download indicator if song is downloaded on watch
+                DownloadIndicatorIcon(
+                    downloadStatus = song.downloadStatus,
+                    modifier = Modifier.size(ChipDefaults.IconSize)
+                )
+            }
+        } else null,
         onClick = onClick,
         colors = ChipDefaults.secondaryChipColors(),
         modifier = Modifier.fillMaxWidth()

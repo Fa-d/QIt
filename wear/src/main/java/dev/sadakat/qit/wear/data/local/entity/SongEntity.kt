@@ -2,7 +2,12 @@ package dev.sadakat.qit.wear.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import dev.sadakat.qit.shared.domain.entity.SongId
+import dev.sadakat.qit.shared.domain.valueobject.DownloadStatus
+import dev.sadakat.qit.shared.domain.valueobject.Duration
+import dev.sadakat.qit.shared.domain.valueobject.FileSize
 import dev.sadakat.qit.shared.model.Song
+import dev.sadakat.qit.shared.domain.entity.Song as DomainSong
 
 @Entity(tableName = "songs")
 data class SongEntity(
@@ -33,6 +38,32 @@ data class SongEntity(
             mimeType = null,
             bitrate = 0,
             dateAdded = dateAdded
+        )
+    }
+
+    fun toDomainSong(): DomainSong {
+        val downloadStatus = if (isDownloaded && localFilePath != null) {
+            DownloadStatus.Downloaded(localFilePath)
+        } else if (downloadProgress > 0f && downloadProgress < 1f) {
+            DownloadStatus.Downloading(downloadProgress)
+        } else {
+            DownloadStatus.NotDownloaded
+        }
+
+        return DomainSong(
+            id = SongId.from(id),
+            title = title,
+            artist = artist,
+            album = album,
+            duration = Duration.fromMilliseconds(duration),
+            filePath = null,
+            uri = null,
+            coverArtUri = null,
+            fileSize = FileSize.fromBytes(fileSize),
+            mimeType = null,
+            bitrate = 0,
+            dateAdded = dateAdded,
+            downloadStatus = downloadStatus
         )
     }
 

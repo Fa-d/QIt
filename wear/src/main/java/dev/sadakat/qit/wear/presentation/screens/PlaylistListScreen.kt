@@ -15,12 +15,14 @@ import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.ScalingLazyColumn
 import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.items
-import dev.sadakat.qit.shared.model.Playlist
+import dev.sadakat.qit.shared.domain.entity.Playlist
 import dev.sadakat.qit.wear.presentation.viewmodel.PlaylistViewModel
 
 @Composable
 fun PlaylistListScreen(
     onPlaylistClick: (String) -> Unit,
+    onDownloadsClick: (() -> Unit)? = null,
+    onSyncSettingsClick: (() -> Unit)? = null,
     viewModel: PlaylistViewModel = hiltViewModel()
 ) {
     val playlists by viewModel.playlists.collectAsState()
@@ -37,6 +39,48 @@ fun PlaylistListScreen(
             )
         }
 
+        // Sync Settings button
+        onSyncSettingsClick?.let { syncClick ->
+            item {
+                Chip(
+                    label = {
+                        Text(
+                            text = "Sync Settings",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    secondaryLabel = {
+                        Text("Manage phone sync")
+                    },
+                    onClick = syncClick,
+                    colors = ChipDefaults.secondaryChipColors(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        // Downloads button
+        onDownloadsClick?.let { downloadsClick ->
+            item {
+                Chip(
+                    label = {
+                        Text(
+                            text = "Downloads",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    secondaryLabel = {
+                        Text("View downloaded songs")
+                    },
+                    onClick = downloadsClick,
+                    colors = ChipDefaults.secondaryChipColors(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
         if (playlists.isEmpty()) {
             item {
                 Text(
@@ -50,7 +94,7 @@ fun PlaylistListScreen(
             items(playlists) { playlist ->
                 PlaylistChip(
                     playlist = playlist,
-                    onClick = { onPlaylistClick(playlist.id) }
+                    onClick = { onPlaylistClick(playlist.id.value) }
                 )
             }
         }
@@ -72,7 +116,7 @@ fun PlaylistChip(
         },
         secondaryLabel = {
             Text(
-                text = "${playlist.songIds.size} songs",
+                text = "${playlist.songCount()} songs",
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

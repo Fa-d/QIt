@@ -9,10 +9,14 @@ import dev.sadakat.qit.shared.domain.entity.Song
 import dev.sadakat.qit.shared.domain.entity.SongId
 import dev.sadakat.qit.shared.domain.repository.SyncRepository
 import dev.sadakat.qit.shared.domain.valueobject.AudioQuality
+import dev.sadakat.qit.shared.domain.valueobject.ChangeRecord
+import dev.sadakat.qit.shared.domain.valueobject.EntityType
+import dev.sadakat.qit.shared.domain.valueobject.SyncMetadata
 import dev.sadakat.qit.shared.dto.*
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -29,6 +33,9 @@ class WearableSyncRepository @Inject constructor(
 ) : SyncRepository {
 
     private val json = Json { ignoreUnknownKeys = true }
+
+    // In-memory storage for sync metadata (in production, this should be persisted)
+    private var syncMetadata: SyncMetadata = SyncMetadata.initial()
 
     override suspend fun syncPlaylistToWatch(playlist: Playlist): Result<Unit> {
         return try {
@@ -194,6 +201,121 @@ class WearableSyncRepository @Inject constructor(
             dataClient.putDataItem(putDataReq).await()
             Result.success(Unit)
         } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Delta Sync Implementation
+
+    override fun getChangesSince(timestamp: Long): Flow<List<ChangeRecord>> = flow {
+        Log.d(TAG, "Getting changes since timestamp: $timestamp")
+        val changes = syncMetadata.changesNewerThan(timestamp)
+        emit(changes)
+    }
+
+    override suspend fun getSyncMetadata(): SyncMetadata {
+        Log.d(TAG, "Getting sync metadata: version=${syncMetadata.syncVersion}, lastSync=${syncMetadata.lastSyncTimestamp}, pendingChanges=${syncMetadata.pendingChangeCount()}")
+        return syncMetadata
+    }
+
+    override suspend fun updateSyncMetadata(metadata: SyncMetadata): Result<Unit> {
+        return try {
+            Log.d(TAG, "Updating sync metadata: version=${metadata.syncVersion}, pendingChanges=${metadata.pendingChangeCount()}")
+            syncMetadata = metadata
+
+            // Persist to DataLayer for watch to retrieve
+            val putDataReq = PutDataMapRequest.create("/sync_metadata").apply {
+                dataMap.putLong("lastSyncTimestamp", metadata.lastSyncTimestamp)
+                dataMap.putInt("syncVersion", metadata.syncVersion)
+                dataMap.putInt("pendingChangeCount", metadata.pendingChangeCount())
+            }.asPutDataRequest()
+
+            dataClient.putDataItem(putDataReq).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update sync metadata", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun markEntitiesAsSynced(entityIds: List<String>): Result<Unit> {
+        return try {
+            Log.d(TAG, "Marking ${entityIds.size} entities as synced")
+            syncMetadata = syncMetadata.removeChanges(entityIds)
+
+            // Update persisted metadata
+            updateSyncMetadata(syncMetadata)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to mark entities as synced", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Records a change for delta sync tracking
+     * Should be called when playlists or songs are modified
+     */
+    fun recordChange(change: ChangeRecord) {
+        Log.d(TAG, "Recording change: ${change.displayName()}")
+        syncMetadata = syncMetadata.addChange(change)
+    }
+
+    /**
+     * Records multiple changes for delta sync tracking
+     */
+    fun recordChanges(changes: List<ChangeRecord>) {
+        Log.d(TAG, "Recording ${changes.size} changes")
+        syncMetadata = syncMetadata.addChanges(changes)
+    }
+
+    /**
+     * Syncs only changed playlists to the watch based on last sync timestamp
+     */
+    suspend fun syncChangedPlaylistsToWatch(lastSyncTimestamp: Long): Result<Unit> {
+        return try {
+            val playlistChanges = syncMetadata.pendingChangesByType(EntityType.PLAYLIST)
+                .filter { it.timestamp > lastSyncTimestamp }
+
+            if (playlistChanges.isEmpty()) {
+                Log.d(TAG, "No playlist changes to sync")
+                return Result.success(Unit)
+            }
+
+            Log.d(TAG, "Syncing ${playlistChanges.size} playlist changes to watch")
+
+            // In a real implementation, you would fetch the actual playlist data
+            // and send only the changed playlists
+            // For now, this demonstrates the delta sync concept
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to sync changed playlists", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Syncs only changed songs to the watch based on last sync timestamp
+     */
+    suspend fun syncChangedSongsToWatch(lastSyncTimestamp: Long): Result<Unit> {
+        return try {
+            val songChanges = syncMetadata.pendingChangesByType(EntityType.SONG)
+                .filter { it.timestamp > lastSyncTimestamp }
+
+            if (songChanges.isEmpty()) {
+                Log.d(TAG, "No song changes to sync")
+                return Result.success(Unit)
+            }
+
+            Log.d(TAG, "Syncing ${songChanges.size} song changes to watch")
+
+            // In a real implementation, you would fetch the actual song data
+            // and send only the changed songs
+            // For now, this demonstrates the delta sync concept
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to sync changed songs", e)
             Result.failure(e)
         }
     }

@@ -8,9 +8,11 @@ import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import dev.sadakat.qit.shared.constants.WearPaths
 import dev.sadakat.qit.shared.domain.entity.SongId
+import dev.sadakat.qit.shared.domain.repository.DownloadRepository
 import dev.sadakat.qit.shared.domain.repository.MusicRepository
 import dev.sadakat.qit.shared.domain.repository.PlaylistRepository
 import dev.sadakat.qit.shared.domain.repository.SyncRepository
+import dev.sadakat.qit.shared.domain.valueobject.AudioQuality
 import dev.sadakat.qit.shared.dto.DownloadRequestMessage
 import dev.sadakat.qit.shared.dto.PlaybackCommandMessage
 import kotlinx.coroutines.CoroutineScope
@@ -50,6 +52,13 @@ class WatchDataService : WearableListenerService() {
             applicationContext,
             WatchDataServiceEntryPoint::class.java
         ).syncRepository()
+    }
+
+    private val downloadRepository: DownloadRepository by lazy {
+        EntryPointAccessors.fromApplication(
+            applicationContext,
+            WatchDataServiceEntryPoint::class.java
+        ).downloadRepository()
     }
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
@@ -134,25 +143,26 @@ class WatchDataService : WearableListenerService() {
                 val requestJson = String(data)
                 val request = json.decodeFromString<DownloadRequestMessage>(requestJson)
 
-                Log.d(TAG, "Handling download request for song ${request.songId} from $nodeId")
+                Log.d(TAG, "Handling download request for song ${request.songId} with quality ${request.quality} from $nodeId")
 
-                // Get song from database
-                val songResult = musicRepository.getSongById(SongId.from(request.songId))
+                // Parse audio quality
+                val quality = try {
+                    AudioQuality.valueOf(request.quality.uppercase())
+                } catch (e: IllegalArgumentException) {
+                    Log.w(TAG, "Invalid quality ${request.quality}, using MEDIUM")
+                    AudioQuality.MEDIUM
+                }
 
-                songResult.fold(
-                    onSuccess = { song ->
-                        if (song != null) {
-                            Log.d(TAG, "Found song: ${song.title} at ${song.filePath}")
-                            // TODO: Implement actual file transfer via ChannelClient
-                            // This would require additional implementation in SyncRepository
-                            // For now, log that we would send the file
-                            Log.d(TAG, "Would send file from ${song.filePath} to watch")
-                        } else {
-                            Log.w(TAG, "Song not found: ${request.songId}")
-                        }
+                // Use DownloadRepository to handle the download
+                val songId = SongId.from(request.songId)
+                val result = downloadRepository.downloadSong(songId, quality)
+
+                result.fold(
+                    onSuccess = {
+                        Log.d(TAG, "Successfully initiated download for song: ${request.songId}")
                     },
                     onFailure = { error ->
-                        Log.e(TAG, "Error getting song ${request.songId}", error)
+                        Log.e(TAG, "Failed to download song ${request.songId}", error)
                     }
                 )
             } catch (e: Exception) {
@@ -208,4 +218,5 @@ interface WatchDataServiceEntryPoint {
     fun musicRepository(): MusicRepository
     fun playlistRepository(): PlaylistRepository
     fun syncRepository(): SyncRepository
+    fun downloadRepository(): DownloadRepository
 }

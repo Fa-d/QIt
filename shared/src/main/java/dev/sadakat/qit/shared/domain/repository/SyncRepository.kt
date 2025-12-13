@@ -5,6 +5,8 @@ import dev.sadakat.qit.shared.domain.entity.PlaylistId
 import dev.sadakat.qit.shared.domain.entity.Song
 import dev.sadakat.qit.shared.domain.entity.SongId
 import dev.sadakat.qit.shared.domain.valueobject.AudioQuality
+import dev.sadakat.qit.shared.domain.valueobject.ChangeRecord
+import dev.sadakat.qit.shared.domain.valueobject.SyncMetadata
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -69,4 +71,27 @@ interface SyncRepository {
      * Updates the last sync timestamp
      */
     suspend fun updateLastSyncTimestamp(timestamp: Long): Result<Unit>
+
+    // Delta Sync Methods
+
+    /**
+     * Gets all changes that occurred since the given timestamp
+     * Returns a Flow of change records for reactive updates
+     */
+    fun getChangesSince(timestamp: Long): Flow<List<ChangeRecord>>
+
+    /**
+     * Gets the current sync metadata including pending changes
+     */
+    suspend fun getSyncMetadata(): SyncMetadata
+
+    /**
+     * Updates the sync metadata
+     */
+    suspend fun updateSyncMetadata(metadata: SyncMetadata): Result<Unit>
+
+    /**
+     * Marks the given entities as synced by removing them from pending changes
+     */
+    suspend fun markEntitiesAsSynced(entityIds: List<String>): Result<Unit>
 }

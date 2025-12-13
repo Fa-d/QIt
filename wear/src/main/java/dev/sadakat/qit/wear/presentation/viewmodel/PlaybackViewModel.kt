@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.shared.domain.entity.PlaylistId
 import dev.sadakat.qit.shared.domain.entity.Song
 import dev.sadakat.qit.shared.domain.entity.SongId
+import dev.sadakat.qit.shared.domain.valueobject.DownloadStatus
 import dev.sadakat.qit.wear.application.usecase.playback.PlaySongUseCase
 import dev.sadakat.qit.wear.application.usecase.playback.PlaybackSource
 import dev.sadakat.qit.wear.playback.PlaybackManager
@@ -138,16 +139,22 @@ class PlaybackViewModel @Inject constructor(
      * Temporary converter until PlaybackManager is updated to use domain entities
      */
     private fun convertToModelSong(domainSong: Song): dev.sadakat.qit.shared.model.Song {
+        val watchFilePath = (domainSong.downloadStatus as? DownloadStatus.Downloaded)?.localPath
         return dev.sadakat.qit.shared.model.Song(
             id = domainSong.id.value,
             title = domainSong.title,
             artist = domainSong.artist,
             album = domainSong.album,
-            duration = domainSong.duration,
+            duration = domainSong.duration.milliseconds,
             filePath = domainSong.filePath ?: "",
+            uri = domainSong.uri,
+            coverArtUri = domainSong.coverArtUri,
             isDownloadedOnWatch = domainSong.isAvailableOnWatch(),
-            watchFilePath = domainSong.watchFilePath,
-            albumArt = domainSong.albumArt
+            watchFilePath = watchFilePath,
+            fileSize = domainSong.fileSize.bytes,
+            mimeType = domainSong.mimeType,
+            bitrate = domainSong.bitrate,
+            dateAdded = domainSong.dateAdded
         )
     }
 
@@ -180,7 +187,8 @@ class PlaybackViewModel @Inject constructor(
     }
 
     fun setPlaylist(songs: List<Song>, startIndex: Int = 0) {
-        playbackManager.setPlaylist(songs, startIndex)
+        val modelSongs = songs.map { convertToModelSong(it) }
+        playbackManager.setPlaylist(modelSongs, startIndex)
     }
 
     fun updatePlaybackPosition() {

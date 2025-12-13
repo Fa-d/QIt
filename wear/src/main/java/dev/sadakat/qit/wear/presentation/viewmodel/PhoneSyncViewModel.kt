@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.shared.domain.entity.SongId
 import dev.sadakat.qit.wear.application.usecase.download.DownloadSongUseCase
 import dev.sadakat.qit.wear.application.usecase.sync.RequestPlaylistSyncUseCase
+import dev.sadakat.qit.wear.presentation.model.SyncStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,6 +27,12 @@ class PhoneSyncViewModel @Inject constructor(
 
     private val _syncStatus = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
     val syncStatus: StateFlow<SyncStatus> = _syncStatus.asStateFlow()
+
+    private val _lastSyncTime = MutableStateFlow<Long?>(null)
+    val lastSyncTime: StateFlow<Long?> = _lastSyncTime.asStateFlow()
+
+    private val _autoSyncEnabled = MutableStateFlow(true)
+    val autoSyncEnabled: StateFlow<Boolean> = _autoSyncEnabled.asStateFlow()
 
     private val _downloadStatus = MutableStateFlow<DownloadStatus>(DownloadStatus.Idle)
     val downloadStatus: StateFlow<DownloadStatus> = _downloadStatus.asStateFlow()
@@ -48,11 +55,38 @@ class PhoneSyncViewModel @Inject constructor(
             _syncStatus.value = SyncStatus.Syncing
             val result = requestPlaylistSyncUseCase()
             _syncStatus.value = if (result.isSuccess) {
-                SyncStatus.Success("Playlists synced")
+                val timestamp = System.currentTimeMillis()
+                _lastSyncTime.value = timestamp
+                // TODO: Get actual item count from sync result
+                SyncStatus.Success(timestamp, itemCount = 0)
             } else {
                 SyncStatus.Error(result.exceptionOrNull()?.message ?: "Sync failed")
             }
         }
+    }
+
+    /**
+     * Trigger manual sync operation
+     */
+    fun triggerManualSync() {
+        requestPlaylistSync()
+    }
+
+    /**
+     * Observe sync progress updates
+     * This can be enhanced to listen to domain events for real-time progress
+     */
+    fun observeSyncProgress() {
+        // TODO: Implement when sync progress events are available
+        // This would subscribe to domain events to track sync progress
+    }
+
+    /**
+     * Toggle auto-sync setting
+     */
+    fun toggleAutoSync(enabled: Boolean) {
+        _autoSyncEnabled.value = enabled
+        // TODO: Persist this setting to preferences/datastore
     }
 
     fun requestSongSync() {
@@ -93,13 +127,6 @@ class PhoneSyncViewModel @Inject constructor(
 
     fun clearDownloadStatus() {
         _downloadStatus.value = DownloadStatus.Idle
-    }
-
-    sealed class SyncStatus {
-        object Idle : SyncStatus()
-        object Syncing : SyncStatus()
-        data class Success(val message: String) : SyncStatus()
-        data class Error(val message: String) : SyncStatus()
     }
 
     sealed class DownloadStatus {

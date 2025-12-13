@@ -75,6 +75,9 @@ dependencies {
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
 
+    // DataStore
+    implementation(libs.datastore.preferences)
+
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
@@ -83,6 +86,10 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
+    implementation(libs.hilt.work)
+
+    // WorkManager
+    implementation(libs.work.runtime.ktx)
 
     // Testing
     androidTestImplementation(platform(libs.androidx.compose.bom))

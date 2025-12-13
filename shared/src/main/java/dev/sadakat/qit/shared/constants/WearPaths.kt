@@ -9,6 +9,8 @@ object WearPaths {
     // Message paths for fire-and-forget messages
     const val REQUEST_PLAYLIST_SYNC = "/request/playlist_sync"
     const val REQUEST_SONG_SYNC = "/request/song_sync"
+    const val REQUEST_DELTA_SYNC = "/request/delta_sync"
+    const val REQUEST_FULL_SYNC = "/request/full_sync"
     const val PLAYLIST_SYNC = "/sync/playlists"
     const val SONG_SYNC = "/sync/songs"
     const val DOWNLOAD_REQUEST = "/download/request"

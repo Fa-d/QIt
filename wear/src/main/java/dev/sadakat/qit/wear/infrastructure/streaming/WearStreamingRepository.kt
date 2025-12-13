@@ -57,9 +57,10 @@ class WearStreamingRepository @Inject constructor(
                 scope.launch {
                     audioBuffer.markComplete()
 
-                    if (closeReason == ChannelClient.Channel.CLOSE_REASON_REMOTE_CLOSE) {
-                        // Normal stream completion
-                        Log.d(TAG, "Stream completed normally")
+                    // CLOSE_REASON_NORMAL = 0, CLOSE_REASON_DISCONNECTED = 1, CLOSE_REASON_REMOTE_CLOSE = 2
+                    if (closeReason == 0 || closeReason == 2) {
+                        // Normal stream completion or remote close
+                        Log.d(TAG, "Stream completed, closeReason=$closeReason")
                     } else {
                         // Error occurred
                         _streamingStatus.value = StreamingStatus.Error(
