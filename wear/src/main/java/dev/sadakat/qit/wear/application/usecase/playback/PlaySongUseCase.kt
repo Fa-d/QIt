@@ -29,10 +29,28 @@ class PlaySongUseCase @Inject constructor(
             // Determine streaming strategy
             val strategy = streamingCoordinator.determineStreamingStrategy(song)
 
-            // Initiate streaming if needed
-            val initiateResult = streamingCoordinator.initiateStreaming(params.songId, strategy)
-            if (initiateResult.isFailure) {
-                return Result.failure(initiateResult.exceptionOrNull()!!)
+            // Return playback source based on strategy
+            val playbackSource = when (strategy) {
+                is dev.sadakat.qit.shared.domain.service.StreamingStrategy.Local -> {
+                    // Song is available locally, no streaming needed
+                    PlaybackSource.Local(song)
+                }
+                is dev.sadakat.qit.shared.domain.service.StreamingStrategy.RealTime,
+                is dev.sadakat.qit.shared.domain.service.StreamingStrategy.Progressive -> {
+                    // Need to stream from phone
+                    // Initiate streaming request
+                    val initiateResult = streamingCoordinator.initiateStreaming(params.songId, strategy)
+                    if (initiateResult.isFailure) {
+                        return Result.failure(
+                            initiateResult.exceptionOrNull() ?: IllegalStateException("Failed to initiate streaming")
+                        )
+                    }
+                    PlaybackSource.Streaming(song, strategy)
+                }
+                is dev.sadakat.qit.shared.domain.service.StreamingStrategy.Unavailable -> {
+                    // Streaming not available
+                    return Result.failure(IllegalStateException(strategy.reason))
+                }
             }
 
             // Publish playback started event
@@ -42,12 +60,6 @@ class PlaySongUseCase @Inject constructor(
                     playlistId = params.playlistId
                 )
             )
-
-            // Return playback source
-            val playbackSource = when {
-                song.isAvailableOnWatch() -> PlaybackSource.Local(song)
-                else -> PlaybackSource.Streaming(song, strategy)
-            }
 
             Result.success(playbackSource)
         } catch (e: Exception) {

@@ -6,8 +6,10 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dev.sadakat.qit.shared.domain.repository.MusicRepository
 import dev.sadakat.qit.shared.domain.repository.PlaylistRepository
+import dev.sadakat.qit.shared.domain.repository.StreamingRepository
 import dev.sadakat.qit.wear.infrastructure.repository.WearMusicRepository
 import dev.sadakat.qit.wear.infrastructure.repository.WearPlaylistRepositoryImpl
+import dev.sadakat.qit.wear.infrastructure.streaming.WearStreamingRepository
 import javax.inject.Singleton
 
 /**
@@ -29,4 +31,10 @@ abstract class InfrastructureModule {
     abstract fun bindPlaylistRepository(
         impl: WearPlaylistRepositoryImpl
     ): PlaylistRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindStreamingRepository(
+        impl: WearStreamingRepository
+    ): StreamingRepository
 }
