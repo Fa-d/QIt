@@ -33,7 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dev.sadakat.qit.presentation.viewmodel.MusicLibraryViewModel
-import dev.sadakat.qit.shared.model.Song
+import dev.sadakat.qit.shared.domain.entity.Song
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

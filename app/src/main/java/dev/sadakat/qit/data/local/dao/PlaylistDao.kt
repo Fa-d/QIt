@@ -16,6 +16,9 @@ interface PlaylistDao {
     @Query("SELECT * FROM playlists WHERE id = :playlistId")
     fun observePlaylistById(playlistId: String): Flow<PlaylistEntity?>
 
+    @Query("SELECT * FROM playlists WHERE name LIKE :query OR description LIKE :query ORDER BY updatedAt DESC")
+    fun searchPlaylists(query: String): Flow<List<PlaylistEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlaylist(playlist: PlaylistEntity)
 
@@ -26,10 +29,10 @@ interface PlaylistDao {
     suspend fun updatePlaylist(playlist: PlaylistEntity)
 
     @Delete
-    suspend fun deletePlaylist(playlist: PlaylistEntity)
+    suspend fun deletePlaylistEntity(playlist: PlaylistEntity)
 
     @Query("DELETE FROM playlists WHERE id = :playlistId")
-    suspend fun deletePlaylistById(playlistId: String)
+    suspend fun deletePlaylist(playlistId: String)
 
     @Query("DELETE FROM playlists")
     suspend fun deleteAllPlaylists()

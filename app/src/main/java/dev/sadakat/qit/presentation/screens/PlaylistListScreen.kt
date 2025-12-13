@@ -37,7 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dev.sadakat.qit.presentation.viewmodel.PlaylistViewModel
-import dev.sadakat.qit.shared.model.Playlist
+import dev.sadakat.qit.shared.domain.entity.Playlist
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,8 +93,8 @@ fun PlaylistListScreen(
                     items(playlists) { playlist ->
                         PlaylistItem(
                             playlist = playlist,
-                            onClick = { viewModel.selectPlaylist(playlist.id) },
-                            onDelete = { viewModel.deletePlaylist(playlist.id) }
+                            onClick = { viewModel.selectPlaylist(playlist.id.value) },
+                            onDelete = { viewModel.deletePlaylist(playlist.id.value) }
                         )
                     }
                 }
@@ -144,7 +144,7 @@ fun PlaylistItem(
                         )
                     }
                     Text(
-                        text = "${playlist.songIds.size} songs",
+                        text = "${playlist.songCount()} songs",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

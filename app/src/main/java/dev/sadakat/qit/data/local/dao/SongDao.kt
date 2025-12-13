@@ -16,6 +16,9 @@ interface SongDao {
     @Query("SELECT * FROM songs WHERE id = :songId")
     fun observeSongById(songId: String): Flow<SongEntity?>
 
+    @Query("SELECT * FROM songs WHERE id = :songId")
+    fun observeSong(songId: String): Flow<SongEntity?>
+
     @Query("SELECT * FROM songs WHERE id IN (:songIds)")
     suspend fun getSongsByIds(songIds: List<String>): List<SongEntity>
 
@@ -27,6 +30,9 @@ interface SongDao {
 
     @Query("SELECT * FROM songs WHERE album = :album ORDER BY title ASC")
     fun getSongsByAlbum(album: String): Flow<List<SongEntity>>
+
+    @Query("SELECT * FROM songs WHERE title LIKE :query OR artist LIKE :query OR album LIKE :query ORDER BY title ASC")
+    fun searchSongs(query: String): Flow<List<SongEntity>>
 
     @Query("SELECT * FROM songs WHERE isDownloadedOnWatch = 1")
     fun getDownloadedSongs(): Flow<List<SongEntity>>
@@ -44,10 +50,10 @@ interface SongDao {
     suspend fun updateDownloadStatus(songId: String, isDownloaded: Boolean)
 
     @Delete
-    suspend fun deleteSong(song: SongEntity)
+    suspend fun deleteSongEntity(song: SongEntity)
 
     @Query("DELETE FROM songs WHERE id = :songId")
-    suspend fun deleteSongById(songId: String)
+    suspend fun deleteSong(songId: String)
 
     @Query("DELETE FROM songs")
     suspend fun deleteAllSongs()

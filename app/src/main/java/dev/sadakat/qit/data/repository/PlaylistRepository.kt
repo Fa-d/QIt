@@ -18,7 +18,7 @@ class PlaylistRepository(
 ) {
 
     /**
-     * Get all playlists
+     * Get a ll playlists
      */
     fun getAllPlaylists(): Flow<List<Playlist>> {
         return playlistDao.getAllPlaylists().map { entities ->
@@ -173,7 +173,7 @@ class PlaylistRepository(
      * Delete a playlist
      */
     suspend fun deletePlaylist(playlistId: String) {
-        playlistDao.deletePlaylistById(playlistId)
+        playlistDao.deletePlaylist(playlistId)
     }
 
     /**

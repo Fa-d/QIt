@@ -3,21 +3,22 @@ package dev.sadakat.qit.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.sadakat.qit.data.repository.MusicRepository
-import dev.sadakat.qit.data.repository.PlaylistRepository
-import dev.sadakat.qit.data.repository.WatchSyncRepository
+import dev.sadakat.qit.application.usecase.sync.SyncAllToWatchUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * ViewModel for Watch synchronization
+ * Uses use cases following Clean Architecture
+ */
 @HiltViewModel
 class WatchSyncViewModel @Inject constructor(
-    private val watchSyncRepository: WatchSyncRepository,
-    private val playlistRepository: PlaylistRepository,
-    private val musicRepository: MusicRepository
+    private val syncAllToWatchUseCase: SyncAllToWatchUseCase
+    // TODO: Add CheckWatchConnectionUseCase when created
+    // TODO: Add ObserveWatchConnectionUseCase when created (or make CheckWatchConnectionUseCase return a Flow)
 ) : ViewModel() {
 
     private val _isWatchConnected = MutableStateFlow(false)
@@ -28,59 +29,41 @@ class WatchSyncViewModel @Inject constructor(
 
     init {
         checkWatchConnection()
+        observeWatchConnection()
     }
 
     fun checkWatchConnection() {
         viewModelScope.launch {
-            val isConnected = watchSyncRepository.isWatchConnected()
-            _isWatchConnected.value = isConnected
+            // TODO: Implement with CheckWatchConnectionUseCase when available
+            // For now, this functionality is temporarily disabled
+            // val result = checkWatchConnectionUseCase()
+            // _isWatchConnected.value = result.getOrDefault(false)
+        }
+    }
+
+    private fun observeWatchConnection() {
+        viewModelScope.launch {
+            // TODO: Implement with ObserveWatchConnectionUseCase when available
+            // This should return a Flow<Boolean> that can be collected
+            // observeWatchConnectionUseCase().collect { isConnected ->
+            //     _isWatchConnected.value = isConnected
+            // }
         }
     }
 
     fun syncPlaylistsToWatch() {
         viewModelScope.launch {
             _syncStatus.value = SyncStatus.Syncing
-            try {
-                // Get all playlists
-                val playlists = playlistRepository.getAllPlaylists().first()
-                val result = watchSyncRepository.syncPlaylistsToWatch(playlists)
 
-                // Also sync all songs metadata
-                val songs = musicRepository.getAllSongs().first()
-                watchSyncRepository.syncSongsToWatch(songs)
+            val result = syncAllToWatchUseCase()
 
-                _syncStatus.value = if (result.isSuccess) {
-                    SyncStatus.Success("Playlists synced successfully")
-                } else {
-                    SyncStatus.Error(result.exceptionOrNull()?.message ?: "Sync failed")
-                }
-            } catch (e: Exception) {
-                _syncStatus.value = SyncStatus.Error(e.message ?: "Sync failed")
-            }
-        }
-    }
-
-    fun sendSongToWatch(songId: String) {
-        viewModelScope.launch {
-            _syncStatus.value = SyncStatus.Syncing
-            try {
-                // Get the song details
-                val songs = musicRepository.getAllSongs().first()
-                val song = songs.find { it.id == songId }
-                val filePath = song?.filePath
-
-                if (filePath != null) {
-                    val result = watchSyncRepository.sendAudioFileToWatch(songId, filePath)
-                    _syncStatus.value = if (result.isSuccess) {
-                        SyncStatus.Success("Song sent to watch")
-                    } else {
-                        SyncStatus.Error(result.exceptionOrNull()?.message ?: "Send failed")
-                    }
-                } else {
-                    _syncStatus.value = SyncStatus.Error("Song file not found")
-                }
-            } catch (e: Exception) {
-                _syncStatus.value = SyncStatus.Error(e.message ?: "Send failed")
+            _syncStatus.value = if (result.isSuccess) {
+                val syncResult = result.getOrNull()!!
+                SyncStatus.Success(
+                    "Synced ${syncResult.playlistsSynced} playlists, ${syncResult.songsSynced} songs"
+                )
+            } else {
+                SyncStatus.Error(result.exceptionOrNull()?.message ?: "Sync failed")
             }
         }
     }

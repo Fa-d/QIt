@@ -3,17 +3,23 @@ package dev.sadakat.qit.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.sadakat.qit.data.repository.MusicRepository
-import dev.sadakat.qit.shared.model.Song
+import dev.sadakat.qit.application.usecase.music.GetAllSongsUseCase
+import dev.sadakat.qit.application.usecase.music.ScanMusicLibraryUseCase
+import dev.sadakat.qit.shared.domain.entity.Song
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * ViewModel for Music Library screen
+ * Uses use cases following Clean Architecture principles
+ */
 @HiltViewModel
 class MusicLibraryViewModel @Inject constructor(
-    private val musicRepository: MusicRepository
+    private val scanMusicLibraryUseCase: ScanMusicLibraryUseCase,
+    private val getAllSongsUseCase: GetAllSongsUseCase
 ) : ViewModel() {
 
     private val _songs = MutableStateFlow<List<Song>>(emptyList())
@@ -31,7 +37,7 @@ class MusicLibraryViewModel @Inject constructor(
 
     fun loadSongs() {
         viewModelScope.launch {
-            musicRepository.getAllSongs().collect { songs ->
+            getAllSongsUseCase().collect { songs ->
                 _songs.value = songs
             }
         }
@@ -40,11 +46,11 @@ class MusicLibraryViewModel @Inject constructor(
     fun scanMusicLibrary() {
         viewModelScope.launch {
             _isScanning.value = true
-            val result = musicRepository.scanMusicLibrary()
+            val result = scanMusicLibraryUseCase()
             _isScanning.value = false
 
             _scanResult.value = if (result.isSuccess) {
-                ScanResult.Success(result.getOrDefault(0))
+                ScanResult.Success(result.getOrNull()?.size ?: 0)
             } else {
                 ScanResult.Error(result.exceptionOrNull()?.message ?: "Unknown error")
             }

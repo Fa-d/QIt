@@ -90,6 +90,12 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
+    // DataStore
+    implementation(libs.datastore.preferences)
+
+    // Serialization
+    implementation(libs.kotlinx.serialization.json)
+
     // Testing
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

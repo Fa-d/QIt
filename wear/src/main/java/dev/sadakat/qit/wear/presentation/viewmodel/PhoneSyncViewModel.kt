@@ -3,7 +3,9 @@ package dev.sadakat.qit.wear.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.sadakat.qit.wear.data.repository.PhoneSyncRepository
+import dev.sadakat.qit.shared.domain.entity.SongId
+import dev.sadakat.qit.wear.application.usecase.download.DownloadSongUseCase
+import dev.sadakat.qit.wear.application.usecase.sync.RequestPlaylistSyncUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,7 +14,11 @@ import javax.inject.Inject
 
 @HiltViewModel
 class PhoneSyncViewModel @Inject constructor(
-    private val phoneSyncRepository: PhoneSyncRepository
+    private val requestPlaylistSyncUseCase: RequestPlaylistSyncUseCase,
+    private val downloadSongUseCase: DownloadSongUseCase
+    // TODO: Add CheckPhoneConnectionUseCase when created
+    // TODO: Add RequestSongSyncUseCase when created
+    // TODO: Add SendPlaybackCommandUseCase when created
 ) : ViewModel() {
 
     private val _isPhoneConnected = MutableStateFlow(false)
@@ -30,15 +36,17 @@ class PhoneSyncViewModel @Inject constructor(
 
     fun checkPhoneConnection() {
         viewModelScope.launch {
-            val isConnected = phoneSyncRepository.isPhoneConnected()
-            _isPhoneConnected.value = isConnected
+            // TODO: Implement with CheckPhoneConnectionUseCase when available
+            // For now, this functionality is temporarily disabled
+            // val result = checkPhoneConnectionUseCase()
+            // _isPhoneConnected.value = result.getOrDefault(false)
         }
     }
 
     fun requestPlaylistSync() {
         viewModelScope.launch {
             _syncStatus.value = SyncStatus.Syncing
-            val result = phoneSyncRepository.requestPlaylistSync()
+            val result = requestPlaylistSyncUseCase()
             _syncStatus.value = if (result.isSuccess) {
                 SyncStatus.Success("Playlists synced")
             } else {
@@ -50,19 +58,20 @@ class PhoneSyncViewModel @Inject constructor(
     fun requestSongSync() {
         viewModelScope.launch {
             _syncStatus.value = SyncStatus.Syncing
-            val result = phoneSyncRepository.requestSongSync()
-            _syncStatus.value = if (result.isSuccess) {
-                SyncStatus.Success("Songs synced")
-            } else {
-                SyncStatus.Error(result.exceptionOrNull()?.message ?: "Sync failed")
-            }
+            // TODO: Implement with RequestSongSyncUseCase when available
+            // val result = requestSongSyncUseCase()
+            // _syncStatus.value = if (result.isSuccess) {
+            //     SyncStatus.Success("Songs synced")
+            // } else {
+            //     SyncStatus.Error(result.exceptionOrNull()?.message ?: "Sync failed")
+            // }
         }
     }
 
     fun requestSongDownload(songId: String) {
         viewModelScope.launch {
             _downloadStatus.value = DownloadStatus.Downloading(songId, 0f)
-            val result = phoneSyncRepository.requestSongDownload(songId)
+            val result = downloadSongUseCase(SongId(songId))
             _downloadStatus.value = if (result.isSuccess) {
                 DownloadStatus.Success(songId)
             } else {
@@ -73,7 +82,8 @@ class PhoneSyncViewModel @Inject constructor(
 
     fun sendPlaybackCommand(command: String, songId: String? = null) {
         viewModelScope.launch {
-            phoneSyncRepository.sendPlaybackCommand(command, songId)
+            // TODO: Implement with SendPlaybackCommandUseCase when available
+            // sendPlaybackCommandUseCase(SendPlaybackCommandUseCase.Params(command, songId?.let { SongId(it) }))
         }
     }
 

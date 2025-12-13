@@ -3,18 +3,28 @@ package dev.sadakat.qit.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.sadakat.qit.data.repository.PlaylistRepository
-import dev.sadakat.qit.shared.model.Playlist
-import dev.sadakat.qit.shared.model.Song
+import dev.sadakat.qit.application.usecase.playlist.*
+import dev.sadakat.qit.shared.domain.entity.Playlist
+import dev.sadakat.qit.shared.domain.entity.PlaylistId
+import dev.sadakat.qit.shared.domain.entity.Song
+import dev.sadakat.qit.shared.domain.entity.SongId
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * ViewModel for Playlist management
+ * Uses use cases following Clean Architecture
+ */
 @HiltViewModel
 class PlaylistViewModel @Inject constructor(
-    private val playlistRepository: PlaylistRepository
+    private val getAllPlaylistsUseCase: GetAllPlaylistsUseCase,
+    private val getPlaylistWithSongsUseCase: GetPlaylistWithSongsUseCase,
+    private val createPlaylistUseCase: CreatePlaylistUseCase,
+    private val deletePlaylistUseCase: DeletePlaylistUseCase,
+    private val addSongToPlaylistUseCase: AddSongToPlaylistUseCase
 ) : ViewModel() {
 
     private val _playlists = MutableStateFlow<List<Playlist>>(emptyList())
@@ -32,7 +42,7 @@ class PlaylistViewModel @Inject constructor(
 
     fun loadPlaylists() {
         viewModelScope.launch {
-            playlistRepository.getAllPlaylists().collect { playlists ->
+            getAllPlaylistsUseCase().collect { playlists ->
                 _playlists.value = playlists
             }
         }
@@ -40,43 +50,40 @@ class PlaylistViewModel @Inject constructor(
 
     fun selectPlaylist(playlistId: String) {
         viewModelScope.launch {
-            val playlist = playlistRepository.getPlaylistById(playlistId)
-            _selectedPlaylist.value = playlist
+            val result = getPlaylistWithSongsUseCase(PlaylistId.from(playlistId))
 
-            playlist?.let {
-                playlistRepository.getPlaylistWithSongs(playlistId).collect { songs ->
-                    _playlistSongs.value = songs
-                }
+            result.onSuccess { (playlist, songs) ->
+                _selectedPlaylist.value = playlist
+                _playlistSongs.value = songs
             }
         }
     }
 
     fun createPlaylist(name: String, description: String? = null) {
         viewModelScope.launch {
-            val playlist = Playlist(
-                id = System.currentTimeMillis().toString(),
-                name = name,
-                description = description
+            createPlaylistUseCase(
+                CreatePlaylistUseCase.Params(
+                    name = name,
+                    description = description
+                )
             )
-            playlistRepository.insertPlaylist(playlist)
         }
     }
 
     fun deletePlaylist(playlistId: String) {
         viewModelScope.launch {
-            playlistRepository.deletePlaylist(playlistId)
+            deletePlaylistUseCase(PlaylistId.from(playlistId))
         }
     }
 
     fun addSongToPlaylist(playlistId: String, songId: String) {
         viewModelScope.launch {
-            playlistRepository.addSongToPlaylist(playlistId, songId)
-        }
-    }
-
-    fun removeSongFromPlaylist(playlistId: String, songId: String) {
-        viewModelScope.launch {
-            playlistRepository.removeSongFromPlaylist(playlistId, songId)
+            addSongToPlaylistUseCase(
+                AddSongToPlaylistUseCase.Params(
+                    playlistId = PlaylistId.from(playlistId),
+                    songId = SongId.from(songId)
+                )
+            )
         }
     }
 }
