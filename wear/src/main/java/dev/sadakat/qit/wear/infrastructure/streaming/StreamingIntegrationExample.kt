@@ -2,7 +2,9 @@ package dev.sadakat.qit.wear.infrastructure.streaming
 
 import android.content.Context
 import android.net.Uri
+import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import dev.sadakat.qit.shared.domain.entity.SongId
@@ -20,6 +22,7 @@ import kotlinx.coroutines.launch
  *
  * NOTE: This is an example/reference file, not production code.
  */
+@OptIn(UnstableApi::class)
 @Suppress("unused")
 class StreamingIntegrationExample(
     private val context: Context,

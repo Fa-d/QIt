@@ -1,6 +1,7 @@
 package dev.sadakat.qit.wear.infrastructure.download
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -148,21 +149,21 @@ class DownloadWorker @AssistedInject constructor(
     }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Downloads",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Song download notifications"
-                setShowBadge(false)
-            }
-
-            val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
+        // minSdk is 26, so O check is always true
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            "Downloads",
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = "Song download notifications"
+            setShowBadge(false)
         }
+
+        val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.createNotificationChannel(channel)
     }
 
+    @SuppressLint("MissingPermission", "NotificationPermission")
     private fun showNotification(
         songId: String,
         progress: Int,

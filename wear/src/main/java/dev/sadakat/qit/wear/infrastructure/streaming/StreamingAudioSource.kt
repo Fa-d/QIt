@@ -2,7 +2,9 @@ package dev.sadakat.qit.wear.infrastructure.streaming
 
 import android.net.Uri
 import android.util.Log
+import androidx.annotation.OptIn
 import androidx.media3.common.C
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
@@ -12,6 +14,7 @@ import kotlinx.coroutines.runBlocking
  * Custom ExoPlayer DataSource that reads from streaming buffer
  * Provides audio data from phone stream to ExoPlayer for playback
  */
+@OptIn(UnstableApi::class)
 class StreamingAudioSource(
     private val audioBuffer: StreamingAudioBuffer,
     private val minimumBufferBytes: Int = MIN_BUFFER_BYTES
