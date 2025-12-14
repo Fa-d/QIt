@@ -1,8 +1,12 @@
 package dev.sadakat.qit.wear.service
 
 import android.content.Context
+import android.util.Log
 import com.google.android.gms.wearable.ChannelClient
+import com.google.android.gms.wearable.DataClient
+import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
+import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
@@ -19,6 +23,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -36,10 +41,38 @@ class PhoneDataService : WearableListenerService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val database by lazy { WearMusicDatabase.getDatabase(this) }
     private val channelClient by lazy { Wearable.getChannelClient(this) }
+    private val dataClient by lazy { Wearable.getDataClient(this) }
 
     override fun onDataChanged(dataEvents: DataEventBuffer) {
         super.onDataChanged(dataEvents)
-        // TODO: Handle data sync from phone if using DataClient
+        dataEvents.forEach { event ->
+            if (event.type == DataEvent.TYPE_CHANGED && event.dataItem != null) {
+                try {
+                    val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
+                    val path = event.dataItem.uri.path
+
+                    when (path) {
+                        WearPaths.PLAYLISTS_DATA -> {
+                            val playlistJson = dataMap.getString("data")
+                            if (playlistJson != null) {
+                                handlePlaylistDataSync(playlistJson)
+                            }
+                        }
+                        WearPaths.SONGS_DATA -> {
+                            val songJson = dataMap.getString("data")
+                            if (songJson != null) {
+                                handleSongDataSync(songJson)
+                            }
+                        }
+                        WearPaths.SETTINGS_DATA -> {
+                            // Handle settings sync if needed
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
     }
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
@@ -194,6 +227,35 @@ class PhoneDataService : WearableListenerService() {
                 "previous" -> playbackManager.skipToPrevious()
             }
         }
+    }
+
+    private fun handlePlaylistDataSync(playlistJson: String) {
+        serviceScope.launch {
+            try {
+                // TODO: Implement JSON parsing once kotlinx.serialization plugin is added
+                // For now, this is a placeholder that logs the received data
+                Log.d("PhoneDataService", "Received playlist sync data")
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun handleSongDataSync(songJson: String) {
+        serviceScope.launch {
+            try {
+                // TODO: Implement JSON parsing once kotlinx.serialization plugin is added
+                // For now, this is a placeholder that logs the received data
+                Log.d("PhoneDataService", "Received song sync data")
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun handleSyncMetadataUpdate(timestamp: Long) {
+        // Update last sync timestamp in local storage or preferences
+        // This could be used to track when the last successful sync occurred
     }
 
     override fun onDestroy() {

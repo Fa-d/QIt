@@ -205,8 +205,7 @@ fun DownloadsScreen(
                 item {
                     Button(
                         onClick = {
-                            // TODO: Implement clear all downloads
-                            // This would require a new use case
+                            downloadViewModel.clearAllDownloads()
                         },
                         modifier = Modifier
                             .fillMaxWidth()

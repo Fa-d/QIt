@@ -33,6 +33,7 @@ class WearStreamingRepository @Inject constructor(
     private val audioBuffer = StreamingAudioBuffer()
     private var streamingJob: Job? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var currentRequestedQuality: AudioQuality? = null
 
     // Listener for incoming channels
     private val channelCallback = object : ChannelClient.ChannelCallback() {
@@ -97,6 +98,9 @@ class WearStreamingRepository @Inject constructor(
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Requesting stream from phone: songId=$songId, quality=$quality")
+
+            // Store the requested quality for when the stream starts
+            currentRequestedQuality = quality
 
             // Clear any previous stream
             stopStreaming(songId)
@@ -223,11 +227,12 @@ class WearStreamingRepository @Inject constructor(
                         // Once we have enough buffered, mark as streaming
                         if (availableBytes >= targetBufferBytes &&
                             _streamingStatus.value is StreamingStatus.Buffering) {
+                            val actualQuality = currentRequestedQuality ?: AudioQuality.MEDIUM
                             _streamingStatus.value = StreamingStatus.Streaming(
                                 songId,
-                                AudioQuality.MEDIUM // TODO: Pass actual quality from request
+                                actualQuality
                             )
-                            Log.d(TAG, "Buffer ready, starting playback")
+                            Log.d(TAG, "Buffer ready, starting playback with quality: $actualQuality")
                         }
                     }
                 }

@@ -113,10 +113,8 @@ class PlaybackViewModel @Inject constructor(
      * Note: This is now private - use playSong() instead for proper use case handling
      */
     private fun playLocalSong(song: Song) {
-        // Convert domain Song to model Song for PlaybackManager
-        // TODO: Update PlaybackManager to use domain entities
-        val modelSong = convertToModelSong(song)
-        playbackManager.playLocalSong(modelSong)
+        // PlaybackManager now uses domain entities directly
+        playbackManager.playLocalSong(song)
     }
 
     /**
@@ -141,14 +139,12 @@ class PlaybackViewModel @Inject constructor(
                     )
 
                     if (result.isSuccess) {
-                        // Convert domain Song to model Song for PlaybackManager
-                        val modelSong = convertToModelSong(song)
-
                         // Create a custom URI that will be handled by a custom DataSource
                         val streamUri = android.net.Uri.parse("streaming://phone/${song.id.value}")
                         currentStreamUri = streamUri
 
-                        playbackManager.playStreamedSong(modelSong, streamUri)
+                        // PlaybackManager now uses domain entities directly
+                        playbackManager.playStreamedSong(song, streamUri)
                     } else {
                         _errorMessage.value = "Failed to start streaming: ${result.exceptionOrNull()?.message}"
                     }
@@ -161,10 +157,9 @@ class PlaybackViewModel @Inject constructor(
                     )
 
                     if (result.isSuccess) {
-                        val modelSong = convertToModelSong(song)
                         val streamUri = android.net.Uri.parse("streaming://phone/${song.id.value}")
                         currentStreamUri = streamUri
-                        playbackManager.playStreamedSong(modelSong, streamUri)
+                        playbackManager.playStreamedSong(song, streamUri)
                     } else {
                         _errorMessage.value = "Failed to start progressive streaming: ${result.exceptionOrNull()?.message}"
                     }
@@ -174,29 +169,6 @@ class PlaybackViewModel @Inject constructor(
                 }
             }
         }
-    }
-
-    /**
-     * Temporary converter until PlaybackManager is updated to use domain entities
-     */
-    private fun convertToModelSong(domainSong: Song): dev.sadakat.qit.shared.model.Song {
-        val watchFilePath = (domainSong.downloadStatus as? DownloadStatus.Downloaded)?.localPath
-        return dev.sadakat.qit.shared.model.Song(
-            id = domainSong.id.value,
-            title = domainSong.title,
-            artist = domainSong.artist,
-            album = domainSong.album,
-            duration = domainSong.duration.milliseconds,
-            filePath = domainSong.filePath ?: "",
-            uri = domainSong.uri,
-            coverArtUri = domainSong.coverArtUri,
-            isDownloadedOnWatch = domainSong.isAvailableOnWatch(),
-            watchFilePath = watchFilePath,
-            fileSize = domainSong.fileSize.bytes,
-            mimeType = domainSong.mimeType,
-            bitrate = domainSong.bitrate,
-            dateAdded = domainSong.dateAdded
-        )
     }
 
     fun togglePlayPause() {
@@ -228,8 +200,8 @@ class PlaybackViewModel @Inject constructor(
     }
 
     fun setPlaylist(songs: List<Song>, startIndex: Int = 0) {
-        val modelSongs = songs.map { convertToModelSong(it) }
-        playbackManager.setPlaylist(modelSongs, startIndex)
+        // PlaybackManager now uses domain entities directly
+        playbackManager.setPlaylist(songs, startIndex)
     }
 
     fun updatePlaybackPosition() {

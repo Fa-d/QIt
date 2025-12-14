@@ -7,6 +7,7 @@ import dev.sadakat.qit.shared.domain.entity.Song
 import dev.sadakat.qit.shared.domain.entity.SongId
 import dev.sadakat.qit.shared.domain.valueobject.DownloadStatus
 import dev.sadakat.qit.wear.application.usecase.download.CancelDownloadUseCase
+import dev.sadakat.qit.wear.application.usecase.download.ClearAllDownloadsUseCase
 import dev.sadakat.qit.wear.application.usecase.download.DownloadSongUseCase
 import dev.sadakat.qit.wear.application.usecase.download.GetDownloadedSongsUseCase
 import dev.sadakat.qit.wear.application.usecase.storage.GetStorageInfoUseCase
@@ -26,7 +27,8 @@ class DownloadViewModel @Inject constructor(
     private val downloadSongUseCase: DownloadSongUseCase,
     private val cancelDownloadUseCase: CancelDownloadUseCase,
     private val getDownloadedSongsUseCase: GetDownloadedSongsUseCase,
-    private val getStorageInfoUseCase: GetStorageInfoUseCase
+    private val getStorageInfoUseCase: GetStorageInfoUseCase,
+    private val clearAllDownloadsUseCase: ClearAllDownloadsUseCase
 ) : ViewModel() {
 
     private val _downloadedSongs = MutableStateFlow<List<Song>>(emptyList())
@@ -137,6 +139,34 @@ class DownloadViewModel @Inject constructor(
      */
     fun retryDownload(songId: SongId) {
         startDownload(songId)
+    }
+
+    /**
+     * Clears all downloaded songs from the watch
+     */
+    fun clearAllDownloads() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _downloadError.value = null
+
+            clearAllDownloadsUseCase()
+                .onSuccess { clearedCount ->
+                    _downloadError.value = if (clearedCount > 0) {
+                        "Cleared $clearedCount downloads"
+                    } else {
+                        "No downloads to clear"
+                    }
+                    // Refresh the downloaded songs list
+                    loadDownloadedSongs()
+                    // Refresh storage info
+                    loadStorageInfo()
+                }
+                .onFailure { error ->
+                    _downloadError.value = error.message ?: "Failed to clear downloads"
+                }
+
+            _isLoading.value = false
+        }
     }
 
     /**

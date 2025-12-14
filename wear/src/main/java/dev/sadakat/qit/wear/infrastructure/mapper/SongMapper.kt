@@ -29,10 +29,10 @@ object SongMapper {
             duration = Duration.fromMilliseconds(entity.duration),
             filePath = null, // Wear doesn't have phone file path
             uri = null, // Wear doesn't have phone URI
-            coverArtUri = null, // TODO: Add cover art support later
+            coverArtUri = entity.coverArtUri,
             fileSize = FileSize.fromBytes(entity.fileSize),
-            mimeType = null, // TODO: Add mime type if needed
-            bitrate = 0, // Wear doesn't track bitrate
+            mimeType = entity.mimeType,
+            bitrate = entity.bitrate,
             dateAdded = entity.dateAdded,
             downloadStatus = downloadStatus
         )
@@ -55,7 +55,10 @@ object SongMapper {
             isDownloaded = isDownloaded,
             fileSize = song.fileSize.bytes,
             downloadProgress = progress,
-            dateAdded = song.dateAdded
+            dateAdded = song.dateAdded,
+            coverArtUri = song.coverArtUri,
+            mimeType = song.mimeType,
+            bitrate = song.bitrate
         )
     }
 

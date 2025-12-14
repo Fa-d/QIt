@@ -20,7 +20,10 @@ data class SongEntity(
     val isDownloaded: Boolean = false,
     val fileSize: Long = 0L,
     val downloadProgress: Float = 0f,
-    val dateAdded: Long = System.currentTimeMillis()
+    val dateAdded: Long = System.currentTimeMillis(),
+    val coverArtUri: String? = null, // URI for cover art image
+    val mimeType: String? = null, // MIME type of the audio file
+    val bitrate: Int = 0 // Bitrate of the audio file
 ) {
     fun toSong(): Song {
         return Song(
@@ -31,12 +34,12 @@ data class SongEntity(
             duration = duration,
             filePath = null,
             uri = null,
-            coverArtUri = null,
+            coverArtUri = coverArtUri,
             isDownloadedOnWatch = isDownloaded,
             watchFilePath = localFilePath,
             fileSize = fileSize,
-            mimeType = null,
-            bitrate = 0,
+            mimeType = mimeType,
+            bitrate = bitrate,
             dateAdded = dateAdded
         )
     }
@@ -58,10 +61,10 @@ data class SongEntity(
             duration = Duration.fromMilliseconds(duration),
             filePath = null,
             uri = null,
-            coverArtUri = null,
+            coverArtUri = coverArtUri,
             fileSize = FileSize.fromBytes(fileSize),
-            mimeType = null,
-            bitrate = 0,
+            mimeType = mimeType,
+            bitrate = bitrate,
             dateAdded = dateAdded,
             downloadStatus = downloadStatus
         )
@@ -78,7 +81,10 @@ data class SongEntity(
                 localFilePath = song.watchFilePath,
                 isDownloaded = song.isDownloadedOnWatch,
                 fileSize = song.fileSize,
-                dateAdded = song.dateAdded
+                dateAdded = song.dateAdded,
+                coverArtUri = song.coverArtUri,
+                mimeType = song.mimeType,
+                bitrate = song.bitrate
             )
         }
     }

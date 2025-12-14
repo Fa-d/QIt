@@ -2,13 +2,17 @@ package dev.sadakat.qit.wear.playback
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import dev.sadakat.qit.shared.domain.entity.Song
 import dev.sadakat.qit.shared.domain.entity.SongId
 import dev.sadakat.qit.shared.domain.repository.StreamingRepository
 import dev.sadakat.qit.shared.domain.repository.StreamingStatus
-import dev.sadakat.qit.shared.model.Song
+import dev.sadakat.qit.shared.domain.valueobject.DownloadStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,6 +34,10 @@ class PlaybackManager @Inject constructor(
     private val streamingRepository: StreamingRepository,
     private val coroutineScope: CoroutineScope
 ) {
+
+    companion object {
+        private const val TAG = "PlaybackManager"
+    }
 
     private val _player: ExoPlayer by lazy {
         ExoPlayer.Builder(context).build().apply {
@@ -116,13 +124,30 @@ class PlaybackManager @Inject constructor(
         stopStreamingMonitor()
         currentPlaybackMode = PlaybackMode.Local
 
-        val filePath = song.watchFilePath ?: return
-        val file = File(filePath)
-        if (!file.exists()) return
+        // Check if song is downloaded on watch
+        val downloadStatus = song.downloadStatus
+        if (downloadStatus !is DownloadStatus.Downloaded) {
+            Log.e(TAG, "Song is not downloaded on watch")
+            return
+        }
+
+        val localPath = downloadStatus.localPath ?: return
+        val file = File(localPath)
+        if (!file.exists()) {
+            Log.e(TAG, "Local file not found: $localPath")
+            return
+        }
 
         val mediaItem = MediaItem.Builder()
             .setUri(Uri.fromFile(file))
-            .setMediaId(song.id)
+            .setMediaId(song.id.value)
+            .setMediaMetadata(
+                androidx.media3.common.MediaMetadata.Builder()
+                    .setTitle(song.title)
+                    .setArtist(song.artist)
+                    .setAlbumTitle(song.album)
+                    .build()
+            )
             .build()
 
         _currentSong.value = song
@@ -142,7 +167,14 @@ class PlaybackManager @Inject constructor(
 
         val mediaItem = MediaItem.Builder()
             .setUri(streamUri)
-            .setMediaId(song.id)
+            .setMediaId(song.id.value)
+            .setMediaMetadata(
+                androidx.media3.common.MediaMetadata.Builder()
+                    .setTitle(song.title)
+                    .setArtist(song.artist)
+                    .setAlbumTitle(song.album)
+                    .build()
+            )
             .build()
 
         _player.setMediaItem(mediaItem)
@@ -153,6 +185,7 @@ class PlaybackManager @Inject constructor(
         startStreamingMonitor()
     }
 
+    
     /**
      * Switches between local and streamed playback
      * Preserves playback position when switching
@@ -242,17 +275,19 @@ class PlaybackManager @Inject constructor(
      */
     fun setPlaylist(songs: List<Song>, startIndex: Int = 0) {
         val mediaItems = songs.mapNotNull { song ->
-            song.watchFilePath?.let { filePath ->
-                val file = File(filePath)
+            val downloadStatus = song.downloadStatus
+            if (downloadStatus is DownloadStatus.Downloaded) {
+                val localPath = downloadStatus.localPath
+                val file = File(localPath)
                 if (file.exists()) {
                     MediaItem.Builder()
                         .setUri(Uri.fromFile(file))
-                        .setMediaId(song.id)
+                        .setMediaId(song.id.value)
                         .build()
                 } else {
                     null
                 }
-            }
+            } else null
         }
 
         if (mediaItems.isNotEmpty()) {
@@ -355,7 +390,7 @@ class PlaybackManager @Inject constructor(
 
                 val mediaItem = MediaItem.Builder()
                     .setUri(streamUri)
-                    .setMediaId(song.id)
+                    .setMediaId(song.id.value)
                     .build()
 
                 _player.setMediaItem(mediaItem)

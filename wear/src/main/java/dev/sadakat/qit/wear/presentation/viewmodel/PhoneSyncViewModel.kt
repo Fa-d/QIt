@@ -4,22 +4,29 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.shared.domain.entity.SongId
+import dev.sadakat.qit.wear.application.usecase.connection.CheckPhoneConnectionUseCase
+import dev.sadakat.qit.wear.application.usecase.connection.ObservePhoneConnectionUseCase
 import dev.sadakat.qit.wear.application.usecase.download.DownloadSongUseCase
+import dev.sadakat.qit.wear.application.usecase.playback.SendPlaybackCommandUseCase
 import dev.sadakat.qit.wear.application.usecase.sync.RequestPlaylistSyncUseCase
+import dev.sadakat.qit.wear.application.usecase.sync.RequestSongSyncUseCase
 import dev.sadakat.qit.wear.presentation.model.SyncStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class PhoneSyncViewModel @Inject constructor(
+    private val checkPhoneConnectionUseCase: CheckPhoneConnectionUseCase,
+    private val observePhoneConnectionUseCase: ObservePhoneConnectionUseCase,
     private val requestPlaylistSyncUseCase: RequestPlaylistSyncUseCase,
+    private val requestSongSyncUseCase: RequestSongSyncUseCase,
+    private val sendPlaybackCommandUseCase: SendPlaybackCommandUseCase,
     private val downloadSongUseCase: DownloadSongUseCase
-    // TODO: Add CheckPhoneConnectionUseCase when created
-    // TODO: Add RequestSongSyncUseCase when created
-    // TODO: Add SendPlaybackCommandUseCase when created
 ) : ViewModel() {
 
     private val _isPhoneConnected = MutableStateFlow(false)
@@ -39,15 +46,22 @@ class PhoneSyncViewModel @Inject constructor(
 
     init {
         checkPhoneConnection()
+        observePhoneConnection()
     }
 
     fun checkPhoneConnection() {
         viewModelScope.launch {
-            // TODO: Implement with CheckPhoneConnectionUseCase when available
-            // For now, this functionality is temporarily disabled
-            // val result = checkPhoneConnectionUseCase()
-            // _isPhoneConnected.value = result.getOrDefault(false)
+            val result = checkPhoneConnectionUseCase()
+            _isPhoneConnected.value = result.getOrDefault(false)
         }
+    }
+
+    private fun observePhoneConnection() {
+        observePhoneConnectionUseCase()
+            .onEach { isConnected ->
+                _isPhoneConnected.value = isConnected
+            }
+            .launchIn(viewModelScope)
     }
 
     fun requestPlaylistSync() {
@@ -92,13 +106,14 @@ class PhoneSyncViewModel @Inject constructor(
     fun requestSongSync() {
         viewModelScope.launch {
             _syncStatus.value = SyncStatus.Syncing
-            // TODO: Implement with RequestSongSyncUseCase when available
-            // val result = requestSongSyncUseCase()
-            // _syncStatus.value = if (result.isSuccess) {
-            //     SyncStatus.Success("Songs synced")
-            // } else {
-            //     SyncStatus.Error(result.exceptionOrNull()?.message ?: "Sync failed")
-            // }
+            val result = requestSongSyncUseCase()
+            _syncStatus.value = if (result.isSuccess) {
+                val timestamp = System.currentTimeMillis()
+                _lastSyncTime.value = timestamp
+                SyncStatus.Success(timestamp, itemCount = 0) // TODO: Get actual item count
+            } else {
+                SyncStatus.Error(result.exceptionOrNull()?.message ?: "Song sync failed")
+            }
         }
     }
 
@@ -116,8 +131,13 @@ class PhoneSyncViewModel @Inject constructor(
 
     fun sendPlaybackCommand(command: String, songId: String? = null) {
         viewModelScope.launch {
-            // TODO: Implement with SendPlaybackCommandUseCase when available
-            // sendPlaybackCommandUseCase(SendPlaybackCommandUseCase.Params(command, songId?.let { SongId(it) }))
+            val result = songId?.let {
+                sendPlaybackCommandUseCase(command, SongId(it))
+            } ?: sendPlaybackCommandUseCase(command)
+
+            if (result.isFailure) {
+                // Handle error - could emit error state if needed
+            }
         }
     }
 
