@@ -194,7 +194,7 @@ class RoomMusicRepository @Inject constructor(
         return try {
             val isDownloaded = downloadPath != null
             songDao.updateDownloadStatus(id.value, isDownloaded)
-            // TODO: Update watchFilePath as well
+            songDao.updateWatchFilePath(id.value, downloadPath)
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

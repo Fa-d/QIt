@@ -16,6 +16,7 @@ import dev.sadakat.qit.wear.data.local.dao.PlaylistDao
 import dev.sadakat.qit.wear.data.local.dao.SongDao
 import dev.sadakat.qit.wear.data.repository.PhoneSyncRepository
 import dev.sadakat.qit.wear.data.repository.PlaylistRepository
+import dev.sadakat.qit.wear.infrastructure.storage.StorageManager
 import javax.inject.Singleton
 
 @Module
@@ -39,6 +40,7 @@ object RepositoryModule {
         return PhoneSyncRepository(context)
     }
 
+    
     // Wearable API Clients
     @Provides
     @Singleton

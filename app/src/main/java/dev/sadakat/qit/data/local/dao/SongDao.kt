@@ -49,6 +49,9 @@ interface SongDao {
     @Query("UPDATE songs SET isDownloadedOnWatch = :isDownloaded WHERE id = :songId")
     suspend fun updateDownloadStatus(songId: String, isDownloaded: Boolean)
 
+    @Query("UPDATE songs SET watchFilePath = :watchFilePath WHERE id = :songId")
+    suspend fun updateWatchFilePath(songId: String, watchFilePath: String?)
+
     @Delete
     suspend fun deleteSongEntity(song: SongEntity)
 

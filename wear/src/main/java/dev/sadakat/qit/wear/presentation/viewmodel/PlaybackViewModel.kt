@@ -6,6 +6,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.shared.domain.entity.PlaylistId
 import dev.sadakat.qit.shared.domain.entity.Song
 import dev.sadakat.qit.shared.domain.entity.SongId
+import dev.sadakat.qit.shared.domain.repository.StreamingRepository
+import dev.sadakat.qit.shared.domain.valueobject.AudioQuality
 import dev.sadakat.qit.shared.domain.valueobject.DownloadStatus
 import dev.sadakat.qit.wear.application.usecase.playback.PlaySongUseCase
 import dev.sadakat.qit.wear.application.usecase.playback.PlaybackSource
@@ -20,7 +22,8 @@ import javax.inject.Inject
 @HiltViewModel
 class PlaybackViewModel @Inject constructor(
     private val playSongUseCase: PlaySongUseCase,
-    private val playbackManager: PlaybackManager
+    private val playbackManager: PlaybackManager,
+    private val streamingRepository: StreamingRepository
 ) : ViewModel() {
 
     // Note: currentSong type changed from shared.model.Song to domain.entity.Song
@@ -124,15 +127,53 @@ class PlaybackViewModel @Inject constructor(
         song: Song,
         strategy: dev.sadakat.qit.shared.domain.service.StreamingStrategy
     ) {
-        // Convert domain Song to model Song for PlaybackManager
-        val modelSong = convertToModelSong(song)
+        viewModelScope.launch {
+            when (strategy) {
+                is dev.sadakat.qit.shared.domain.service.StreamingStrategy.Local -> {
+                    // This shouldn't happen as playStreamedSong is only called for streaming
+                    _errorMessage.value = "Invalid strategy for streaming"
+                }
+                is dev.sadakat.qit.shared.domain.service.StreamingStrategy.RealTime -> {
+                    // Request stream from phone
+                    val result = streamingRepository.requestStreamFromPhone(
+                        songId = song.id,
+                        quality = strategy.quality
+                    )
 
-        // TODO: Get actual stream URI from streaming repository
-        // For now, we create a placeholder URI - this should be replaced with actual implementation
-        val streamUri = android.net.Uri.parse("streaming://phone/${song.id.value}")
-        currentStreamUri = streamUri
+                    if (result.isSuccess) {
+                        // Convert domain Song to model Song for PlaybackManager
+                        val modelSong = convertToModelSong(song)
 
-        playbackManager.playStreamedSong(modelSong, streamUri)
+                        // Create a custom URI that will be handled by a custom DataSource
+                        val streamUri = android.net.Uri.parse("streaming://phone/${song.id.value}")
+                        currentStreamUri = streamUri
+
+                        playbackManager.playStreamedSong(modelSong, streamUri)
+                    } else {
+                        _errorMessage.value = "Failed to start streaming: ${result.exceptionOrNull()?.message}"
+                    }
+                }
+                is dev.sadakat.qit.shared.domain.service.StreamingStrategy.Progressive -> {
+                    // Request stream from phone with progressive download
+                    val result = streamingRepository.requestStreamFromPhone(
+                        songId = song.id,
+                        quality = strategy.quality
+                    )
+
+                    if (result.isSuccess) {
+                        val modelSong = convertToModelSong(song)
+                        val streamUri = android.net.Uri.parse("streaming://phone/${song.id.value}")
+                        currentStreamUri = streamUri
+                        playbackManager.playStreamedSong(modelSong, streamUri)
+                    } else {
+                        _errorMessage.value = "Failed to start progressive streaming: ${result.exceptionOrNull()?.message}"
+                    }
+                }
+                is dev.sadakat.qit.shared.domain.service.StreamingStrategy.Unavailable -> {
+                    _errorMessage.value = "Streaming unavailable: ${strategy.reason}"
+                }
+            }
+        }
     }
 
     /**

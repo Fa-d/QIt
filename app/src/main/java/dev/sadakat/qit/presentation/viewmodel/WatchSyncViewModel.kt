@@ -3,6 +3,8 @@ package dev.sadakat.qit.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.sadakat.qit.application.usecase.connection.CheckWatchConnectionUseCase
+import dev.sadakat.qit.application.usecase.connection.ObserveWatchConnectionUseCase
 import dev.sadakat.qit.application.usecase.sync.SyncAllToWatchUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,9 +18,9 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class WatchSyncViewModel @Inject constructor(
-    private val syncAllToWatchUseCase: SyncAllToWatchUseCase
-    // TODO: Add CheckWatchConnectionUseCase when created
-    // TODO: Add ObserveWatchConnectionUseCase when created (or make CheckWatchConnectionUseCase return a Flow)
+    private val syncAllToWatchUseCase: SyncAllToWatchUseCase,
+    private val checkWatchConnectionUseCase: CheckWatchConnectionUseCase,
+    private val observeWatchConnectionUseCase: ObserveWatchConnectionUseCase
 ) : ViewModel() {
 
     private val _isWatchConnected = MutableStateFlow(false)
@@ -34,20 +36,16 @@ class WatchSyncViewModel @Inject constructor(
 
     fun checkWatchConnection() {
         viewModelScope.launch {
-            // TODO: Implement with CheckWatchConnectionUseCase when available
-            // For now, this functionality is temporarily disabled
-            // val result = checkWatchConnectionUseCase()
-            // _isWatchConnected.value = result.getOrDefault(false)
+            val result = checkWatchConnectionUseCase()
+            _isWatchConnected.value = result.getOrDefault(false)
         }
     }
 
     private fun observeWatchConnection() {
         viewModelScope.launch {
-            // TODO: Implement with ObserveWatchConnectionUseCase when available
-            // This should return a Flow<Boolean> that can be collected
-            // observeWatchConnectionUseCase().collect { isConnected ->
-            //     _isWatchConnected.value = isConnected
-            // }
+            observeWatchConnectionUseCase().collect { isConnected ->
+                _isWatchConnected.value = isConnected
+            }
         }
     }
 
