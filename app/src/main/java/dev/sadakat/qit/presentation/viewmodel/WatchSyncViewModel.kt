@@ -3,9 +3,10 @@ package dev.sadakat.qit.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.sadakat.qit.application.usecase.connection.CheckWatchConnectionUseCase
-import dev.sadakat.qit.application.usecase.connection.ObserveWatchConnectionUseCase
+import dev.sadakat.qit.application.usecase.connection.GetWatchAppStatusUseCase
+import dev.sadakat.qit.application.usecase.connection.ObserveWatchAppStatusUseCase
 import dev.sadakat.qit.application.usecase.sync.SyncAllToWatchUseCase
+import dev.sadakat.qit.shared.domain.valueobject.WatchAppStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,32 +20,34 @@ import javax.inject.Inject
 @HiltViewModel
 class WatchSyncViewModel @Inject constructor(
     private val syncAllToWatchUseCase: SyncAllToWatchUseCase,
-    private val checkWatchConnectionUseCase: CheckWatchConnectionUseCase,
-    private val observeWatchConnectionUseCase: ObserveWatchConnectionUseCase
+    private val getWatchAppStatusUseCase: GetWatchAppStatusUseCase,
+    private val observeWatchAppStatusUseCase: ObserveWatchAppStatusUseCase
 ) : ViewModel() {
 
-    private val _isWatchConnected = MutableStateFlow(false)
-    val isWatchConnected: StateFlow<Boolean> = _isWatchConnected.asStateFlow()
+    private val _watchAppStatus = MutableStateFlow<WatchAppStatus>(WatchAppStatus.notInstalled())
+    val watchAppStatus: StateFlow<WatchAppStatus> = _watchAppStatus.asStateFlow()
 
     private val _syncStatus = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
     val syncStatus: StateFlow<SyncStatus> = _syncStatus.asStateFlow()
 
     init {
-        checkWatchConnection()
-        observeWatchConnection()
+        refreshWatchStatus()
+        observeWatchStatus()
     }
 
-    fun checkWatchConnection() {
+    fun refreshWatchStatus() {
         viewModelScope.launch {
-            val result = checkWatchConnectionUseCase()
-            _isWatchConnected.value = result.getOrDefault(false)
+            val result = getWatchAppStatusUseCase()
+            result.onSuccess { status ->
+                _watchAppStatus.value = status
+            }
         }
     }
 
-    private fun observeWatchConnection() {
+    private fun observeWatchStatus() {
         viewModelScope.launch {
-            observeWatchConnectionUseCase().collect { isConnected ->
-                _isWatchConnected.value = isConnected
+            observeWatchAppStatusUseCase().collect { status ->
+                _watchAppStatus.value = status
             }
         }
     }

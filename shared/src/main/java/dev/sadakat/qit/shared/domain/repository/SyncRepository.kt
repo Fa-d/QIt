@@ -7,6 +7,7 @@ import dev.sadakat.qit.shared.domain.entity.SongId
 import dev.sadakat.qit.shared.domain.valueobject.AudioQuality
 import dev.sadakat.qit.shared.domain.valueobject.ChangeRecord
 import dev.sadakat.qit.shared.domain.valueobject.SyncMetadata
+import dev.sadakat.qit.shared.domain.valueobject.WatchAppStatus
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -53,6 +54,16 @@ interface SyncRepository {
      * Observes watch connection status
      */
     fun observeWatchConnection(): Flow<Boolean>
+
+    /**
+     * Gets detailed watch app status including installation, version, and diagnostics
+     */
+    suspend fun getWatchAppStatus(): Result<WatchAppStatus>
+
+    /**
+     * Observes watch app status changes reactively
+     */
+    fun observeWatchAppStatus(): Flow<WatchAppStatus>
 
     /**
      * Sends a playback command to watch

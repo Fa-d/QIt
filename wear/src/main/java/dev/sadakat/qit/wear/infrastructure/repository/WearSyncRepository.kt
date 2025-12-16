@@ -13,6 +13,7 @@ import dev.sadakat.qit.shared.domain.repository.SyncRepository
 import dev.sadakat.qit.shared.domain.valueobject.AudioQuality
 import dev.sadakat.qit.shared.domain.valueobject.ChangeRecord
 import dev.sadakat.qit.shared.domain.valueobject.SyncMetadata
+import dev.sadakat.qit.shared.domain.valueobject.WatchAppStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -173,6 +174,22 @@ class WearSyncRepository @Inject constructor(
         awaitClose {
             capabilityClient.removeListener(listener)
         }
+    }
+
+    /**
+     * Get watch app status - not applicable on watch side
+     */
+    override suspend fun getWatchAppStatus(): Result<WatchAppStatus> {
+        Log.d(TAG, "getWatchAppStatus not applicable on watch")
+        return Result.success(WatchAppStatus.notInstalled())
+    }
+
+    /**
+     * Observe watch app status - not applicable on watch side
+     */
+    override fun observeWatchAppStatus(): Flow<WatchAppStatus> = flow {
+        Log.d(TAG, "observeWatchAppStatus not applicable on watch")
+        emit(WatchAppStatus.notInstalled())
     }
 
     /**

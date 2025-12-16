@@ -18,6 +18,7 @@ object WearPaths {
     const val DOWNLOAD_COMPLETE = "/download/complete"
     const val PLAYBACK_COMMAND = "/playback/command"
     const val CONNECTION_STATUS = "/connection/status"
+    const val WATCH_VERSION_ANNOUNCEMENT = "/watch/version"
 
     // Channel paths for streaming large data
     const val AUDIO_STREAM = "/stream/audio/"

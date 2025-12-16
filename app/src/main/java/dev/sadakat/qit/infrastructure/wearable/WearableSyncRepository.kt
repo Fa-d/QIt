@@ -6,6 +6,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.android.gms.wearable.*
 import dev.sadakat.qit.shared.constants.WearPaths
@@ -18,8 +19,11 @@ import dev.sadakat.qit.shared.domain.repository.PlaylistRepository
 import dev.sadakat.qit.shared.domain.repository.SyncRepository
 import dev.sadakat.qit.shared.domain.valueobject.AudioQuality
 import dev.sadakat.qit.shared.domain.valueobject.ChangeRecord
+import dev.sadakat.qit.shared.domain.valueobject.ConnectionDiagnostics
 import dev.sadakat.qit.shared.domain.valueobject.EntityType
 import dev.sadakat.qit.shared.domain.valueobject.SyncMetadata
+import dev.sadakat.qit.shared.domain.valueobject.WatchAppStatus
+import dev.sadakat.qit.shared.domain.valueobject.WatchNode
 import dev.sadakat.qit.shared.dto.*
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -27,6 +31,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -50,6 +55,7 @@ class WearableSyncRepository @Inject constructor(
 
     private val json = Json { ignoreUnknownKeys = true }
     private val lastSyncKey = longPreferencesKey("last_sync_timestamp")
+    private val watchVersionKey = stringPreferencesKey("watch_app_version")
     private val syncDataStore = context.syncDataStore
 
     // Sync metadata with persistent storage
@@ -171,6 +177,117 @@ class WearableSyncRepository @Inject constructor(
         // Remove listener when flow is cancelled
         awaitClose {
             Log.d(TAG, "Removing watch connection listener")
+            capabilityClient.removeListener(listener, WearPaths.CAPABILITY_WATCH_APP)
+        }
+    }
+
+    override suspend fun getWatchAppStatus(): Result<WatchAppStatus> {
+        return try {
+            val capabilityInfo = capabilityClient
+                .getCapability(WearPaths.CAPABILITY_WATCH_APP, CapabilityClient.FILTER_ALL)
+                .await()
+
+            val nodes = capabilityInfo.nodes.map { node ->
+                WatchNode(
+                    nodeId = node.id,
+                    displayName = node.displayName,
+                    isNearby = node.isNearby
+                )
+            }
+
+            // Get stored watch version
+            val appVersion = getStoredWatchVersion()
+
+            // Check Bluetooth status
+            val bluetoothEnabled = isBluetoothEnabled()
+
+            val diagnostics = ConnectionDiagnostics(
+                bluetoothEnabled = bluetoothEnabled,
+                hasCapability = nodes.isNotEmpty(),
+                nodeCount = nodes.size,
+                lastCheckTimestamp = System.currentTimeMillis(),
+                errorMessage = null
+            )
+
+            val status = if (nodes.isEmpty()) {
+                WatchAppStatus.notInstalled()
+            } else {
+                WatchAppStatus.installed(nodes, diagnostics, appVersion)
+            }
+
+            Log.d(TAG, "Watch app status: isInstalled=${status.isInstalled}, isConnected=${status.isConnected}, version=$appVersion")
+            Result.success(status)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get watch app status", e)
+
+            val diagnostics = ConnectionDiagnostics(
+                bluetoothEnabled = false,
+                hasCapability = false,
+                nodeCount = 0,
+                lastCheckTimestamp = System.currentTimeMillis(),
+                errorMessage = e.message
+            )
+
+            Result.success(WatchAppStatus.notInstalled().copy(
+                connectionDiagnostics = diagnostics
+            ))
+        }
+    }
+
+    override fun observeWatchAppStatus(): Flow<WatchAppStatus> = callbackFlow {
+        val listener = CapabilityClient.OnCapabilityChangedListener { capabilityInfo ->
+            val nodes = capabilityInfo.nodes.map { node ->
+                WatchNode(
+                    nodeId = node.id,
+                    displayName = node.displayName,
+                    isNearby = node.isNearby
+                )
+            }
+
+            // Get stored watch version
+            val appVersion = try {
+                runBlocking {
+                    syncDataStore.data.map { preferences ->
+                        preferences[watchVersionKey]
+                    }.first()
+                }
+            } catch (e: Exception) {
+                null
+            }
+
+            val bluetoothEnabled = isBluetoothEnabled()
+
+            val diagnostics = ConnectionDiagnostics(
+                bluetoothEnabled = bluetoothEnabled,
+                hasCapability = nodes.isNotEmpty(),
+                nodeCount = nodes.size,
+                lastCheckTimestamp = System.currentTimeMillis(),
+                errorMessage = null
+            )
+
+            val status = if (nodes.isEmpty()) {
+                WatchAppStatus.notInstalled()
+            } else {
+                WatchAppStatus.installed(nodes, diagnostics, appVersion)
+            }
+
+            Log.d(TAG, "Watch app status changed: isInstalled=${status.isInstalled}, isConnected=${status.isConnected}")
+            trySend(status)
+        }
+
+        capabilityClient.addListener(listener, WearPaths.CAPABILITY_WATCH_APP)
+
+        // Send initial state
+        try {
+            val initialStatus = getWatchAppStatus().getOrNull()
+            if (initialStatus != null) {
+                trySend(initialStatus)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting initial watch app status", e)
+        }
+
+        awaitClose {
             capabilityClient.removeListener(listener, WearPaths.CAPABILITY_WATCH_APP)
         }
     }
@@ -371,6 +488,47 @@ class WearableSyncRepository @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Failed to sync changed songs", e)
             Result.failure(e)
+        }
+    }
+
+    /**
+     * Gets the stored watch app version from DataStore
+     */
+    private suspend fun getStoredWatchVersion(): String? {
+        return try {
+            syncDataStore.data.map { preferences ->
+                preferences[watchVersionKey]
+            }.first()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get stored watch version", e)
+            null
+        }
+    }
+
+    /**
+     * Stores the watch app version in DataStore
+     */
+    suspend fun storeWatchVersion(version: String) {
+        try {
+            syncDataStore.edit { preferences ->
+                preferences[watchVersionKey] = version
+            }
+            Log.d(TAG, "Stored watch app version: $version")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to store watch version", e)
+        }
+    }
+
+    /**
+     * Checks if Bluetooth is enabled on the device
+     */
+    private fun isBluetoothEnabled(): Boolean {
+        return try {
+            val bluetoothAdapter = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
+            bluetoothAdapter?.isEnabled ?: false
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to check Bluetooth status", e)
+            false
         }
     }
 

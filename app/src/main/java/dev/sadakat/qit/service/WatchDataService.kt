@@ -6,6 +6,7 @@ import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.WearableListenerService
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.EntryPointAccessors
+import dev.sadakat.qit.infrastructure.wearable.WearableSyncRepository
 import dev.sadakat.qit.shared.constants.WearPaths
 import dev.sadakat.qit.shared.domain.entity.SongId
 import dev.sadakat.qit.shared.domain.repository.DownloadRepository
@@ -78,6 +79,9 @@ class WatchDataService : WearableListenerService() {
             }
             WearPaths.PLAYBACK_COMMAND -> {
                 handlePlaybackCommand(messageEvent.data)
+            }
+            WearPaths.WATCH_VERSION_ANNOUNCEMENT -> {
+                handleWatchVersionAnnouncement(messageEvent.data)
             }
         }
     }
@@ -194,6 +198,24 @@ class WatchDataService : WearableListenerService() {
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Error handling playback command", e)
+            }
+        }
+    }
+
+    private fun handleWatchVersionAnnouncement(data: ByteArray) {
+        serviceScope.launch {
+            try {
+                val versionData = String(data)
+                Log.d(TAG, "Received watch app version: $versionData")
+
+                // Store version in repository
+                val repo = syncRepository
+                if (repo is WearableSyncRepository) {
+                    repo.storeWatchVersion(versionData)
+                    Log.d(TAG, "Successfully stored watch app version")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling watch version announcement", e)
             }
         }
     }
