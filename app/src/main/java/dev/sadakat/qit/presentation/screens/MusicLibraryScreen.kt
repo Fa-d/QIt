@@ -34,13 +34,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dev.sadakat.qit.presentation.viewmodel.MusicLibraryViewModel
+import dev.sadakat.qit.presentation.viewmodel.PlayerViewModel
 import dev.sadakat.qit.shared.domain.entity.Song
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicLibraryScreen(
-    onNavigateToPlayer: () -> Unit = {},
-    viewModel: MusicLibraryViewModel = hiltViewModel()
+    viewModel: MusicLibraryViewModel = hiltViewModel(),
+    playerViewModel: PlayerViewModel = hiltViewModel()
 ) {
     val songs by viewModel.songs.collectAsState()
     val isScanning by viewModel.isScanning.collectAsState()
@@ -104,7 +105,7 @@ fun MusicLibraryScreen(
                             song = song,
                             onClick = {
                                 viewModel.playSong(song)
-                                onNavigateToPlayer()
+                                // Player will auto-show in collapsed state via watchSongChanges
                             }
                         )
                     }

@@ -14,12 +14,22 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+/**
+ * Player sheet states for collapsible player
+ */
+enum class PlayerSheetValue {
+    Hidden,    // No song playing
+    Collapsed, // Mini player visible
+    Expanded   // Full player visible
+}
 
 /**
  * ViewModel for the music player screen.
@@ -59,12 +69,17 @@ class PlayerViewModel @Inject constructor(
     var showQueue by mutableStateOf(false)
         private set
 
+    // Player sheet state for collapsible player
+    private val _playerSheetState = MutableStateFlow(PlayerSheetValue.Hidden)
+    val playerSheetState: StateFlow<PlayerSheetValue> = _playerSheetState
+
     // Position update job
     private var positionUpdateJob: Job? = null
 
     init {
         startPositionUpdates()
         watchDurationChanges()
+        watchSongChanges()
     }
 
     /**
@@ -163,6 +178,27 @@ class PlayerViewModel @Inject constructor(
     }
 
     /**
+     * Expand the player sheet
+     */
+    fun expandPlayer() {
+        _playerSheetState.value = PlayerSheetValue.Expanded
+    }
+
+    /**
+     * Collapse the player sheet
+     */
+    fun collapsePlayer() {
+        _playerSheetState.value = PlayerSheetValue.Collapsed
+    }
+
+    /**
+     * Hide the player sheet
+     */
+    fun hidePlayer() {
+        _playerSheetState.value = PlayerSheetValue.Hidden
+    }
+
+    /**
      * Start position tracking updates
      */
     private fun startPositionUpdates() {
@@ -203,6 +239,23 @@ class PlayerViewModel @Inject constructor(
             currentSong.collect { song ->
                 if (song != null) {
                     updateDuration()
+                }
+            }
+        }
+    }
+
+    /**
+     * Watch for song changes to auto-show/hide player
+     */
+    private fun watchSongChanges() {
+        viewModelScope.launch {
+            currentSong.collect { song ->
+                if (song != null && _playerSheetState.value == PlayerSheetValue.Hidden) {
+                    // Auto-show collapsed player when song starts playing
+                    _playerSheetState.value = PlayerSheetValue.Collapsed
+                } else if (song == null) {
+                    // Hide player when no song is playing
+                    _playerSheetState.value = PlayerSheetValue.Hidden
                 }
             }
         }

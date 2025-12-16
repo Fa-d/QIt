@@ -42,7 +42,6 @@ import dev.sadakat.qit.shared.domain.entity.Playlist
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaylistListScreen(
-    onNavigateToPlayer: () -> Unit = {},
     viewModel: PlaylistViewModel = hiltViewModel()
 ) {
     val playlists by viewModel.playlists.collectAsState()

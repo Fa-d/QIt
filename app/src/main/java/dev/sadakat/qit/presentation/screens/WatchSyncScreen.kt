@@ -57,7 +57,6 @@ import dev.sadakat.qit.shared.domain.valueobject.WatchNode
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WatchSyncScreen(
-    onNavigateToPlayer: () -> Unit = {},
     viewModel: WatchSyncViewModel = hiltViewModel()
 ) {
     val watchAppStatus by viewModel.watchAppStatus.collectAsState()
