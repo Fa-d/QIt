@@ -44,18 +44,16 @@ class PlayerViewModel @Inject constructor(
     val repeatMode: StateFlow<RepeatMode> = playbackManager.repeatMode
     val shuffleMode: StateFlow<ShuffleMode> = playbackManager.shuffleMode
 
-    // Position tracking
-    private var _currentPosition = mutableStateOf(0L)
-    val currentPosition: Long get() = _currentPosition.value
+    // Position tracking (exposed as State for Compose observation)
+    private val _currentPosition = mutableStateOf(0L)
+    val currentPosition: androidx.compose.runtime.State<Long> = _currentPosition
 
-    private var _duration = mutableStateOf(0L)
-    val duration: Long get() = _duration.value
+    private val _duration = mutableStateOf(0L)
+    val duration: androidx.compose.runtime.State<Long> = _duration
 
-    // Progress percentage
-    val progress: Float
-        get() = if (_duration.value > 0) {
-            _currentPosition.value.toFloat() / _duration.value
-        } else 0f
+    // Progress percentage (exposed as State for Compose observation)
+    private val _progress = mutableStateOf(0f)
+    val progress: androidx.compose.runtime.State<Float> = _progress
 
     // Show queue state
     var showQueue by mutableStateOf(false)
@@ -173,10 +171,20 @@ class PlayerViewModel @Inject constructor(
             while (true) {
                 if (playbackManager.isPlaying.value) {
                     _currentPosition.value = playbackManager.getCurrentPosition()
+                    updateProgress()
                 }
                 delay(1000) // Update every second
             }
         }
+    }
+
+    /**
+     * Update progress percentage
+     */
+    private fun updateProgress() {
+        _progress.value = if (_duration.value > 0) {
+            _currentPosition.value.toFloat() / _duration.value
+        } else 0f
     }
 
     /**
@@ -207,6 +215,7 @@ class PlayerViewModel @Inject constructor(
         val playerDuration = playbackManager.getDuration()
         if (playerDuration > 0) {
             _duration.value = playerDuration
+            updateProgress()
         }
     }
 

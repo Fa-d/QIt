@@ -1,12 +1,12 @@
 package dev.sadakat.qit.presentation.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -27,10 +28,6 @@ import coil.request.ImageRequest
 import dev.sadakat.qit.presentation.viewmodel.PlayerViewModel
 import dev.sadakat.qit.shared.domain.entity.Song
 
-/**
- * Mini player component that appears at the bottom of the screen
- * when music is playing. Can be tapped to open the full player.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MiniPlayer(
@@ -40,12 +37,28 @@ fun MiniPlayer(
 ) {
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
-    val progress by remember { derivedStateOf { viewModel.progress } }
+    val progress by viewModel.progress
+
+    // Animate progress smoothly
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(
+            durationMillis = 1000,
+            easing = LinearEasing
+        ),
+        label = "mini_player_progress"
+    )
 
     AnimatedVisibility(
         visible = currentSong != null,
-        enter = slideInVertically(initialOffsetY = { it }),
-        exit = slideOutVertically(targetOffsetY = { it }),
+        enter = slideInVertically(
+            initialOffsetY = { it },
+            animationSpec = tween(300, easing = EaseOutQuart)
+        ) + fadeIn(),
+        exit = slideOutVertically(
+            targetOffsetY = { it },
+            animationSpec = tween(300, easing = EaseInQuart)
+        ) + fadeOut(),
         modifier = modifier
     ) {
         currentSong?.let { song ->
@@ -53,29 +66,30 @@ fun MiniPlayer(
                 onClick = onExpand,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                ),
+                elevation = CardDefaults.cardElevation(
+                    defaultElevation = 4.dp
+                )
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp)
-                ) {
-                    // Progress bar
+                Column {
+                    // Thin progress indicator at top
                     LinearProgressIndicator(
-                        progress = progress,
+                        progress = animatedProgress,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(2.dp),
                         color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                        trackColor = Color.Transparent
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -83,151 +97,70 @@ fun MiniPlayer(
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
                                 .data(song.coverArtUri ?: "")
-                                .crossfade(true)
+                                .crossfade(500)
                                 .build(),
                             contentDescription = "Album Art",
                             modifier = Modifier
                                 .size(48.dp)
-                                .clip(CircleShape),
+                                .clip(RoundedCornerShape(8.dp)),
                             contentScale = ContentScale.Crop
                         )
 
                         // Song info
                         Column(
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             Text(
                                 text = song.title,
-                                style = MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontWeight = FontWeight.SemiBold
+                                ),
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
 
                             Text(
                                 text = song.artist ?: "",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 
-                        // Play/Pause button
-                        IconButton(
-                            onClick = { viewModel.togglePlayPause() },
-                            modifier = Modifier.size(40.dp)
+                        // Control buttons
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = if (isPlaying) {
-                                    Icons.Default.Pause
-                                } else {
-                                    Icons.Default.PlayArrow
-                                },
-                                contentDescription = if (isPlaying) "Pause" else "Play",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                            // Play/Pause button
+                            IconButton(
+                                onClick = { viewModel.togglePlayPause() },
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = if (isPlaying) "Pause" else "Play",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+
+                            // Skip Next button
+                            IconButton(
+                                onClick = { viewModel.skipToNext() },
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.SkipNext,
+                                    contentDescription = "Next",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
-
-                        // Skip Next button
-                        IconButton(
-                            onClick = { viewModel.skipToNext() },
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.SkipNext,
-                                contentDescription = "Next",
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * Simplified mini player that only shows when music is playing.
- * Good for screens where the full mini player might be too intrusive.
- */
-@Composable
-fun CompactMiniPlayer(
-    onExpand: () -> Unit,
-    modifier: Modifier = Modifier,
-    viewModel: PlayerViewModel = hiltViewModel()
-) {
-    val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
-    val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
-
-    AnimatedVisibility(
-        visible = currentSong != null,
-        enter = slideInVertically(initialOffsetY = { it }),
-        exit = slideOutVertically(targetOffsetY = { it }),
-        modifier = modifier
-    ) {
-        currentSong?.let { song ->
-            Surface(
-                onClick = onExpand,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(64.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shadowElevation = 8.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Small album art
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(song.coverArtUri ?: "")
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = "Album Art",
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-
-                    // Song info
-                    Column(
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            text = song.title,
-                            style = MaterialTheme.typography.bodyMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        Text(
-                            text = song.artist ?: "",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    // Play/Pause
-                    IconButton(
-                        onClick = { viewModel.togglePlayPause() },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isPlaying) {
-                                Icons.Default.Pause
-                            } else {
-                                Icons.Default.PlayArrow
-                            },
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
                     }
                 }
             }

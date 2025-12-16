@@ -57,6 +57,11 @@ fun QItNavGraph() {
                         label = { Text(screen.title) },
                         selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                         onClick = {
+                            // If on Player screen, pop it first
+                            if (currentDestination?.route == Screen.Player.route) {
+                                navController.popBackStack()
+                            }
+
                             navController.navigate(screen.route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
                                     saveState = true
@@ -70,10 +75,14 @@ fun QItNavGraph() {
             }
         }
     ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
+        Box {
+            val navBackStackEntry by navController.currentBackStackEntryAsState()
+            val currentRoute = navBackStackEntry?.destination?.route
+
             NavHost(
                 navController = navController,
-                startDestination = Screen.MusicLibrary.route
+                startDestination = Screen.MusicLibrary.route,
+                modifier = Modifier.padding(innerPadding)
             ) {
                 composable(Screen.MusicLibrary.route) {
                     MusicLibraryScreen(
@@ -97,11 +106,15 @@ fun QItNavGraph() {
                 }
             }
 
-            // MiniPlayer overlay at the bottom
-            MiniPlayer(
-                onExpand = { navController.navigate(Screen.Player.route) },
-                modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter)
-            )
+            // MiniPlayer overlay at the bottom - hide when on Player screen
+            if (currentRoute != Screen.Player.route) {
+                MiniPlayer(
+                    onExpand = { navController.navigate(Screen.Player.route) },
+                    modifier = Modifier
+                        .align(androidx.compose.ui.Alignment.BottomCenter)
+                        .padding(innerPadding)
+                )
+            }
         }
     }
 }
