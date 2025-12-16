@@ -6,6 +6,7 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import dagger.hilt.android.AndroidEntryPoint
 import dev.sadakat.qit.playback.PlaybackManager
+import dev.sadakat.qit.player.MediaNotificationManager
 import dev.sadakat.qit.player.MusicSessionCallback
 import javax.inject.Inject
 
@@ -23,15 +24,17 @@ class MusicPlaybackService : MediaSessionService() {
     @Inject
     lateinit var mediaSessionCallback: MusicSessionCallback
 
-    private var mediaSession: MediaSession? = null
+    @Inject
+    lateinit var mediaNotificationManager: MediaNotificationManager
+
+    @Inject
+    lateinit var mediaSession: MediaSession
 
     override fun onCreate() {
         super.onCreate()
 
-        // Create MediaSession with custom callback
-        mediaSession = MediaSession.Builder(this, playbackManager.player)
-            .setCallback(mediaSessionCallback)
-            .build()
+        // Start foreground service with notification
+        mediaNotificationManager.updateNotification()
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
@@ -46,11 +49,8 @@ class MusicPlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
-        mediaSession?.run {
-            player.release()
-            release()
-        }
-        mediaSession = null
+        mediaNotificationManager.clearNotification()
+        mediaSession.release()
         playbackManager.release()
         super.onDestroy()
     }

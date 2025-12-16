@@ -12,11 +12,13 @@ import androidx.media3.exoplayer.LoadControl
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.session.MediaSession
+import coil.ImageLoader
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import dev.sadakat.qit.player.MediaNotificationManager
 import dev.sadakat.qit.player.MusicSessionCallback
 import dev.sadakat.qit.playback.AudioFocusManager
 import dev.sadakat.qit.playback.PlaybackManager
@@ -114,6 +116,39 @@ object MediaModule {
         @PlaybackScope coroutineScope: CoroutineScope
     ): MusicSessionCallback {
         return MusicSessionCallback(playbackManager, coroutineScope)
+    }
+
+    @Provides
+    @Singleton
+    fun provideMediaSession(
+        @ApplicationContext context: Context,
+        player: ExoPlayer,
+        musicSessionCallback: MusicSessionCallback
+    ): MediaSession {
+        return MediaSession.Builder(context, player)
+            .setCallback(musicSessionCallback)
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideImageLoader(
+        @ApplicationContext context: Context
+    ): ImageLoader {
+        return ImageLoader.Builder(context)
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideMediaNotificationManager(
+        @ApplicationContext context: Context,
+        player: ExoPlayer,
+        mediaSession: MediaSession,
+        @PlaybackScope coroutineScope: CoroutineScope,
+        imageLoader: ImageLoader
+    ): MediaNotificationManager {
+        return MediaNotificationManager(context, player, mediaSession, coroutineScope, imageLoader)
     }
 }
 

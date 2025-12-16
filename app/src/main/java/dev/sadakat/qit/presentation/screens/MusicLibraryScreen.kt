@@ -1,5 +1,6 @@
 package dev.sadakat.qit.presentation.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +39,7 @@ import dev.sadakat.qit.shared.domain.entity.Song
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicLibraryScreen(
+    onNavigateToPlayer: () -> Unit = {},
     viewModel: MusicLibraryViewModel = hiltViewModel()
 ) {
     val songs by viewModel.songs.collectAsState()
@@ -98,7 +100,13 @@ fun MusicLibraryScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(songs) { song ->
-                        SongItem(song = song)
+                        SongItem(
+                            song = song,
+                            onClick = {
+                                viewModel.playSong(song)
+                                onNavigateToPlayer()
+                            }
+                        )
                     }
                 }
             }
@@ -107,11 +115,12 @@ fun MusicLibraryScreen(
 }
 
 @Composable
-fun SongItem(song: Song) {
+fun SongItem(song: Song, onClick: () -> Unit = {}) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
+            .clickable { onClick() }
     ) {
         Row(
             modifier = Modifier

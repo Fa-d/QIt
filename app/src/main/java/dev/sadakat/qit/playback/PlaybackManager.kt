@@ -33,6 +33,10 @@ class PlaybackManager @Inject constructor(
         private const val TAG = "PlaybackManager"
     }
 
+    init {
+        observeAudioFocus()
+    }
+
     private val _player: ExoPlayer by lazy {
         ExoPlayer.Builder(context).build().apply {
             addListener(playerListener)
@@ -340,6 +344,27 @@ class PlaybackManager @Inject constructor(
                     _player.seekTo(0, 0)
                     _player.play()
                 }
+            }
+        }
+    }
+
+    /**
+     * Observe audio focus changes and respond accordingly
+     */
+    private fun observeAudioFocus() {
+        coroutineScope.launch {
+            audioFocusManager.hasAudioFocus.collect { hasFocus ->
+                if (_isPlaying.value && !hasFocus) {
+                    // Lost audio focus while playing, pause playback
+                    pause()
+                }
+            }
+        }
+
+        coroutineScope.launch {
+            audioFocusManager.isDucked.collect { isDucked ->
+                // Adjust volume based on ducking state
+                _player.volume = if (isDucked) 0.3f else 1.0f
             }
         }
     }

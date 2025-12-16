@@ -1,6 +1,7 @@
 package dev.sadakat.qit.player
 
 import android.os.Bundle
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
@@ -10,6 +11,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import dev.sadakat.qit.playback.PlaybackManager
 import dev.sadakat.qit.shared.domain.entity.Song
 import dev.sadakat.qit.shared.domain.entity.SongId
+import dev.sadakat.qit.shared.domain.valueobject.FileSize
 import dev.sadakat.qit.shared.domain.valueobject.RepeatMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -67,12 +69,28 @@ class MusicSessionCallback @Inject constructor(
 
     /**
      * Create a Song from a MediaItem.
-     * This is a placeholder - you'll need to implement proper mapping
-     * based on your data model.
+     * Converts MediaItem metadata to Song entity.
      */
     private fun createSongFromMediaItem(mediaItem: MediaItem): Song? {
-        // This would need proper implementation based on your data model
-        // For now, return null as a placeholder
-        return null
+        return try {
+            val metadata = mediaItem.mediaMetadata
+            val durationMs = if (metadata.durationMs != C.TIME_UNSET) metadata.durationMs else null
+            Song(
+                id = SongId(mediaItem.mediaId),
+                title = metadata.title?.toString() ?: "Unknown Title",
+                artist = metadata.artist?.toString(),
+                album = metadata.albumTitle?.toString(),
+                duration = durationMs?.let { dev.sadakat.qit.shared.domain.valueobject.Duration.fromMilliseconds(it) } ?: dev.sadakat.qit.shared.domain.valueobject.Duration.ZERO,
+                filePath = mediaItem.localConfiguration?.uri?.toString(),
+                coverArtUri = metadata.artworkUri?.toString(),
+                uri = mediaItem.localConfiguration?.uri?.toString() ?: "",
+                fileSize = FileSize.ZERO,
+                mimeType = "audio/mpeg",
+                bitrate = 128,
+                dateAdded = System.currentTimeMillis()
+            )
+        } catch (e: Exception) {
+            null
+        }
     }
 }

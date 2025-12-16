@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.application.usecase.music.GetAllSongsUseCase
 import dev.sadakat.qit.application.usecase.music.ScanMusicLibraryUseCase
+import dev.sadakat.qit.playback.PlaybackManager
 import dev.sadakat.qit.shared.domain.entity.Song
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +20,8 @@ import javax.inject.Inject
 @HiltViewModel
 class MusicLibraryViewModel @Inject constructor(
     private val scanMusicLibraryUseCase: ScanMusicLibraryUseCase,
-    private val getAllSongsUseCase: GetAllSongsUseCase
+    private val getAllSongsUseCase: GetAllSongsUseCase,
+    private val playbackManager: PlaybackManager
 ) : ViewModel() {
 
     private val _songs = MutableStateFlow<List<Song>>(emptyList())
@@ -59,6 +61,13 @@ class MusicLibraryViewModel @Inject constructor(
 
     fun clearScanResult() {
         _scanResult.value = null
+    }
+
+    /**
+     * Play a song from the library
+     */
+    fun playSong(song: Song) {
+        playbackManager.playSong(song)
     }
 
     sealed class ScanResult {
