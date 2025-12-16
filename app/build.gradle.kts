@@ -80,6 +80,14 @@ dependencies {
     // Media3 for audio playback
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
+    implementation(libs.media3.ui)
+
+    
+    // Coil for image loading
+    implementation("io.coil-kt:coil-compose:2.5.0")
+
+    // Lifecycle for collectAsStateWithLifecycle
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.2")
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)

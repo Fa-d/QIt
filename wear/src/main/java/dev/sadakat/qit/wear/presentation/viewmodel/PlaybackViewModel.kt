@@ -13,6 +13,8 @@ import dev.sadakat.qit.wear.application.usecase.playback.PlaySongUseCase
 import dev.sadakat.qit.wear.application.usecase.playback.PlaybackSource
 import dev.sadakat.qit.wear.playback.PlaybackManager
 import dev.sadakat.qit.wear.playback.PlaybackState
+import dev.sadakat.qit.wear.presentation.model.ConnectionState
+import dev.sadakat.qit.wear.presentation.model.StreamingMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,6 +50,18 @@ class PlaybackViewModel @Inject constructor(
     private val _bufferingProgress = MutableStateFlow(0f)
     val bufferingProgress: StateFlow<Float> = _bufferingProgress.asStateFlow()
 
+    private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Connected)
+    val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
+
+    private val _streamingMode = MutableStateFlow<StreamingMode>(StreamingMode.Unknown)
+    val streamingMode: StateFlow<StreamingMode> = _streamingMode.asStateFlow()
+
+    private val _volume = MutableStateFlow(0.7f)
+    val volume: StateFlow<Float> = _volume.asStateFlow()
+
+    private val _phoneBatteryLevel = MutableStateFlow<Float?>(null)
+    val phoneBatteryLevel: StateFlow<Float?> = _phoneBatteryLevel.asStateFlow()
+
     private var currentStreamUri: android.net.Uri? = null
 
     init {
@@ -59,20 +73,43 @@ class PlaybackViewModel @Inject constructor(
                         _isBuffering.value = true
                         _bufferingProgress.value = state.progress
                         _errorMessage.value = null
+                        _streamingMode.value = StreamingMode.Streaming
+                        _connectionState.value = ConnectionState.Connecting
                     }
                     is dev.sadakat.qit.wear.playback.StreamingPlaybackState.Ready,
                     is dev.sadakat.qit.wear.playback.StreamingPlaybackState.Playing -> {
                         _isBuffering.value = false
                         _bufferingProgress.value = 1f
                         _errorMessage.value = null
+                        _connectionState.value = ConnectionState.Connected
+                        _streamingMode.value = StreamingMode.Streaming
                     }
                     is dev.sadakat.qit.wear.playback.StreamingPlaybackState.Error -> {
                         _isBuffering.value = false
                         _errorMessage.value = state.message
+                        _connectionState.value = ConnectionState.Error(state.message)
+                        _streamingMode.value = StreamingMode.Unknown
                     }
                     is dev.sadakat.qit.wear.playback.StreamingPlaybackState.Idle -> {
                         _isBuffering.value = false
                         _bufferingProgress.value = 0f
+                        _connectionState.value = ConnectionState.Connected
+                    }
+                }
+            }
+        }
+
+        // Monitor current song to update streaming mode
+        viewModelScope.launch {
+            currentSong.collect { song ->
+                song?.let { current ->
+                    when (current.downloadStatus) {
+                        is DownloadStatus.Downloaded -> {
+                            _streamingMode.value = StreamingMode.Offline
+                        }
+                        else -> {
+                            _streamingMode.value = if (isStreaming()) StreamingMode.Streaming else StreamingMode.Unknown
+                        }
                     }
                 }
             }
@@ -238,6 +275,22 @@ class PlaybackViewModel @Inject constructor(
      */
     fun isStreaming(): Boolean {
         return streamingPlaybackState.value !is dev.sadakat.qit.wear.playback.StreamingPlaybackState.Idle
+    }
+
+    /**
+     * Set volume level
+     */
+    fun setVolume(volume: Float) {
+        _volume.value = volume.coerceIn(0f, 1f)
+        // Apply volume to player
+        playbackManager.player.volume = _volume.value
+    }
+
+    /**
+     * Retry connection
+     */
+    fun retryConnection() {
+        retryStreaming()
     }
 
     override fun onCleared() {

@@ -66,6 +66,9 @@ dependencies {
     // Wearable Data Layer
     implementation(libs.play.services.wearable)
 
+    // Wear OS input for rotary
+    implementation("androidx.wear:wear-input:1.2.0-alpha02")
+
     // Media3 for audio playback
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
