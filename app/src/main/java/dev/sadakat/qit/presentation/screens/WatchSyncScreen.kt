@@ -28,6 +28,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -51,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dev.sadakat.qit.presentation.viewmodel.WatchSyncViewModel
 import dev.sadakat.qit.shared.domain.valueobject.ConnectionDiagnostics
+import dev.sadakat.qit.shared.domain.valueobject.PlaybackDestination
 import dev.sadakat.qit.shared.domain.valueobject.WatchAppStatus
 import dev.sadakat.qit.shared.domain.valueobject.WatchNode
 
@@ -61,6 +63,7 @@ fun WatchSyncScreen(
 ) {
     val watchAppStatus by viewModel.watchAppStatus.collectAsState()
     val syncStatus by viewModel.syncStatus.collectAsState()
+    val playbackDestination by viewModel.playbackDestination.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(syncStatus) {
@@ -115,6 +118,12 @@ fun WatchSyncScreen(
             if (watchAppStatus.watchNodes.isNotEmpty()) {
                 WatchNodesCard(watchAppStatus.watchNodes)
             }
+
+            // Playback destination settings
+            PlaybackDestinationCard(
+                currentDestination = playbackDestination,
+                onDestinationChange = { viewModel.setPlaybackDestination(it) }
+            )
 
             // Sync controls
             when (syncStatus) {
@@ -442,6 +451,86 @@ private fun SyncControlsCard(
         Icon(Icons.Default.Sync, contentDescription = null)
         Spacer(modifier = Modifier.size(8.dp))
         Text("Sync Playlists to Watch")
+    }
+}
+
+@Composable
+private fun PlaybackDestinationCard(
+    currentDestination: PlaybackDestination,
+    onDestinationChange: (PlaybackDestination) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "Playback Destination",
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Text(
+                text = "Choose where music should play by default when you select a song",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Phone option
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = currentDestination == PlaybackDestination.PHONE,
+                    onClick = { onDestinationChange(PlaybackDestination.PHONE) }
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = PlaybackDestination.PHONE.displayName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = PlaybackDestination.PHONE.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // Watch option
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = currentDestination == PlaybackDestination.WATCH,
+                    onClick = { onDestinationChange(PlaybackDestination.WATCH) }
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = PlaybackDestination.WATCH.displayName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = PlaybackDestination.WATCH.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
     }
 }
 

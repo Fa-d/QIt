@@ -12,8 +12,12 @@ import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
 import dagger.hilt.android.AndroidEntryPoint
 import dev.sadakat.qit.shared.constants.WearPaths
+import dev.sadakat.qit.shared.domain.entity.SongId
+import dev.sadakat.qit.shared.dto.PlaybackCommandMessage
 import dev.sadakat.qit.shared.model.Playlist
 import dev.sadakat.qit.shared.model.Song
+import dev.sadakat.qit.wear.application.usecase.playback.PlaySongUseCase
+import kotlinx.serialization.json.Json
 import dev.sadakat.qit.wear.data.local.WearMusicDatabase
 import dev.sadakat.qit.wear.data.local.entity.PlaylistEntity
 import dev.sadakat.qit.wear.data.local.entity.SongEntity
@@ -37,11 +41,13 @@ import javax.inject.Inject
 class PhoneDataService : WearableListenerService() {
 
     @Inject lateinit var playbackManager: PlaybackManager
+    @Inject lateinit var playSongUseCase: PlaySongUseCase
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val database by lazy { WearMusicDatabase.getDatabase(this) }
     private val channelClient by lazy { Wearable.getChannelClient(this) }
     private val dataClient by lazy { Wearable.getDataClient(this) }
+    private val json = Json { ignoreUnknownKeys = true }
 
     override fun onDataChanged(dataEvents: DataEventBuffer) {
         super.onDataChanged(dataEvents)
@@ -217,16 +223,59 @@ class PhoneDataService : WearableListenerService() {
         }
     }
 
-    private fun handlePlaybackCommand(command: String) {
+    private fun handlePlaybackCommand(commandData: String) {
         serviceScope.launch {
-            when (command) {
-                "play" -> playbackManager.play()
-                "pause" -> playbackManager.pause()
-                "stop" -> playbackManager.stop()
-                "next" -> playbackManager.skipToNext()
-                "previous" -> playbackManager.skipToPrevious()
+            try {
+                // Parse the playback command message
+                val message = json.decodeFromString<PlaybackCommandMessage>(commandData)
+
+                Log.d(TAG, "Received playback command: ${message.command}, songId: ${message.songId}")
+
+                when (message.command.uppercase()) {
+                    "PLAY" -> {
+                        val songIdStr = message.songId
+                        if (songIdStr != null) {
+                            // Play a specific song
+                            val songId = SongId.from(songIdStr)
+                            val result = playSongUseCase(PlaySongUseCase.Params(songId))
+
+                            result.fold(
+                                onSuccess = { playbackSource ->
+                                    Log.d(TAG, "Successfully initiated playback for song: ${message.songId}")
+                                    when (playbackSource) {
+                                        is dev.sadakat.qit.wear.application.usecase.playback.PlaybackSource.Local -> {
+                                            playbackManager.playLocalSong(playbackSource.song)
+                                        }
+                                        is dev.sadakat.qit.wear.application.usecase.playback.PlaybackSource.Streaming -> {
+                                            // Streaming is already initiated by the use case
+                                            // The PlaybackManager will handle it via the StreamingRepository callback
+                                            Log.d(TAG, "Streaming initiated for song: ${playbackSource.song.title}")
+                                        }
+                                    }
+                                },
+                                onFailure = { error ->
+                                    Log.e(TAG, "Failed to play song: ${error.message}", error)
+                                }
+                            )
+                        } else {
+                            // Resume playback
+                            playbackManager.play()
+                        }
+                    }
+                    "PAUSE" -> playbackManager.pause()
+                    "STOP" -> playbackManager.stop()
+                    "SKIP_NEXT", "NEXT" -> playbackManager.skipToNext()
+                    "SKIP_PREVIOUS", "PREVIOUS" -> playbackManager.skipToPrevious()
+                    else -> Log.w(TAG, "Unknown playback command: ${message.command}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling playback command", e)
             }
         }
+    }
+
+    companion object {
+        private const val TAG = "PhoneDataService"
     }
 
     private fun handlePlaylistDataSync(playlistJson: String) {

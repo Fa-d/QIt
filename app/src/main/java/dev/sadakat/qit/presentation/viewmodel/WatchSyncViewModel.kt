@@ -6,6 +6,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.application.usecase.connection.GetWatchAppStatusUseCase
 import dev.sadakat.qit.application.usecase.connection.ObserveWatchAppStatusUseCase
 import dev.sadakat.qit.application.usecase.sync.SyncAllToWatchUseCase
+import dev.sadakat.qit.shared.domain.repository.SettingsRepository
+import dev.sadakat.qit.shared.domain.valueobject.PlaybackDestination
 import dev.sadakat.qit.shared.domain.valueobject.WatchAppStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +23,8 @@ import javax.inject.Inject
 class WatchSyncViewModel @Inject constructor(
     private val syncAllToWatchUseCase: SyncAllToWatchUseCase,
     private val getWatchAppStatusUseCase: GetWatchAppStatusUseCase,
-    private val observeWatchAppStatusUseCase: ObserveWatchAppStatusUseCase
+    private val observeWatchAppStatusUseCase: ObserveWatchAppStatusUseCase,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val _watchAppStatus = MutableStateFlow<WatchAppStatus>(WatchAppStatus.notInstalled())
@@ -30,9 +33,13 @@ class WatchSyncViewModel @Inject constructor(
     private val _syncStatus = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
     val syncStatus: StateFlow<SyncStatus> = _syncStatus.asStateFlow()
 
+    private val _playbackDestination = MutableStateFlow(PlaybackDestination.PHONE)
+    val playbackDestination: StateFlow<PlaybackDestination> = _playbackDestination.asStateFlow()
+
     init {
         refreshWatchStatus()
         observeWatchStatus()
+        loadPlaybackDestination()
     }
 
     fun refreshWatchStatus() {
@@ -71,6 +78,22 @@ class WatchSyncViewModel @Inject constructor(
 
     fun clearSyncStatus() {
         _syncStatus.value = SyncStatus.Idle
+    }
+
+    private fun loadPlaybackDestination() {
+        viewModelScope.launch {
+            val destination = settingsRepository.getPlaybackDestination()
+            _playbackDestination.value = destination
+        }
+    }
+
+    fun setPlaybackDestination(destination: PlaybackDestination) {
+        viewModelScope.launch {
+            val result = settingsRepository.setPlaybackDestination(destination)
+            result.onSuccess {
+                _playbackDestination.value = destination
+            }
+        }
     }
 
     sealed class SyncStatus {

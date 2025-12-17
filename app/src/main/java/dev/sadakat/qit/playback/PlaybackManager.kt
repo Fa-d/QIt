@@ -7,8 +7,13 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import dev.sadakat.qit.shared.domain.valueobject.ShuffleMode
 import dagger.hilt.android.qualifiers.ApplicationContext
+import android.util.Log
 import dev.sadakat.qit.shared.domain.entity.Song
 import dev.sadakat.qit.shared.domain.entity.SongId
+import dev.sadakat.qit.shared.domain.repository.SettingsRepository
+import dev.sadakat.qit.shared.domain.repository.StreamingRepository
+import dev.sadakat.qit.shared.domain.repository.SyncRepository
+import dev.sadakat.qit.shared.domain.valueobject.PlaybackDestination
 import dev.sadakat.qit.shared.domain.valueobject.RepeatMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +32,8 @@ import javax.inject.Singleton
 class PlaybackManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val audioFocusManager: AudioFocusManager,
+    private val settingsRepository: SettingsRepository,
+    private val syncRepository: SyncRepository,
     private val coroutineScope: CoroutineScope
 ) {
     companion object {
@@ -98,10 +105,48 @@ class PlaybackManager @Inject constructor(
 
     /**
      * Prepare and play a single song
+     * Checks the default playback destination and either plays locally or streams to watch
      */
     fun playSong(song: Song) {
-        val queue = listOf(song)
-        setPlaybackQueue(queue, 0)
+        coroutineScope.launch {
+            try {
+                // Check the default playback destination
+                val destination = settingsRepository.getPlaybackDestination()
+
+                when (destination) {
+                    PlaybackDestination.PHONE -> {
+                        // Play on phone
+                        Log.d(TAG, "Playing on phone: ${song.title}")
+                        val queue = listOf(song)
+                        setPlaybackQueue(queue, 0)
+                    }
+                    PlaybackDestination.WATCH -> {
+                        // Send playback command to watch
+                        Log.d(TAG, "Sending play command to watch: ${song.title}")
+                        val result = syncRepository.sendPlaybackCommand("PLAY", song.id)
+
+                        result.fold(
+                            onSuccess = {
+                                Log.d(TAG, "Successfully sent play command to watch for: ${song.title}")
+                                // Update current song even though it's playing on watch
+                                _currentSong.value = song
+                            },
+                            onFailure = { error ->
+                                Log.e(TAG, "Failed to send play command to watch: ${error.message}. Falling back to phone playback.")
+                                // Fallback to phone playback if watch command fails
+                                val queue = listOf(song)
+                                setPlaybackQueue(queue, 0)
+                            }
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error determining playback destination, defaulting to phone", e)
+                // Fallback to phone playback
+                val queue = listOf(song)
+                setPlaybackQueue(queue, 0)
+            }
+        }
     }
 
     /**

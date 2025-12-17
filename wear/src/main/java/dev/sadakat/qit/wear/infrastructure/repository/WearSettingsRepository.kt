@@ -8,6 +8,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.sadakat.qit.shared.domain.repository.SettingsRepository
 import dev.sadakat.qit.shared.domain.valueobject.AudioQuality
+import dev.sadakat.qit.shared.domain.valueobject.PlaybackDestination
 import dev.sadakat.qit.shared.domain.valueobject.StreamingMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -214,5 +215,21 @@ class WearSettingsRepository @Inject constructor(
             Log.e(TAG, "Error setting max storage", e)
             Result.failure(e)
         }
+    }
+
+    override suspend fun getPlaybackDestination(): PlaybackDestination {
+        // Watch doesn't need this setting - it always plays locally or streams from phone
+        // Default to PHONE (which means the watch will stream from phone when needed)
+        return PlaybackDestination.PHONE
+    }
+
+    override suspend fun setPlaybackDestination(destination: PlaybackDestination): Result<Unit> {
+        // Not applicable for watch - this setting is managed on the phone
+        return Result.success(Unit)
+    }
+
+    override fun observePlaybackDestination(): Flow<PlaybackDestination> {
+        // Not applicable for watch
+        return kotlinx.coroutines.flow.flowOf(PlaybackDestination.PHONE)
     }
 }

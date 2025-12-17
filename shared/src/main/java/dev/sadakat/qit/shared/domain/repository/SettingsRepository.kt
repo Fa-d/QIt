@@ -1,6 +1,7 @@
 package dev.sadakat.qit.shared.domain.repository
 
 import dev.sadakat.qit.shared.domain.valueobject.AudioQuality
+import dev.sadakat.qit.shared.domain.valueobject.PlaybackDestination
 import dev.sadakat.qit.shared.domain.valueobject.StreamingMode
 import kotlinx.coroutines.flow.Flow
 
@@ -78,4 +79,19 @@ interface SettingsRepository {
      * Sets maximum storage for downloads
      */
     suspend fun setMaxStorageForDownloads(bytes: Long): Result<Unit>
+
+    /**
+     * Gets the default playback destination (Phone or Watch)
+     */
+    suspend fun getPlaybackDestination(): PlaybackDestination
+
+    /**
+     * Sets the default playback destination
+     */
+    suspend fun setPlaybackDestination(destination: PlaybackDestination): Result<Unit>
+
+    /**
+     * Observes playback destination changes
+     */
+    fun observePlaybackDestination(): Flow<PlaybackDestination>
 }

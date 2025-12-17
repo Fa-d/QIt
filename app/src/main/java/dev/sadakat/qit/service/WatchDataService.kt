@@ -12,10 +12,12 @@ import dev.sadakat.qit.shared.domain.entity.SongId
 import dev.sadakat.qit.shared.domain.repository.DownloadRepository
 import dev.sadakat.qit.shared.domain.repository.MusicRepository
 import dev.sadakat.qit.shared.domain.repository.PlaylistRepository
+import dev.sadakat.qit.shared.domain.repository.StreamingRepository
 import dev.sadakat.qit.shared.domain.repository.SyncRepository
 import dev.sadakat.qit.shared.domain.valueobject.AudioQuality
 import dev.sadakat.qit.shared.dto.DownloadRequestMessage
 import dev.sadakat.qit.shared.dto.PlaybackCommandMessage
+import dev.sadakat.qit.shared.dto.StreamRequestMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -62,6 +64,13 @@ class WatchDataService : WearableListenerService() {
         ).downloadRepository()
     }
 
+    private val streamingRepository: StreamingRepository by lazy {
+        EntryPointAccessors.fromApplication(
+            applicationContext,
+            WatchDataServiceEntryPoint::class.java
+        ).streamingRepository()
+    }
+
     override fun onMessageReceived(messageEvent: MessageEvent) {
         super.onMessageReceived(messageEvent)
 
@@ -82,6 +91,9 @@ class WatchDataService : WearableListenerService() {
             }
             WearPaths.WATCH_VERSION_ANNOUNCEMENT -> {
                 handleWatchVersionAnnouncement(messageEvent.data)
+            }
+            WearPaths.AUDIO_STREAM + "request" -> {
+                handleStreamRequest(messageEvent.sourceNodeId, messageEvent.data)
             }
         }
     }
@@ -220,6 +232,46 @@ class WatchDataService : WearableListenerService() {
         }
     }
 
+    private fun handleStreamRequest(nodeId: String, data: ByteArray) {
+        serviceScope.launch {
+            try {
+                // Parse the stream request
+                // The watch sends data as "songId:quality"
+                val requestData = String(data)
+                val parts = requestData.split(":")
+
+                if (parts.size != 2) {
+                    Log.e(TAG, "Invalid stream request format: $requestData")
+                    return@launch
+                }
+
+                val songId = SongId.from(parts[0])
+                val quality = try {
+                    AudioQuality.valueOf(parts[1])
+                } catch (e: IllegalArgumentException) {
+                    Log.w(TAG, "Invalid quality ${parts[1]}, using MEDIUM")
+                    AudioQuality.MEDIUM
+                }
+
+                Log.d(TAG, "Handling stream request for song ${songId.value} with quality $quality from $nodeId")
+
+                // Start streaming to watch
+                val result = streamingRepository.streamAudioToWatch(songId, quality)
+
+                result.fold(
+                    onSuccess = {
+                        Log.d(TAG, "Successfully started streaming song: ${songId.value}")
+                    },
+                    onFailure = { error ->
+                        Log.e(TAG, "Failed to stream song ${songId.value}", error)
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling stream request", e)
+            }
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()
@@ -241,4 +293,5 @@ interface WatchDataServiceEntryPoint {
     fun playlistRepository(): PlaylistRepository
     fun syncRepository(): SyncRepository
     fun downloadRepository(): DownloadRepository
+    fun streamingRepository(): StreamingRepository
 }

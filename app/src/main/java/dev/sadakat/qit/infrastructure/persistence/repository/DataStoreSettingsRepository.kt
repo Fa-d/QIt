@@ -11,6 +11,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.sadakat.qit.shared.domain.repository.SettingsRepository
 import dev.sadakat.qit.shared.domain.valueobject.AudioQuality
+import dev.sadakat.qit.shared.domain.valueobject.PlaybackDestination
 import dev.sadakat.qit.shared.domain.valueobject.StreamingMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -33,6 +34,7 @@ class DataStoreSettingsRepository @Inject constructor(
         val AUTO_DOWNLOAD_WIFI = booleanPreferencesKey("auto_download_wifi")
         val AUTO_SYNC_ENABLED = booleanPreferencesKey("auto_sync_enabled")
         val MAX_STORAGE_DOWNLOADS = longPreferencesKey("max_storage_downloads")
+        val PLAYBACK_DESTINATION = stringPreferencesKey("playback_destination")
     }
 
     override suspend fun getStreamingQuality(): AudioQuality {
@@ -165,6 +167,30 @@ class DataStoreSettingsRepository @Inject constructor(
             "PROGRESSIVE" -> StreamingMode.PROGRESSIVE
             "LOCAL" -> StreamingMode.LOCAL
             else -> StreamingMode.PROGRESSIVE
+        }
+    }
+
+    override suspend fun getPlaybackDestination(): PlaybackDestination {
+        val prefs = context.dataStore.data.first()
+        val destinationStr = prefs[PreferenceKeys.PLAYBACK_DESTINATION] ?: "PHONE"
+        return PlaybackDestination.fromString(destinationStr)
+    }
+
+    override suspend fun setPlaybackDestination(destination: PlaybackDestination): Result<Unit> {
+        return try {
+            context.dataStore.edit { prefs ->
+                prefs[PreferenceKeys.PLAYBACK_DESTINATION] = destination.name
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override fun observePlaybackDestination(): Flow<PlaybackDestination> {
+        return context.dataStore.data.map { prefs ->
+            val destinationStr = prefs[PreferenceKeys.PLAYBACK_DESTINATION] ?: "PHONE"
+            PlaybackDestination.fromString(destinationStr)
         }
     }
 }

@@ -22,6 +22,8 @@ import dev.sadakat.qit.player.MediaNotificationManager
 import dev.sadakat.qit.player.MusicSessionCallback
 import dev.sadakat.qit.playback.AudioFocusManager
 import dev.sadakat.qit.playback.PlaybackManager
+import dev.sadakat.qit.shared.domain.repository.SettingsRepository
+import dev.sadakat.qit.shared.domain.repository.SyncRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -104,9 +106,11 @@ object MediaModule {
     fun providePlaybackManager(
         @ApplicationContext context: Context,
         audioFocusManager: AudioFocusManager,
+        settingsRepository: SettingsRepository,
+        syncRepository: SyncRepository,
         @PlaybackScope coroutineScope: CoroutineScope
     ): PlaybackManager {
-        return PlaybackManager(context, audioFocusManager, coroutineScope)
+        return PlaybackManager(context, audioFocusManager, settingsRepository, syncRepository, coroutineScope)
     }
 
     @Provides
