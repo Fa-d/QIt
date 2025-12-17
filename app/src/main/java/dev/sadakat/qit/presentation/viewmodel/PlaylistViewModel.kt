@@ -24,7 +24,9 @@ class PlaylistViewModel @Inject constructor(
     private val getPlaylistWithSongsUseCase: GetPlaylistWithSongsUseCase,
     private val createPlaylistUseCase: CreatePlaylistUseCase,
     private val deletePlaylistUseCase: DeletePlaylistUseCase,
-    private val addSongToPlaylistUseCase: AddSongToPlaylistUseCase
+    private val addSongToPlaylistUseCase: AddSongToPlaylistUseCase,
+    private val removeSongFromPlaylistUseCase: dev.sadakat.qit.application.usecase.playlist.RemoveSongFromPlaylistUseCase,
+    private val getAllSongsUseCase: dev.sadakat.qit.application.usecase.music.GetAllSongsUseCase
 ) : ViewModel() {
 
     private val _playlists = MutableStateFlow<List<Playlist>>(emptyList())
@@ -36,8 +38,12 @@ class PlaylistViewModel @Inject constructor(
     private val _playlistSongs = MutableStateFlow<List<Song>>(emptyList())
     val playlistSongs: StateFlow<List<Song>> = _playlistSongs.asStateFlow()
 
+    private val _allSongs = MutableStateFlow<List<Song>>(emptyList())
+    val allSongs: StateFlow<List<Song>> = _allSongs.asStateFlow()
+
     init {
         loadPlaylists()
+        loadAllSongs()
     }
 
     fun loadPlaylists() {
@@ -83,7 +89,37 @@ class PlaylistViewModel @Inject constructor(
                     playlistId = PlaylistId.from(playlistId),
                     songId = SongId.from(songId)
                 )
-            )
+            ).onSuccess {
+                // Reload playlist songs after adding
+                selectPlaylist(playlistId)
+            }
         }
+    }
+
+    fun removeSongFromPlaylist(playlistId: String, songId: String) {
+        viewModelScope.launch {
+            removeSongFromPlaylistUseCase(
+                dev.sadakat.qit.application.usecase.playlist.RemoveSongFromPlaylistUseCase.Params(
+                    playlistId = PlaylistId.from(playlistId),
+                    songId = SongId.from(songId)
+                )
+            ).onSuccess {
+                // Reload playlist songs after removing
+                selectPlaylist(playlistId)
+            }
+        }
+    }
+
+    fun loadAllSongs() {
+        viewModelScope.launch {
+            getAllSongsUseCase().collect { songs ->
+                _allSongs.value = songs
+            }
+        }
+    }
+
+    fun clearSelectedPlaylist() {
+        _selectedPlaylist.value = null
+        _playlistSongs.value = emptyList()
     }
 }

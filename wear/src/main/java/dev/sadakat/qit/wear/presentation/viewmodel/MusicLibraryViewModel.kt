@@ -12,6 +12,7 @@ import dev.sadakat.qit.wear.application.usecase.playlist.GetPlaylistSongsUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -42,24 +43,23 @@ class MusicLibraryViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
 
-            getAllPlaylistsUseCase().collect { playlists ->
-                val items = mutableListOf<MusicLibraryItem>()
+            // Get single emission from flow instead of infinite collect
+            val playlists = getAllPlaylistsUseCase().first()
+            val items = mutableListOf<MusicLibraryItem>()
 
-                playlists.forEach { playlist ->
-                    // Add playlist header
-                    items.add(MusicLibraryItem.PlaylistHeader(playlist))
+            playlists.forEach { playlist ->
+                // Add playlist header
+                items.add(MusicLibraryItem.PlaylistHeader(playlist))
 
-                    // Load and add songs for this playlist
-                    getPlaylistSongsUseCase(playlist.id).collect { songs ->
-                        songs.forEach { song ->
-                            items.add(MusicLibraryItem.SongItem(song, playlist.name))
-                        }
-                    }
+                // Load and add songs for this playlist (single emission)
+                val songs = getPlaylistSongsUseCase(playlist.id).first()
+                songs.forEach { song ->
+                    items.add(MusicLibraryItem.SongItem(song, playlist.name))
                 }
-
-                _libraryItems.value = items
-                _isLoading.value = false
             }
+
+            _libraryItems.value = items
+            _isLoading.value = false
         }
     }
 

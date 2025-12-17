@@ -42,6 +42,7 @@ import dev.sadakat.qit.shared.domain.entity.Playlist
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaylistListScreen(
+    onPlaylistClick: (String) -> Unit = {},
     viewModel: PlaylistViewModel = hiltViewModel()
 ) {
     val playlists by viewModel.playlists.collectAsState()
@@ -93,7 +94,7 @@ fun PlaylistListScreen(
                     items(playlists) { playlist ->
                         PlaylistItem(
                             playlist = playlist,
-                            onClick = { viewModel.selectPlaylist(playlist.id.value) },
+                            onClick = { onPlaylistClick(playlist.id.value) },
                             onDelete = { viewModel.deletePlaylist(playlist.id.value) }
                         )
                     }

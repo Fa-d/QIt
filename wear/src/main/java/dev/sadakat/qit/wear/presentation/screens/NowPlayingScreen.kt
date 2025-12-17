@@ -56,8 +56,10 @@ fun NowPlayingScreen(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             contentPadding = PaddingValues(
-                vertical = 8.dp,
-                horizontal = 16.dp
+                start = 16.dp,
+                top = 8.dp,
+                end = 16.dp,
+                bottom = 32.dp  // Add extra bottom padding for round watches
             )
         ) {
         // Connection Status

@@ -9,6 +9,7 @@ import dev.sadakat.qit.shared.domain.repository.SyncRepository
 import dev.sadakat.qit.shared.domain.valueobject.ConflictResolutionStrategy
 import dev.sadakat.qit.shared.domain.valueobject.EntityType
 import dev.sadakat.qit.shared.domain.valueobject.SyncConflict
+import kotlinx.coroutines.flow.first
 
 /**
  * Domain Service for coordinating sync operations between phone and watch
@@ -40,11 +41,7 @@ class SyncCoordinator(
             val errors = mutableListOf<String>()
 
             // Get all playlists
-            val allPlaylists = mutableListOf<Playlist>()
-            playlistRepository.getAllPlaylists().collect { playlists ->
-                allPlaylists.clear()
-                allPlaylists.addAll(playlists)
-            }
+            val allPlaylists = playlistRepository.getAllPlaylists().first()
 
             // Sync each playlist
             for (playlist in allPlaylists) {
@@ -132,11 +129,7 @@ class SyncCoordinator(
             val errors = mutableListOf<String>()
 
             // Get all playlists
-            val allPlaylists = mutableListOf<Playlist>()
-            playlistRepository.getAllPlaylists().collect { playlists ->
-                allPlaylists.clear()
-                allPlaylists.addAll(playlists)
-            }
+            val allPlaylists = playlistRepository.getAllPlaylists().first()
 
             // Only sync playlists updated after last sync
             val updatedPlaylists = allPlaylists.filter { it.updatedAt > lastSyncTimestamp }

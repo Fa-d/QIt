@@ -11,6 +11,7 @@ import dev.sadakat.qit.wear.application.usecase.playlist.GetPlaylistSongsUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -35,9 +36,8 @@ class PlaylistViewModel @Inject constructor(
 
     fun loadPlaylists() {
         viewModelScope.launch {
-            getAllPlaylistsUseCase().collect { playlists ->
-                _playlists.value = playlists
-            }
+            val playlists = getAllPlaylistsUseCase().first()
+            _playlists.value = playlists
         }
     }
 
@@ -49,9 +49,8 @@ class PlaylistViewModel @Inject constructor(
 
             playlist?.let {
                 // Load songs for the selected playlist
-                getPlaylistSongsUseCase(PlaylistId(playlistId)).collect { songs ->
-                    _playlistSongs.value = songs
-                }
+                val songs = getPlaylistSongsUseCase(PlaylistId(playlistId)).first()
+                _playlistSongs.value = songs
             }
         }
     }

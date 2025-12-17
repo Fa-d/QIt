@@ -26,12 +26,16 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import dev.sadakat.qit.presentation.components.CollapsiblePlayer
 import dev.sadakat.qit.presentation.screens.MusicLibraryScreen
+import dev.sadakat.qit.presentation.screens.PlaylistDetailScreen
 import dev.sadakat.qit.presentation.screens.PlaylistListScreen
 import dev.sadakat.qit.presentation.screens.WatchSyncScreen
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
     object MusicLibrary : Screen("music_library", "Library", Icons.Default.LibraryMusic)
     object Playlists : Screen("playlists", "Playlists", Icons.Default.PlaylistPlay)
+    object PlaylistDetail : Screen("playlist_detail/{playlistId}", "Playlist", Icons.Default.PlaylistPlay) {
+        fun createRoute(playlistId: String) = "playlist_detail/$playlistId"
+    }
     object WatchSync : Screen("watch_sync", "Watch", Icons.Default.Watch)
 }
 
@@ -79,7 +83,23 @@ fun QItNavGraph() {
                     MusicLibraryScreen()
                 }
                 composable(Screen.Playlists.route) {
-                    PlaylistListScreen()
+                    PlaylistListScreen(
+                        onPlaylistClick = { playlistId ->
+                            navController.navigate(Screen.PlaylistDetail.createRoute(playlistId))
+                        }
+                    )
+                }
+                composable(
+                    route = Screen.PlaylistDetail.route,
+                    arguments = listOf(
+                        navArgument("playlistId") { type = NavType.StringType }
+                    )
+                ) { backStackEntry ->
+                    val playlistId = backStackEntry.arguments?.getString("playlistId") ?: return@composable
+                    PlaylistDetailScreen(
+                        playlistId = playlistId,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
                 }
                 composable(Screen.WatchSync.route) {
                     WatchSyncScreen()

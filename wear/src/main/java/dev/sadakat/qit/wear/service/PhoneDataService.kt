@@ -16,6 +16,10 @@ import dev.sadakat.qit.shared.constants.WearPaths
 import dev.sadakat.qit.shared.domain.entity.SongId
 import dev.sadakat.qit.shared.domain.repository.StreamingRepository
 import dev.sadakat.qit.shared.dto.PlaybackCommandMessage
+import dev.sadakat.qit.shared.dto.PlaylistSyncMessage
+import dev.sadakat.qit.shared.dto.SongSyncMessage
+import dev.sadakat.qit.shared.dto.PlaylistDto
+import dev.sadakat.qit.shared.dto.SongDto
 import dev.sadakat.qit.shared.model.Playlist
 import dev.sadakat.qit.shared.model.Song
 import dev.sadakat.qit.wear.application.usecase.playback.PlaySongUseCase
@@ -89,11 +93,23 @@ class PhoneDataService : WearableListenerService() {
         when (messageEvent.path) {
             WearPaths.PLAYLIST_SYNC -> {
                 val playlistData = String(messageEvent.data)
-                handlePlaylistSync(playlistData)
+                try {
+                    // Try to parse as JSON first (new format)
+                    handlePlaylistDataSync(playlistData)
+                } catch (e: Exception) {
+                    // Fallback to old format parsing
+                    handlePlaylistSync(playlistData)
+                }
             }
             WearPaths.SONG_SYNC -> {
                 val songData = String(messageEvent.data)
-                handleSongSync(songData)
+                try {
+                    // Try to parse as JSON first (new format)
+                    handleSongDataSync(songData)
+                } catch (e: Exception) {
+                    // Fallback to old format parsing
+                    handleSongSync(songData)
+                }
             }
             WearPaths.PLAYBACK_COMMAND -> {
                 val command = String(messageEvent.data)
@@ -118,22 +134,32 @@ class PhoneDataService : WearableListenerService() {
     private fun handlePlaylistSync(playlistData: String) {
         serviceScope.launch {
             try {
-                val playlists = playlistData.split("|||").mapNotNull { playlistStr ->
-                    val parts = playlistStr.split("::")
-                    if (parts.size >= 4) {
-                        Playlist(
-                            id = parts[0],
-                            name = parts[1],
-                            description = parts[2].ifEmpty { null },
-                            songIds = if (parts[3].isEmpty()) emptyList() else parts[3].split(",")
-                        )
-                    } else null
+                Log.d(TAG, "Handling playlist sync, data length: ${playlistData.length}")
+
+                // Deserialize JSON to PlaylistSyncMessage
+                val message = json.decodeFromString<PlaylistSyncMessage>(playlistData)
+
+                Log.d(TAG, "Received ${message.playlists.size} playlists to sync")
+
+                // Convert PlaylistDto to PlaylistEntity
+                val playlistEntities = message.playlists.map { dto ->
+                    PlaylistEntity(
+                        id = dto.id,
+                        name = dto.name,
+                        description = dto.description,
+                        songIds = dto.songIds.joinToString(","),
+                        createdAt = dto.createdAt,
+                        updatedAt = dto.updatedAt,
+                        coverArtUri = dto.coverArtUri
+                    )
                 }
 
-                database.playlistDao().insertPlaylists(
-                    playlists.map { PlaylistEntity.fromPlaylist(it) }
-                )
+                // Insert into database
+                database.playlistDao().insertPlaylists(playlistEntities)
+
+                Log.d(TAG, "Successfully synced ${playlistEntities.size} playlists to local database")
             } catch (e: Exception) {
+                Log.e(TAG, "Error handling playlist sync", e)
                 e.printStackTrace()
             }
         }
@@ -142,23 +168,38 @@ class PhoneDataService : WearableListenerService() {
     private fun handleSongSync(songData: String) {
         serviceScope.launch {
             try {
-                val songs = songData.split("|||").mapNotNull { songStr ->
-                    val parts = songStr.split("::")
-                    if (parts.size >= 5) {
-                        Song(
-                            id = parts[0],
-                            title = parts[1],
-                            artist = parts[2].ifEmpty { null },
-                            album = parts[3].ifEmpty { null },
-                            duration = parts[4].toLongOrNull() ?: 0L
-                        )
-                    } else null
+                Log.d(TAG, "Handling song sync, data length: ${songData.length}")
+
+                // Deserialize JSON to SongSyncMessage
+                val message = json.decodeFromString<SongSyncMessage>(songData)
+
+                Log.d(TAG, "Received ${message.songs.size} songs to sync")
+
+                // Convert SongDto to SongEntity
+                val songEntities = message.songs.map { dto ->
+                    SongEntity(
+                        id = dto.id,
+                        title = dto.title,
+                        artist = dto.artist,
+                        album = dto.album,
+                        duration = dto.durationMs,
+                        localFilePath = null, // Not downloaded yet
+                        isDownloaded = false,
+                        fileSize = dto.fileSizeBytes,
+                        downloadProgress = 0f,
+                        dateAdded = dto.dateAdded,
+                        coverArtUri = dto.coverArtUri,
+                        mimeType = dto.mimeType,
+                        bitrate = dto.bitrate
+                    )
                 }
 
-                database.songDao().insertSongs(
-                    songs.map { SongEntity.fromSong(it) }
-                )
+                // Insert into database
+                database.songDao().insertSongs(songEntities)
+
+                Log.d(TAG, "Successfully synced ${songEntities.size} songs to local database")
             } catch (e: Exception) {
+                Log.e(TAG, "Error handling song sync", e)
                 e.printStackTrace()
             }
         }
@@ -257,10 +298,23 @@ class PhoneDataService : WearableListenerService() {
     private fun handlePlaylistDataSync(playlistJson: String) {
         serviceScope.launch {
             try {
-                // TODO: Implement JSON parsing once kotlinx.serialization plugin is added
-                // For now, this is a placeholder that logs the received data
-                Log.d("PhoneDataService", "Received playlist sync data")
+                Log.d(TAG, "Parsing playlist sync data")
+                val syncMessage = json.decodeFromString<PlaylistSyncMessage>(playlistJson)
+                val playlists = syncMessage.playlists.map { dto ->
+                    Playlist(
+                        id = dto.id,
+                        name = dto.name,
+                        description = dto.description,
+                        songIds = dto.songIds
+                    )
+                }
+
+                database.playlistDao().insertPlaylists(
+                    playlists.map { PlaylistEntity.fromPlaylist(it) }
+                )
+                Log.d(TAG, "Successfully synced ${playlists.size} playlists")
             } catch (e: Exception) {
+                Log.e(TAG, "Error parsing playlist sync data", e)
                 e.printStackTrace()
             }
         }
@@ -269,10 +323,25 @@ class PhoneDataService : WearableListenerService() {
     private fun handleSongDataSync(songJson: String) {
         serviceScope.launch {
             try {
-                // TODO: Implement JSON parsing once kotlinx.serialization plugin is added
-                // For now, this is a placeholder that logs the received data
-                Log.d("PhoneDataService", "Received song sync data")
+                Log.d(TAG, "Parsing song sync data")
+                val syncMessage = json.decodeFromString<SongSyncMessage>(songJson)
+                val songs = syncMessage.songs.map { dto ->
+                    Song(
+                        id = dto.id,
+                        title = dto.title,
+                        artist = dto.artist,
+                        album = dto.album,
+                        duration = dto.durationMs,
+                        filePath = dto.filePath
+                    )
+                }
+
+                database.songDao().insertSongs(
+                    songs.map { SongEntity.fromSong(it) }
+                )
+                Log.d(TAG, "Successfully synced ${songs.size} songs")
             } catch (e: Exception) {
+                Log.e(TAG, "Error parsing song sync data", e)
                 e.printStackTrace()
             }
         }
