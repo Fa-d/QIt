@@ -40,8 +40,13 @@ class PlaybackManager @Inject constructor(
         private const val TAG = "PlaybackManager"
     }
 
+    // Track the current playback destination
+    private val _playbackDestination = MutableStateFlow(PlaybackDestination.PHONE)
+    val playbackDestination: StateFlow<PlaybackDestination> = _playbackDestination.asStateFlow()
+
     init {
         observeAudioFocus()
+        observePlaybackDestination()
     }
 
     private val _player: ExoPlayer by lazy {
@@ -121,6 +126,13 @@ class PlaybackManager @Inject constructor(
                         setPlaybackQueue(queue, 0)
                     }
                     PlaybackDestination.WATCH -> {
+                        // Stop local playback on phone first
+                        Log.d(TAG, "Stopping phone playback, sending to watch: ${song.title}")
+                        _player.stop()
+                        _player.clearMediaItems()
+                        _isPlaying.value = false
+                        _currentSong.value = null
+
                         // Send playback command to watch
                         Log.d(TAG, "Sending play command to watch: ${song.title}")
                         val result = syncRepository.sendPlaybackCommand("PLAY", song.id)
@@ -251,10 +263,22 @@ class PlaybackManager @Inject constructor(
      * Toggle play/pause
      */
     fun togglePlayPause() {
-        if (_player.isPlaying) {
-            pause()
-        } else {
-            play()
+        when (_playbackDestination.value) {
+            PlaybackDestination.PHONE -> {
+                if (_player.isPlaying) {
+                    pause()
+                } else {
+                    play()
+                }
+            }
+            PlaybackDestination.WATCH -> {
+                // Toggle play/pause on watch
+                coroutineScope.launch {
+                    val command = if (_isPlaying.value) "PAUSE" else "PLAY"
+                    syncRepository.sendPlaybackCommand(command)
+                    _isPlaying.value = !_isPlaying.value
+                }
+            }
         }
     }
 
@@ -262,24 +286,56 @@ class PlaybackManager @Inject constructor(
      * Resume playback
      */
     fun play() {
-        _player.play()
+        when (_playbackDestination.value) {
+            PlaybackDestination.PHONE -> {
+                _player.play()
+            }
+            PlaybackDestination.WATCH -> {
+                // Send play command to watch
+                coroutineScope.launch {
+                    syncRepository.sendPlaybackCommand("PLAY")
+                    _isPlaying.value = true
+                }
+            }
+        }
     }
 
     /**
      * Pause playback
      */
     fun pause() {
-        _player.pause()
+        when (_playbackDestination.value) {
+            PlaybackDestination.PHONE -> {
+                _player.pause()
+            }
+            PlaybackDestination.WATCH -> {
+                // Send pause command to watch
+                coroutineScope.launch {
+                    syncRepository.sendPlaybackCommand("PAUSE")
+                    _isPlaying.value = false
+                }
+            }
+        }
     }
 
     /**
      * Skip to next track
      */
     fun skipToNext() {
-        if (_player.hasNextMediaItem()) {
-            _player.seekToNextMediaItem()
-        } else if (_repeatMode.value == RepeatMode.ALL) {
-            _player.seekTo(0, 0)
+        when (_playbackDestination.value) {
+            PlaybackDestination.PHONE -> {
+                if (_player.hasNextMediaItem()) {
+                    _player.seekToNextMediaItem()
+                } else if (_repeatMode.value == RepeatMode.ALL) {
+                    _player.seekTo(0, 0)
+                }
+            }
+            PlaybackDestination.WATCH -> {
+                // Send skip next command to watch
+                coroutineScope.launch {
+                    syncRepository.sendPlaybackCommand("SKIP_NEXT")
+                }
+            }
         }
     }
 
@@ -287,12 +343,22 @@ class PlaybackManager @Inject constructor(
      * Skip to previous track or restart current if played > 3s
      */
     fun skipToPrevious() {
-        if (_player.currentPosition > 3000) {
-            _player.seekTo(0)
-        } else if (_player.hasPreviousMediaItem()) {
-            _player.seekToPreviousMediaItem()
-        } else if (_repeatMode.value == RepeatMode.ALL) {
-            _player.seekTo(_player.mediaItemCount - 1, 0)
+        when (_playbackDestination.value) {
+            PlaybackDestination.PHONE -> {
+                if (_player.currentPosition > 3000) {
+                    _player.seekTo(0)
+                } else if (_player.hasPreviousMediaItem()) {
+                    _player.seekToPreviousMediaItem()
+                } else if (_repeatMode.value == RepeatMode.ALL) {
+                    _player.seekTo(_player.mediaItemCount - 1, 0)
+                }
+            }
+            PlaybackDestination.WATCH -> {
+                // Send skip previous command to watch
+                coroutineScope.launch {
+                    syncRepository.sendPlaybackCommand("SKIP_PREVIOUS")
+                }
+            }
         }
     }
 
@@ -410,6 +476,18 @@ class PlaybackManager @Inject constructor(
             audioFocusManager.isDucked.collect { isDucked ->
                 // Adjust volume based on ducking state
                 _player.volume = if (isDucked) 0.3f else 1.0f
+            }
+        }
+    }
+
+    /**
+     * Observe playback destination changes
+     */
+    private fun observePlaybackDestination() {
+        coroutineScope.launch {
+            settingsRepository.observePlaybackDestination().collect { destination ->
+                _playbackDestination.value = destination
+                Log.d(TAG, "Playback destination changed to: $destination")
             }
         }
     }

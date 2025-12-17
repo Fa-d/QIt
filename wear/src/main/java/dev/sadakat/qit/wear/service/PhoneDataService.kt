@@ -11,8 +11,10 @@ import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
 import dagger.hilt.android.AndroidEntryPoint
+import android.net.Uri
 import dev.sadakat.qit.shared.constants.WearPaths
 import dev.sadakat.qit.shared.domain.entity.SongId
+import dev.sadakat.qit.shared.domain.repository.StreamingRepository
 import dev.sadakat.qit.shared.dto.PlaybackCommandMessage
 import dev.sadakat.qit.shared.model.Playlist
 import dev.sadakat.qit.shared.model.Song
@@ -21,7 +23,6 @@ import kotlinx.serialization.json.Json
 import dev.sadakat.qit.wear.data.local.WearMusicDatabase
 import dev.sadakat.qit.wear.data.local.entity.PlaylistEntity
 import dev.sadakat.qit.wear.data.local.entity.SongEntity
-import dev.sadakat.qit.wear.infrastructure.streaming.StreamingAudioBuffer
 import dev.sadakat.qit.wear.playback.PlaybackManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,6 +43,7 @@ class PhoneDataService : WearableListenerService() {
 
     @Inject lateinit var playbackManager: PlaybackManager
     @Inject lateinit var playSongUseCase: PlaySongUseCase
+    @Inject lateinit var streamingRepository: StreamingRepository
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val database by lazy { WearMusicDatabase.getDatabase(this) }
@@ -103,14 +105,12 @@ class PhoneDataService : WearableListenerService() {
     override fun onChannelOpened(channel: ChannelClient.Channel) {
         super.onChannelOpened(channel)
 
+        // Only handle download channels here
+        // Audio stream channels are handled by WearStreamingRepository
         when {
             channel.path.startsWith(WearPaths.DOWNLOAD_CHANNEL) -> {
                 val songId = channel.path.substringAfter(WearPaths.DOWNLOAD_CHANNEL)
                 handleFileDownload(channel, songId)
-            }
-            channel.path.startsWith(WearPaths.AUDIO_STREAM) -> {
-                val songId = channel.path.substringAfter(WearPaths.AUDIO_STREAM)
-                handleAudioStream(channel, songId)
             }
         }
     }
@@ -196,32 +196,6 @@ class PhoneDataService : WearableListenerService() {
         }
     }
 
-    private fun handleAudioStream(channel: ChannelClient.Channel, songId: String) {
-        serviceScope.launch {
-            try {
-                // Create a streaming buffer for this channel
-                val buffer = StreamingAudioBuffer()
-
-                // Start receiving data from the channel
-                val inputStream = channelClient.getInputStream(channel).await()
-                val bufferedReader = inputStream.buffered(8192)
-
-                // Read data in chunks and write to buffer
-                val chunk = ByteArray(4096)
-                while (true) {
-                    val bytesRead = bufferedReader.read(chunk)
-                    if (bytesRead == -1) break
-                    buffer.write(chunk, 0, bytesRead)
-                }
-
-                buffer.markComplete()
-
-            } catch (e: Exception) {
-                e.printStackTrace()
-                channelClient.close(channel)
-            }
-        }
-    }
 
     private fun handlePlaybackCommand(commandData: String) {
         serviceScope.launch {
@@ -247,9 +221,11 @@ class PhoneDataService : WearableListenerService() {
                                             playbackManager.playLocalSong(playbackSource.song)
                                         }
                                         is dev.sadakat.qit.wear.application.usecase.playback.PlaybackSource.Streaming -> {
-                                            // Streaming is already initiated by the use case
-                                            // The PlaybackManager will handle it via the StreamingRepository callback
-                                            Log.d(TAG, "Streaming initiated for song: ${playbackSource.song.title}")
+                                            // Streaming has already been initiated by the use case
+                                            // We just need to tell the playback manager to start playing the stream
+                                            Log.d(TAG, "Starting streaming playback for song: ${playbackSource.song.title}")
+                                            val streamUri = Uri.parse("streaming://phone/${playbackSource.song.id.value}")
+                                            playbackManager.playStreamedSong(playbackSource.song, streamUri)
                                         }
                                     }
                                 },

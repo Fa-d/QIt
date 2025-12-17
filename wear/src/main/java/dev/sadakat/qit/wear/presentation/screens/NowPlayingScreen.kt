@@ -3,6 +3,7 @@ package dev.sadakat.qit.wear.presentation.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,7 +22,9 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun NowPlayingScreen(
-    viewModel: PlaybackViewModel = hiltViewModel()
+    viewModel: PlaybackViewModel = hiltViewModel(),
+    onBrowseMusicClick: () -> Unit = {},
+    onDownloadsClick: () -> Unit = {}
 ) {
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
@@ -34,6 +37,8 @@ fun NowPlayingScreen(
     val bufferingProgress by viewModel.bufferingProgress.collectAsState()
     val phoneBatteryLevel by viewModel.phoneBatteryLevel.collectAsState()
 
+    val scalingLazyListState = rememberScalingLazyListState()
+
     LaunchedEffect(isPlaying) {
         while (isPlaying) {
             viewModel.updatePlaybackPosition()
@@ -41,14 +46,20 @@ fun NowPlayingScreen(
         }
     }
 
-    ScalingLazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        contentPadding = PaddingValues(
-            vertical = 8.dp,
-            horizontal = 16.dp
-        )
+    Scaffold(
+        positionIndicator = {
+            PositionIndicator(scalingLazyListState = scalingLazyListState)
+        }
     ) {
+        ScalingLazyColumn(
+            state = scalingLazyListState,
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            contentPadding = PaddingValues(
+                vertical = 8.dp,
+                horizontal = 16.dp
+            )
+        ) {
         // Connection Status
         item {
             ConnectionStatus(
@@ -229,6 +240,44 @@ fun NowPlayingScreen(
                     )
                 }
             }
+        }
+
+        // Navigation buttons
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Browse Music button
+        item {
+            Chip(
+                label = { Text("Browse Music") },
+                onClick = onBrowseMusicClick,
+                modifier = Modifier.fillMaxWidth(),
+                icon = {
+                    Icon(
+                        Icons.Default.LibraryMusic,
+                        contentDescription = "Browse Music"
+                    )
+                },
+                colors = ChipDefaults.secondaryChipColors()
+            )
+        }
+
+        // Downloads button (optional, for offline mode)
+        item {
+            Chip(
+                label = { Text("Downloads") },
+                onClick = onDownloadsClick,
+                modifier = Modifier.fillMaxWidth(),
+                icon = {
+                    Icon(
+                        Icons.Default.DownloadDone,
+                        contentDescription = "Downloads"
+                    )
+                },
+                colors = ChipDefaults.secondaryChipColors()
+            )
+        }
         }
     }
 }

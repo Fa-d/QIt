@@ -1,7 +1,9 @@
 package dev.sadakat.qit.wear.infrastructure.streaming
 
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.ByteArrayOutputStream
 
 /**
@@ -14,6 +16,11 @@ class StreamingAudioBuffer {
     private val mutex = Mutex()
     private var readPosition = 0
     private var isStreamComplete = false
+
+    companion object {
+        private const val READ_TIMEOUT_MS = 30000L // 30 seconds timeout for waiting for data
+        private const val POLL_INTERVAL_MS = 50L // Check for data every 50ms
+    }
 
     /**
      * Write audio data to buffer
@@ -29,31 +36,43 @@ class StreamingAudioBuffer {
 
     /**
      * Read audio data from buffer
+     * BLOCKS until data is available or stream is complete
      * @param output Destination array
      * @param offset Starting position in output array
      * @param length Maximum number of bytes to read
      * @return Number of bytes actually read, or -1 if stream is complete and no more data
      */
     suspend fun read(output: ByteArray, offset: Int = 0, length: Int = output.size): Int {
-        mutex.withLock {
-            val available = buffer.size() - readPosition
+        // Wait for data to be available with timeout
+        val result = withTimeoutOrNull(READ_TIMEOUT_MS) {
+            // Poll until data is available or stream is complete
+            while (true) {
+                mutex.withLock {
+                    val available = buffer.size() - readPosition
 
-            // If no data available
-            if (available <= 0) {
-                return if (isStreamComplete) -1 else 0
+                    // If we have data, read it
+                    if (available > 0) {
+                        val bytesToRead = minOf(length, available)
+                        val bufferArray = buffer.toByteArray()
+                        System.arraycopy(bufferArray, readPosition, output, offset, bytesToRead)
+                        readPosition += bytesToRead
+                        return@withTimeoutOrNull bytesToRead
+                    }
+
+                    // If stream is complete and no data, signal end
+                    if (isStreamComplete) {
+                        return@withTimeoutOrNull -1
+                    }
+                }
+
+                // Wait a bit before checking again (don't spin too fast)
+                delay(POLL_INTERVAL_MS)
             }
-
-            // Calculate how much we can actually read
-            val bytesToRead = minOf(length, available)
-
-            // Copy data from buffer
-            val bufferArray = buffer.toByteArray()
-            System.arraycopy(bufferArray, readPosition, output, offset, bytesToRead)
-
-            readPosition += bytesToRead
-
-            return bytesToRead
+            0 // Should never reach here
         }
+
+        // If timeout occurred, return -1 to signal error/end
+        return result ?: -1
     }
 
     /**

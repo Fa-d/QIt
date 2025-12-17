@@ -18,9 +18,12 @@ import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.ButtonDefaults
 import androidx.wear.compose.material.CircularProgressIndicator
 import androidx.wear.compose.material.MaterialTheme
+import androidx.wear.compose.material.PositionIndicator
+import androidx.wear.compose.material.Scaffold
 import androidx.wear.compose.material.ScalingLazyColumn
 import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.items
+import androidx.wear.compose.material.rememberScalingLazyListState
 import dev.sadakat.qit.shared.domain.entity.Song
 import dev.sadakat.qit.shared.domain.valueobject.FileSize
 import dev.sadakat.qit.wear.presentation.components.DownloadItem
@@ -41,6 +44,8 @@ fun DownloadsScreen(
     val isLoading by downloadViewModel.isLoading.collectAsState()
     val downloadError by downloadViewModel.downloadError.collectAsState()
 
+    val scalingLazyListState = rememberScalingLazyListState()
+
     if (isLoading && downloadedSongs.isEmpty()) {
         // Show loading state
         Box(
@@ -50,10 +55,16 @@ fun DownloadsScreen(
             CircularProgressIndicator()
         }
     } else {
-        ScalingLazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+        Scaffold(
+            positionIndicator = {
+                PositionIndicator(scalingLazyListState = scalingLazyListState)
+            }
         ) {
+            ScalingLazyColumn(
+                state = scalingLazyListState,
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
             // Header
             item {
                 Text(
@@ -228,6 +239,7 @@ fun DownloadsScreen(
                 ) {
                     Text("Back")
                 }
+            }
             }
         }
     }

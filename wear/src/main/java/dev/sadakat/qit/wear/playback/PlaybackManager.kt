@@ -3,11 +3,20 @@ package dev.sadakat.qit.wear.playback
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import androidx.annotation.OptIn
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.FileDataSource
+import androidx.media3.datasource.TransferListener
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import dev.sadakat.qit.wear.infrastructure.streaming.StreamingAudioBuffer
+import dev.sadakat.qit.wear.infrastructure.streaming.StreamingAudioSource
+import dev.sadakat.qit.wear.infrastructure.streaming.WearStreamingRepository
 import dev.sadakat.qit.shared.domain.entity.Song
 import dev.sadakat.qit.shared.domain.entity.SongId
 import dev.sadakat.qit.shared.domain.repository.StreamingRepository
@@ -39,10 +48,23 @@ class PlaybackManager @Inject constructor(
         private const val TAG = "PlaybackManager"
     }
 
+    @OptIn(UnstableApi::class)
     private val _player: ExoPlayer by lazy {
-        ExoPlayer.Builder(context).build().apply {
-            addListener(playerListener)
+        // Cast to WearStreamingRepository to access the audio buffer
+        val wearRepo = streamingRepository as WearStreamingRepository
+        val audioBuffer = wearRepo.getAudioBuffer()
+
+        // Custom factory that routes based on URI scheme
+        val dataSourceFactory = DataSource.Factory {
+            SchemeAwareDataSource(audioBuffer, context)
         }
+
+        ExoPlayer.Builder(context)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(context).setDataSourceFactory(dataSourceFactory))
+            .build()
+            .apply {
+                addListener(playerListener)
+            }
     }
 
     val player: Player get() = _player
@@ -426,6 +448,59 @@ class PlaybackManager @Inject constructor(
                     error.message ?: "Playback error"
                 )
             }
+        }
+    }
+
+    /**
+     * Custom DataSource that delegates based on URI scheme
+     * - streaming:// → StreamingAudioSource (reads from buffer)
+     * - file:// → FileDataSource (reads from local storage)
+     */
+    @OptIn(UnstableApi::class)
+    private inner class SchemeAwareDataSource(
+        private val audioBuffer: StreamingAudioBuffer,
+        private val context: Context
+    ) : DataSource {
+        private var delegate: DataSource? = null
+        private var dataSpec: DataSpec? = null
+        private var transferListener: TransferListener? = null
+
+        override fun open(dataSpec: DataSpec): Long {
+            this.dataSpec = dataSpec
+
+            // Choose the appropriate delegate based on URI scheme
+            delegate = if (dataSpec.uri.scheme == "streaming") {
+                Log.d(TAG, "Using StreamingAudioSource for URI: ${dataSpec.uri}")
+                StreamingAudioSource(audioBuffer)
+            } else {
+                Log.d(TAG, "Using FileDataSource for URI: ${dataSpec.uri}")
+                FileDataSource()
+            }
+
+            // Add transfer listener to delegate if one was set
+            transferListener?.let { listener ->
+                delegate?.addTransferListener(listener)
+            }
+
+            return delegate!!.open(dataSpec)
+        }
+
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+            return delegate?.read(buffer, offset, length) ?: C.RESULT_END_OF_INPUT
+        }
+
+        override fun getUri(): Uri? {
+            return delegate?.uri
+        }
+
+        override fun close() {
+            delegate?.close()
+            delegate = null
+        }
+
+        override fun addTransferListener(transferListener: TransferListener) {
+            this.transferListener = transferListener
+            delegate?.addTransferListener(transferListener)
         }
     }
 }
