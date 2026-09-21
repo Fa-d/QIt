@@ -77,10 +77,6 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
 
-    // Room Database
-    implementation(libs.room.runtime)
-    implementation(libs.room.ktx)
-    ksp(libs.room.compiler)
 
     // DataStore
     implementation(libs.datastore.preferences)
@@ -93,10 +89,7 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
-    implementation(libs.hilt.work)
 
-    // WorkManager
-    implementation(libs.work.runtime.ktx)
 
     // Testing
     androidTestImplementation(platform(libs.androidx.compose.bom))

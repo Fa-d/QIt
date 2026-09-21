@@ -72,19 +72,11 @@ dependencies {
     // Wearable Data Layer
     implementation(libs.play.services.wearable)
 
-    // Room Database
-    implementation(libs.room.runtime)
-    implementation(libs.room.ktx)
-    ksp(libs.room.compiler)
 
     // Media3 for audio playback
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
-    implementation(libs.media3.ui)
 
-    
-    // Coil for image loading
-    implementation("io.coil-kt:coil-compose:2.5.0")
 
     // Lifecycle for collectAsStateWithLifecycle
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.2")
