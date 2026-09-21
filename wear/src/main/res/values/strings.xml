@@ -8,7 +8,6 @@
     <string name="recitation_mode_hint">Recitation mode</string>
     <string name="surah_label">%1$d. %2$s</string>
     <string name="ayah_count_secondary">%1$d ayahs · %2$s</string>
-    <string name="download_state_offline">Offline</string>
     <string name="download_state_downloaded">Downloaded</string>
     <string name="download_state_failed">Failed</string>
     <string name="download_progress">%1$d%%</string>

@@ -58,7 +58,9 @@ class HomeScreenTest {
     }
 
     @Test
-    fun `a surah without downloads is labelled Offline`() {
+    fun `a surah without downloads shows only its ayah count`() {
+        // Found on a Galaxy Watch: not-downloaded surahs were labelled "Offline", which reads as
+        // "available offline" — the opposite of the truth.
         val empty = uiState.copy(
             nowPlayingChip = null,
             rows = listOf(WearHomeViewModel.SurahRow(TestQuran.surah(1), SurahDownloadState.NotDownloaded)),
@@ -76,7 +78,8 @@ class HomeScreenTest {
         }
 
         composeRule.onNodeWithText("1. Al-Faatiha").assertExists()
-        composeRule.onNodeWithText("7 ayahs · Offline").assertExists()
+        composeRule.onNodeWithText("7 ayahs").assertExists()
+        composeRule.onNodeWithText("Offline", substring = true).assertDoesNotExist()
     }
 
     @Test

@@ -149,12 +149,14 @@ private fun SurahChipRow(row: WearHomeViewModel.SurahRow, onSurahClick: (Int) ->
         onClick = { onSurahClick(row.surah.number) },
         label = { Text(stringResource(R.string.surah_label, row.surah.number, row.surah.nameEnglish)) },
         secondaryLabel = {
+            // Only downloads get a status; a plain surah (streams when played) shows its size alone.
+            val status = downloadLabel(row.download)
             Text(
-                stringResource(
-                    R.string.ayah_count_secondary,
-                    row.surah.ayahCount,
-                    downloadLabel(row.download),
-                ),
+                if (status == null) {
+                    stringResource(R.string.ayah_count, row.surah.ayahCount)
+                } else {
+                    stringResource(R.string.ayah_count_secondary, row.surah.ayahCount, status)
+                },
             )
         },
         modifier = modifier.fillMaxWidth(),
@@ -162,8 +164,8 @@ private fun SurahChipRow(row: WearHomeViewModel.SurahRow, onSurahClick: (Int) ->
 }
 
 @Composable
-private fun downloadLabel(download: SurahDownloadState): String = when (download) {
-    SurahDownloadState.NotDownloaded -> stringResource(R.string.download_state_offline)
+private fun downloadLabel(download: SurahDownloadState): String? = when (download) {
+    SurahDownloadState.NotDownloaded -> null
     is SurahDownloadState.Downloading ->
         stringResource(R.string.download_progress, (download.progress * 100).roundToInt())
 
