@@ -265,6 +265,25 @@ class ExoQuranPlayerTest {
     }
 
     @Test
+    fun `togglePlayPause replays the last ayah after the surah ended`() {
+        player.play(2, fromAyah = 286, mode = RecitationMode.ARABIC_ONLY)
+        runMainLooperUntil { player.nowPlaying.value?.isPlaying == true }
+        exoPlayer.pause()
+        runMainLooperUntil { !exoPlayer.playWhenReady }
+        exoPlayer.seekTo(exoPlayer.currentMediaItemIndex, 9_500)
+        exoPlayer.play()
+        runMainLooperUntil { exoPlayer.playbackState == Player.STATE_ENDED }
+        exoPlayer.pause()
+        runMainLooperUntil { !exoPlayer.playWhenReady }
+
+        player.togglePlayPause()
+
+        runMainLooperUntil { player.nowPlaying.value?.isPlaying == true }
+        assertEquals("2:286:ar", exoPlayer.currentMediaItem?.mediaId)
+        assertEquals(0L, exoPlayer.currentPosition)
+    }
+
+    @Test
     fun `a playback error shows a short message that the next play clears`() {
         val failing = newPlayer(FailingOnceMediaSourceFactory())
         val failingPlayer = ExoQuranPlayer(context, failing, text, settings, CoroutineScope(Dispatchers.Main))
