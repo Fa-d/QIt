@@ -1,0 +1,22 @@
+#!/bin/bash
+# QIt pre-commit hook: fast quality gates (formatting + static analysis).
+# Install with: scripts/install-git-hooks.sh
+# Bypass (last resort): SKIP_QUALITY_HOOK=1 git commit ...
+set -u
+
+if [ "${SKIP_QUALITY_HOOK:-0}" = "1" ]; then
+    echo "quality: SKIP_QUALITY_HOOK=1, skipping spotless/detekt checks"
+    exit 0
+fi
+
+ROOT="$(git rev-parse --show-toplevel)" || exit 1
+cd "$ROOT" || exit 1
+
+if ! ./gradlew spotlessCheck detekt --quiet; then
+    echo ""
+    echo "quality: pre-commit checks FAILED."
+    echo "  - fix formatting:       ./gradlew spotlessApply"
+    echo "  - inspect detekt finds: ./gradlew detekt   (reports: <module>/build/reports/detekt)"
+    echo "  - bypass once:          SKIP_QUALITY_HOOK=1 git commit ..."
+    exit 1
+fi

@@ -1,0 +1,39 @@
+# Only deviations from detekt's default config (buildUponDefaultConfig = true in the root build).
+# Formatting is ktlint's job (Spotless), so the detekt `formatting` ruleset is deliberately absent.
+
+complexity:
+  LongMethod:
+    # Composables are declarative trees; long ones are normal.
+    ignoreAnnotated: ['Composable']
+    # Test bodies are given more room (arrange/act/assert reads better unsplit).
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+  LongParameterList:
+    # State parameters + lambdas pile up in composable signatures by design.
+    ignoreAnnotated: ['Composable']
+  TooManyFunctions:
+    ignorePrivate: true
+  StringLiteralDuplication:
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+
+naming:
+  FunctionNaming:
+    # `fun HomeScreen(...)` is idiomatic Compose, not a rule violation.
+    ignoreAnnotated: ['Composable']
+
+style:
+  MagicNumber:
+    ignorePropertyDeclaration: true
+    ignoreAnnotated: ['Composable', 'Preview']
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+  ForbiddenComment:
+    # Leftover TODO:/FIXME:/STOPSHIP: comments must not ship.
+    active: true
+  UnusedPrivateMember:
+    # @Preview functions reference their parameters indirectly.
+    ignoreAnnotated: ['Preview']
