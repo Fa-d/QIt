@@ -13,7 +13,7 @@ import java.util.Locale
  */
 object QuranAudioUrls {
     private const val ISLAMIC_NETWORK = "https://cdn.islamic.network/quran/audio"
-    const val HF_DATASET = "https://huggingface.co/datasets/Fa-d/qit-quran-audio/resolve/main"
+    const val HF_DATASET = "https://huggingface.co/datasets/faddy001/quran_audio/resolve/main"
     private const val BANGLA_VERSES = "$HF_DATASET/bangla/bangla-translation-verses"
 
     /** [id] is the download id and is unique per file, e.g. "ar/255", "bn/intro/2". */
