@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.kover)
 }
 
 android {
@@ -44,15 +45,44 @@ android {
     }
     lint {
         checkReleaseBuilds = false
-        abortOnError = false
-    }
-    tasks.matching { it.name.startsWith("lint") }.configureEach {
-        enabled = false
+        abortOnError = true
+        warningsAsErrors = false
+        disable += setOf("GradleDependency", "NewerVersionAvailable", "AndroidGradlePluginVersion", "OldTargetApi")
     }
 }
 
 hilt {
     enableAggregatingTask = false
+}
+
+kover {
+    currentProject {
+        instrumentation {
+            // Coverage is measured on the debug variant only; release unit tests stay uninstrumented
+            // so the aggregated root report never needs them.
+            disabledForTestTasks.addAll("testReleaseUnitTest")
+        }
+    }
+    reports {
+        filters {
+            excludes {
+                androidGeneratedClasses()
+                classes(
+                    "*_Factory*",
+                    "*_MembersInjector",
+                    "Hilt_*",
+                    "*_HiltModules*",
+                    "*.di.*",
+                    "*.BuildConfig",
+                    "*.R",
+                    "*.R$*",
+                    "*ComposableSingletons*",
+                )
+                packages("hilt_aggregated_deps", "dagger")
+                annotatedBy("androidx.compose.ui.tooling.preview.Preview")
+            }
+        }
+    }
 }
 
 dependencies {

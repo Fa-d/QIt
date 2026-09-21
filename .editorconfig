@@ -1,0 +1,14 @@
+# ktlint (via Spotless) reads this file. The style follows Kotlin's official conventions with
+# the project's deviations: 120 columns, 4-space indent, trailing commas allowed.
+root = true
+
+[*]
+insert_final_newline = true
+
+[*.{kt,kts}]
+ktlint_code_style = intellij_idea
+max_line_length = 120
+indent_size = 4
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_allow_trailing_comma_on_call_site = true
+ktlint_function_naming_ignore_when_annotated_with = Composable

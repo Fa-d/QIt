@@ -24,6 +24,14 @@ turbine = "1.2.0"
 robolectric = "4.14.1"
 androidxTestCore = "1.6.1"
 
+# Quality tooling (W0 guardrails)
+spotless = "7.0.2"
+ktlint = "1.5.0"
+composeKtlintRules = "0.4.22"
+detekt = "1.23.7"
+kover = "0.9.1"
+konsist = "0.17.3"
+
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -81,6 +89,9 @@ androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version
 media3-test-utils = { group = "androidx.media3", name = "media3-test-utils", version.ref = "media3" }
 media3-test-utils-robolectric = { group = "androidx.media3", name = "media3-test-utils-robolectric", version.ref = "media3" }
 
+# Quality tooling
+konsist = { group = "com.lemonappdev", name = "konsist", version.ref = "konsist" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
@@ -91,4 +102,7 @@ kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", versi
 kotlin-parcelize = { id = "org.jetbrains.kotlin.plugin.parcelize", version.ref = "kotlin" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 
