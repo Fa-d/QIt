@@ -1,10 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Reader -->
-    <string name="cd_remove_download">Remove download</string>
-    <string name="cd_send_to_watch">Send to watch</string>
-    <string name="cd_recitation_mode">Recitation mode</string>
+    <string name="cd_reading_settings">Reading settings</string>
+    <string name="cd_more_options">More options</string>
     <string name="play_surah">Play surah</string>
+    <string name="download_for_offline">Download for offline</string>
+    <string name="downloading_percent">Downloading %1$d%%</string>
+    <string name="remove_download">Remove download</string>
+    <string name="retry_download">Retry download</string>
+    <string name="send_to_watch">Send to watch</string>
+    <string name="jump_to_reciting_ayah">Jump to reciting ayah</string>
+    <string name="reciting_ayah_state">Reciting</string>
+    <string name="mode_arabic">Arabic</string>
+    <string name="mode_english">+ English</string>
+    <string name="mode_bangla">+ Bangla</string>
+    <string name="surah_meta_line">%1$s · %2$s · %3$s</string>
     <string name="remove_download_title">Remove download?</string>
     <string name="remove_download_text">Remove the downloaded audio of %1$s from this phone.</string>
     <plurals name="sent_to_watch">

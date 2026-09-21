@@ -1,45 +1,25 @@
 package dev.sadakat.qit.presentation.reader
 
-// qit:legacy-ui — predates the design tokens; its UX slice replaces it.
-
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.DownloadDone
-import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material.icons.rounded.Watch
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,38 +29,20 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.SemanticsPropertyKey
-import androidx.compose.ui.semantics.SemanticsPropertyReceiver
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sadakat.qit.R
-import dev.sadakat.qit.core.designsystem.type.QItFonts
-import dev.sadakat.qit.core.domain.model.Ayah
-import dev.sadakat.qit.core.domain.model.QuranMeta
+import dev.sadakat.qit.core.designsystem.QItTheme
+import dev.sadakat.qit.core.designsystem.component.ReaderTokens
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Surah
-import dev.sadakat.qit.core.domain.model.Track
-import dev.sadakat.qit.core.domain.repository.SurahDownloadState
-import dev.sadakat.qit.presentation.components.NumberBadge
-
-/** Semantics flag marking the ayah that is currently playing. */
-val AyahIsPlaying = SemanticsPropertyKey<Boolean>("AyahIsPlaying")
-
-var SemanticsPropertyReceiver.ayahIsPlaying by AyahIsPlaying
+import kotlinx.coroutines.delay
 
 /** Connects [SurahReaderScreen] to its [SurahReaderViewModel]. */
-@Suppress("UnusedParameter") // onOpenReadingSettings: the contract the reader slice wires to its "Aa" action.
 @Composable
 fun SurahReaderRoute(
     onBack: () -> Unit,
@@ -92,6 +54,7 @@ fun SurahReaderRoute(
     SurahReaderScreen(
         state = state,
         onBack = onBack,
+        onOpenReadingSettings = onOpenReadingSettings,
         onAyahClick = viewModel::playAyah,
         onPlaySurah = viewModel::playSurah,
         onDownload = viewModel::download,
@@ -109,6 +72,7 @@ fun SurahReaderRoute(
 fun SurahReaderScreen(
     state: SurahReaderUiState,
     onBack: () -> Unit,
+    onOpenReadingSettings: () -> Unit,
     onAyahClick: (Int) -> Unit,
     onPlaySurah: () -> Unit,
     onDownload: () -> Unit,
@@ -148,72 +112,33 @@ fun SurahReaderScreen(
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     Box(modifier = modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = state.surah?.nameEnglish.orEmpty(),
-                            style = MaterialTheme.typography.titleLarge,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        state.surah?.let {
-                            Text(
-                                text = it.meaningEnglish,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = stringResource(R.string.cd_back),
-                        )
-                    }
-                },
-                actions = {
-                    DownloadAction(
-                        state = state.downloadState,
-                        onDownload = onDownload,
-                        onRemoveClick = { removeDialogPending = true },
-                    )
-                    IconButton(onClick = onSendToWatch) {
-                        Icon(
-                            imageVector = Icons.Rounded.Watch,
-                            contentDescription = stringResource(R.string.cd_send_to_watch),
-                        )
-                    }
-                    ModeMenu(mode = state.mode, onModeChange = onModeChange)
-                },
-                // Inset paddings come from the app scaffold; don't apply them twice.
-                windowInsets = WindowInsets(0, 0, 0, 0),
+        Column(
+            Modifier
+                .fillMaxSize()
+                .nestedScroll(scrollBehavior.nestedScrollConnection),
+        ) {
+            ReaderTopBar(
+                surah = state.surah,
+                scrollBehavior = scrollBehavior,
+                onBack = onBack,
+                onOpenReadingSettings = onOpenReadingSettings,
+                downloadState = state.downloadState,
+                onDownload = onDownload,
+                onRemoveClick = { removeDialogPending = true },
+                onSendToWatch = onSendToWatch,
             )
-
             when {
-                state.loadFailed -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = stringResource(R.string.load_error),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(16.dp),
-                    )
-                }
+                state.loadFailed -> ReaderLoadError(Modifier.weight(1f))
 
-                state.surah == null -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
+                state.surah == null -> ReaderLoading(Modifier.weight(1f))
 
-                else -> AyahList(
+                else -> ReaderContent(
                     state = state,
                     onAyahClick = onAyahClick,
                     onPlaySurah = onPlaySurah,
+                    onModeChange = onModeChange,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -222,61 +147,104 @@ fun SurahReaderScreen(
     }
 }
 
-/** The reader's download action: offer, show progress, or offer removal (after confirmation). */
+/** The header and the ayahs, scrolled to the deep-linked ayah and mirroring the reciting one. */
 @Composable
-private fun DownloadAction(state: SurahDownloadState, onDownload: () -> Unit, onRemoveClick: () -> Unit) {
-    when (state) {
-        is SurahDownloadState.Downloading -> {
-            val downloadingText = stringResource(R.string.cd_downloading)
-            CircularProgressIndicator(
-                progress = { state.progress },
-                strokeWidth = 2.dp,
-                modifier = Modifier
-                    .size(24.dp)
-                    .semantics { contentDescription = downloadingText },
-            )
-        }
+private fun ReaderContent(
+    state: SurahReaderUiState,
+    onAyahClick: (Int) -> Unit,
+    onPlaySurah: () -> Unit,
+    onModeChange: (RecitationMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val surah: Surah = state.surah ?: return
+    val listState = rememberLazyListState()
+    val follow = rememberFollowAlongState(
+        listState = listState,
+        headerCount = READER_HEADER_COUNT,
+        playingAyah = state.playingAyah,
+        enabled = state.followAlong,
+    )
+    var pulsedAyah by remember { mutableStateOf<Int?>(null) }
+    val pulseDuration = QItTheme.motion.durationLong
 
-        is SurahDownloadState.Downloaded -> IconButton(onClick = onRemoveClick) {
-            Icon(
-                imageVector = Icons.Rounded.DownloadDone,
-                contentDescription = stringResource(R.string.cd_remove_download),
-            )
+    // A deep link lands on its ayah without animation, then pulses it once so the eye finds it.
+    LaunchedEffect(state.initialAyah) {
+        if (state.initialAyah > 0) {
+            listState.scrollToItem(recitingAyahIndex(READER_HEADER_COUNT, state.initialAyah))
+            pulsedAyah = state.initialAyah
+            delay(pulseDuration.toLong())
+            pulsedAyah = null
         }
+    }
 
-        else -> IconButton(onClick = onDownload) {
-            Icon(imageVector = Icons.Rounded.Download, contentDescription = stringResource(R.string.cd_download))
+    Box(modifier = modifier.fillMaxWidth()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("ayah_list")
+                .nestedScroll(follow.userDragObserver),
+            contentPadding = PaddingValues(
+                top = QItTheme.spacing.sm,
+                bottom = QItTheme.spacing.xxl,
+            ),
+            verticalArrangement = Arrangement.spacedBy(QItTheme.spacing.sm),
+        ) {
+            item(key = HEADER_KEY) {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    ReaderHeader(
+                        surah = surah,
+                        mode = state.mode,
+                        onPlaySurah = onPlaySurah,
+                        onModeChange = onModeChange,
+                        modifier = Modifier.widthIn(max = ReaderTokens.MaxReadingWidth),
+                    )
+                }
+            }
+            items(state.ayahs, key = { it.number }) { ayah ->
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    AyahItem(
+                        ayah = ayah,
+                        translationTrack = state.mode.translation.takeIf { state.showTranslation },
+                        isPlaying = state.playingAyah == ayah.number,
+                        pulsed = pulsedAyah == ayah.number,
+                        onClick = {
+                            // Reading where the recitation is: mirror it again from here.
+                            follow.resume()
+                            onAyahClick(ayah.number)
+                        },
+                        modifier = Modifier.widthIn(max = ReaderTokens.MaxReadingWidth),
+                    )
+                }
+            }
         }
+        JumpToRecitingChip(
+            follow = follow,
+            listState = listState,
+            playingAyah = state.playingAyah,
+            headerCount = READER_HEADER_COUNT,
+            enabled = state.followAlong,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 }
 
-/** Menu of the three recitation modes with a checkmark on the active one. */
 @Composable
-private fun ModeMenu(mode: RecitationMode, onModeChange: (RecitationMode) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { expanded = true }) {
-            Icon(
-                imageVector = Icons.Rounded.Tune,
-                contentDescription = stringResource(R.string.cd_recitation_mode),
-            )
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            RecitationMode.entries.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.label) },
-                    onClick = {
-                        expanded = false
-                        onModeChange(option)
-                    },
-                    trailingIcon = {
-                        if (option == mode) {
-                            Icon(imageVector = Icons.Rounded.Check, contentDescription = null)
-                        }
-                    },
-                )
-            }
-        }
+private fun ReaderLoading(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator()
+    }
+}
+
+@Composable
+private fun ReaderLoadError(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Text(
+            text = stringResource(R.string.load_error),
+            style = MaterialTheme.typography.bodyLarge,
+            color = QItTheme.colors.error,
+            modifier = Modifier.padding(QItTheme.spacing.lg),
+        )
     }
 }
 
@@ -295,111 +263,7 @@ private fun RemoveDownloadDialog(surahName: String, onConfirm: () -> Unit, onDis
     )
 }
 
-/** Basmala header, play button and the ayahs, scrolled to the playing/initial ayah. */
-@Composable
-private fun AyahList(
-    state: SurahReaderUiState,
-    onAyahClick: (Int) -> Unit,
-    onPlaySurah: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val surah: Surah = state.surah ?: return
-    val listState = rememberLazyListState()
-    val headerCount = 1
+/** The header is one list item, so ayah n sits at index [READER_HEADER_COUNT] + n − 1. */
+private const val READER_HEADER_COUNT = 1
 
-    // Keep the playing ayah in view as it advances.
-    LaunchedEffect(state.playingAyah) {
-        state.playingAyah?.let { playing ->
-            listState.animateScrollToItem(headerCount + playing - 1)
-        }
-    }
-    // Open deep-linked to an ayah: land there without animation.
-    LaunchedEffect(state.initialAyah) {
-        if (state.initialAyah > 0) listState.scrollToItem(headerCount + state.initialAyah - 1)
-    }
-
-    LazyColumn(
-        state = listState,
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        item(key = "header") {
-            ReaderHeader(surah = surah, onPlaySurah = onPlaySurah)
-        }
-        items(state.ayahs, key = { it.number }) { ayah ->
-            AyahRow(
-                ayah = ayah,
-                translationTrack = state.mode.translation,
-                isPlaying = state.playingAyah == ayah.number,
-                onClick = { onAyahClick(ayah.number) },
-            )
-        }
-    }
-}
-
-@Composable
-private fun ReaderHeader(surah: Surah, onPlaySurah: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        if (QuranMeta.hasBasmalaPrefix(surah.number)) {
-            Text(
-                text = stringResource(R.string.basmala),
-                fontFamily = QItFonts.AmiriQuran,
-                fontSize = 22.sp,
-                lineHeight = 36.sp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                textAlign = TextAlign.Center,
-            )
-        }
-        Button(onClick = onPlaySurah) {
-            Text(stringResource(R.string.play_surah))
-        }
-        Spacer(Modifier.height(8.dp))
-    }
-}
-
-/** One ayah: number badge, Arabic (right-aligned, Amiri) and the mode's translation below. */
-@Composable
-private fun AyahRow(ayah: Ayah, translationTrack: Track?, isPlaying: Boolean, onClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("ayah_${ayah.number}")
-            .semantics { ayahIsPlaying = isPlaying }
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (isPlaying) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            NumberBadge(number = ayah.number, size = 28.dp)
-        }
-        Text(
-            text = ayah.arabic,
-            fontFamily = QItFonts.AmiriQuran,
-            fontSize = 26.sp,
-            lineHeight = 46.sp,
-            textAlign = TextAlign.End,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        translationTrack?.let { track ->
-            ayah.translation(track)?.let { translation ->
-                Text(
-                    text = translation,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp),
-                )
-            }
-        }
-    }
-}
+private const val HEADER_KEY = "header"
