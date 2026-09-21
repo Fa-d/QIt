@@ -97,11 +97,17 @@ class ExoQuranPlayer(
 
     override fun togglePlayPause() {
         val idleWithQueue = exoPlayer.playbackState == Player.STATE_IDLE && exoPlayer.mediaItemCount > 0
+        val endedWithQueue = exoPlayer.playbackState == Player.STATE_ENDED && exoPlayer.mediaItemCount > 0
         if (idleWithQueue) {
             // After an error the player sits idle with the queue intact; prepare() re-arms it.
             exoPlayer.prepare()
+        } else if (endedWithQueue) {
+            // play() alone never leaves STATE_ENDED, so a finished surah would not replay;
+            // start the current (last played) ayah from its beginning instead.
+            exoPlayer.seekTo(exoPlayer.currentMediaItemIndex, 0)
         }
-        if (!idleWithQueue && exoPlayer.playWhenReady && exoPlayer.playbackState != Player.STATE_IDLE) {
+        // An idle or ended player has nothing to pause: the useful action there is to play.
+        if (!idleWithQueue && !endedWithQueue && exoPlayer.playWhenReady) {
             exoPlayer.pause()
         } else {
             exoPlayer.play()
