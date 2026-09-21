@@ -1,335 +1,62 @@
-# QIt Media Playback
-
-## Overview
-
-QIt uses Media3 (ExoPlayer) for audio playback on both phone and watch.
-
-## Key Components
-
-### ExoPlayer Setup
-
-```kotlin
-val player = ExoPlayer.Builder(context)
-    .setAudioAttributes(
-        AudioAttributes.Builder()
-            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-            .setUsage(C.USAGE_MEDIA)
-            .build(),
-        /* handleAudioFocus= */ true
-    )
-    .build()
-```
-
-### MediaSession Integration
-
-```kotlin
-val mediaSession = MediaSession.Builder(context, player)
-    .setSessionActivity(pendingIntent)
-    .setCallback(MediaSessionCallback())
-    .build()
-```
-
-## Wear Playback Service
-
-**Location:** `/wear/src/main/java/dev/sadakat/qit/wear/service/MusicPlaybackService.kt`
-
-```kotlin
-class MusicPlaybackService : MediaSessionService() {
-
-    private var player: ExoPlayer? = null
-    private var mediaSession: MediaSession? = null
-
-    override fun onCreate() {
-        super.onCreate()
-
-        player = ExoPlayer.Builder(this)
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                    .setUsage(C.USAGE_MEDIA)
-                    .build(),
-                true
-            )
-            .build()
-
-        mediaSession = MediaSession.Builder(this, player!!)
-            .setCallback(object : MediaSession.Callback {
-                // Handle media button events
-            })
-            .build()
-    }
-
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
-        return mediaSession
-    }
-
-    override fun onDestroy() {
-        mediaSession?.run {
-            player?.release()
-            release()
-            mediaSession = null
-        }
-        super.onDestroy()
-    }
-}
-```
-
-**Manifest registration:**
-```xml
-<service
-    android:name=".service.MusicPlaybackService"
-    android:foregroundServiceType="mediaPlayback"
-    android:exported="true">
-    <intent-filter>
-        <action android:name="androidx.media3.session.MediaSessionService" />
-    </intent-filter>
-</service>
-```
-
-## Playback Sources
-
-### 1. Local Playback (Downloaded)
-
-```kotlin
-fun playLocalSong(song: Song) {
-    val downloadPath = (song.downloadStatus as? DownloadStatus.Downloaded)?.localPath
-        ?: return
-
-    val mediaItem = MediaItem.Builder()
-        .setUri(Uri.fromFile(File(downloadPath)))
-        .setMediaId(song.id.value)
-        .setMediaMetadata(
-            MediaMetadata.Builder()
-                .setTitle(song.title)
-                .setArtist(song.artist)
-                .setAlbumTitle(song.album)
-                .build()
-        )
-        .build()
-
-    player.setMediaItem(mediaItem)
-    player.prepare()
-    player.play()
-}
-```
-
-### 2. Streaming Playback
-
-Uses custom `StreamingAudioSource` that reads from `StreamingAudioBuffer`:
-
-```kotlin
-@OptIn(UnstableApi::class)
-fun playStreamingSong(songId: SongId, audioBuffer: StreamingAudioBuffer) {
-    val dataSourceFactory = StreamingAudioSource.Factory(audioBuffer)
-
-    player = ExoPlayer.Builder(context)
-        .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
-        .build()
-
-    val mediaItem = MediaItem.Builder()
-        .setUri(Uri.parse("streaming://song/${songId.value}"))
-        .setMediaId(songId.value)
-        .build()
-
-    player.setMediaItem(mediaItem)
-    player.prepare()
-    player.playWhenReady = true
-}
-```
-
-## Streaming Audio Components
-
-### StreamingAudioBuffer
-**Location:** `/wear/src/main/java/dev/sadakat/qit/wear/infrastructure/streaming/StreamingAudioBuffer.kt`
-
-Circular buffer for streaming audio data:
-
-```kotlin
-class StreamingAudioBuffer(
-    private val capacity: Int = DEFAULT_CAPACITY
-) {
-    private val buffer = ByteArray(capacity)
-    private var writePosition = 0
-    private var readPosition = 0
-    private var availableBytes = 0
-
-    suspend fun write(data: ByteArray, offset: Int, length: Int): Int
-    suspend fun read(buffer: ByteArray, offset: Int, length: Int): Int
-    suspend fun availableBytes(): Int
-    fun markStreamComplete()
-    fun reset()
-}
-```
-
-### StreamingAudioSource
-**Location:** `/wear/src/main/java/dev/sadakat/qit/wear/infrastructure/streaming/StreamingAudioSource.kt`
-
-ExoPlayer DataSource that reads from buffer:
-
-```kotlin
-@OptIn(UnstableApi::class)
-class StreamingAudioSource(
-    private val audioBuffer: StreamingAudioBuffer,
-    private val minimumBufferBytes: Int = MIN_BUFFER_BYTES
-) : BaseDataSource(/* isNetwork = */ true) {
-
-    override fun open(dataSpec: DataSpec): Long {
-        // Initialize for streaming
-    }
-
-    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
-        // Read from audioBuffer
-        return runBlocking {
-            audioBuffer.read(buffer, offset, length)
-        }
-    }
-
-    override fun close() {
-        // Cleanup
-    }
-
-    class Factory(private val audioBuffer: StreamingAudioBuffer) : DataSource.Factory {
-        override fun createDataSource(): DataSource {
-            return StreamingAudioSource(audioBuffer)
-        }
-    }
-}
-```
-
-## Playback Controller
-
-**Location:** `/wear/src/main/java/dev/sadakat/qit/wear/playback/PlaybackController.kt`
-
-```kotlin
-class PlaybackController @Inject constructor(
-    private val context: Context,
-    private val musicRepository: MusicRepository,
-    private val streamingRepository: StreamingRepository
-) {
-    private var player: ExoPlayer? = null
-
-    fun play(song: Song) {
-        when {
-            song.isAvailableOnWatch() -> playLocal(song)
-            else -> playStreaming(song)
-        }
-    }
-
-    fun pause() {
-        player?.pause()
-    }
-
-    fun resume() {
-        player?.play()
-    }
-
-    fun seekTo(positionMs: Long) {
-        player?.seekTo(positionMs)
-    }
-
-    fun release() {
-        player?.release()
-        player = null
-    }
-}
-```
-
-## Streaming Strategy Selection
-
-**Location:** `/shared/src/main/java/dev/sadakat/qit/shared/domain/service/StreamingCoordinator.kt`
-
-```kotlin
-sealed class StreamingStrategy {
-    data class Local(val path: String) : StreamingStrategy()
-    data class RealTime(val quality: AudioQuality) : StreamingStrategy()
-    data class Progressive(val quality: AudioQuality) : StreamingStrategy()
-    data class Unavailable(val reason: String) : StreamingStrategy()
-}
-
-class StreamingCoordinator(...) {
-    suspend fun determineStreamingStrategy(song: Song): StreamingStrategy {
-        // Check if downloaded locally
-        if (song.isAvailableOnWatch()) {
-            val path = (song.downloadStatus as DownloadStatus.Downloaded).localPath
-            return StreamingStrategy.Local(path)
-        }
-
-        // Check if phone is connected
-        if (!syncRepository.isWatchConnected()) {
-            return StreamingStrategy.Unavailable("Phone not connected")
-        }
-
-        // Get streaming mode preference
-        val mode = settingsRepository.observeStreamingMode().first()
-        val quality = streamingRepository.getRecommendedQuality()
-
-        return when (mode) {
-            StreamingMode.LOCAL_ONLY -> StreamingStrategy.Unavailable("Local only mode")
-            StreamingMode.STREAM_ONLY -> StreamingStrategy.RealTime(quality)
-            StreamingMode.PREFER_LOCAL -> StreamingStrategy.RealTime(quality)
-            StreamingMode.ADAPTIVE -> StreamingStrategy.Progressive(quality)
-        }
-    }
-}
-```
-
-## Audio Quality
-
-**Location:** `/shared/src/main/java/dev/sadakat/qit/shared/domain/valueobject/AudioQuality.kt`
-
-```kotlin
-enum class AudioQuality(val bitrate: Int, val displayName: String) {
-    LOW(64, "Low (64 kbps)"),
-    MEDIUM(128, "Medium (128 kbps)"),
-    HIGH(256, "High (256 kbps)"),
-    ORIGINAL(0, "Original Quality");
-
-    fun estimateFileSize(duration: Duration): FileSize {
-        if (bitrate == 0) return FileSize.fromBytes(0) // Unknown for original
-        val bytes = (bitrate * 1000L / 8) * duration.seconds
-        return FileSize.fromBytes(bytes)
-    }
-}
-```
-
-## Playback State
-
-**Location:** `/shared/src/main/java/dev/sadakat/qit/shared/domain/valueobject/PlaybackState.kt`
-
-```kotlin
-sealed class PlaybackState {
-    object Idle : PlaybackState()
-    data class Playing(val songId: SongId, val position: Long) : PlaybackState()
-    data class Paused(val songId: SongId, val position: Long) : PlaybackState()
-    object Buffering : PlaybackState()
-    data class Error(val message: String) : PlaybackState()
-}
-```
-
-## Permissions
-
-### Phone (AndroidManifest.xml)
-```xml
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-```
-
-### Watch (AndroidManifest.xml)
-```xml
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-<uses-permission android:name="android.permission.WAKE_LOCK" />
-```
-
-## Key Files
-
-| Component | Path |
-|-----------|------|
-| MusicPlaybackService | `/wear/src/main/java/dev/sadakat/qit/wear/service/MusicPlaybackService.kt` |
-| PlaybackController | `/wear/src/main/java/dev/sadakat/qit/wear/playback/PlaybackController.kt` |
-| StreamingAudioBuffer | `/wear/src/main/java/dev/sadakat/qit/wear/infrastructure/streaming/StreamingAudioBuffer.kt` |
-| StreamingAudioSource | `/wear/src/main/java/dev/sadakat/qit/wear/infrastructure/streaming/StreamingAudioSource.kt` |
-| WearStreamingRepository | `/wear/src/main/java/dev/sadakat/qit/wear/infrastructure/streaming/WearStreamingRepository.kt` |
-| StreamingCoordinator | `/shared/src/main/java/dev/sadakat/qit/shared/domain/service/StreamingCoordinator.kt` |
-| PlaybackViewModel | `/wear/src/main/java/dev/sadakat/qit/wear/presentation/viewmodel/PlaybackViewModel.kt` |
-| PlaybackScreen | `/wear/src/main/java/dev/sadakat/qit/wear/presentation/screens/PlaybackScreen.kt` |
+# Media Playback and Downloads
+
+Media3 1.5.0. Everything Android-specific lives in `:core:data`; the domain logic is in
+`QueuePlan` / `QuranAudioUrls` / `DownloadAggregation` (see `domain-services.md`).
+
+## `audio/QuranCache.kt` — process-wide audio infrastructure
+A singleton (`QuranCache.get(context)`, not DI — the `QuranDownloadService` is created by the
+system and a `SimpleCache` directory may only be opened once per process):
+
+- `cache` — `SimpleCache` at `<filesDir>/quran_audio`, `NoOpCacheEvictor` (files leave only
+  through `SurahDownloads.remove`)
+- `playbackDataSourceFactory` — `CacheDataSource` over the cache: downloaded files play offline,
+  anything else streams. **`setCacheWriteDataSinkFactory(null)`** makes streaming read-only for
+  the cache, so streaming never masquerades as a download
+- `downloadManager` — Media3 `DownloadManager`, 4 parallel downloads, `Requirements.NETWORK`
+
+## `player/ExoQuranPlayer.kt` — the `QuranPlayer` port on ExoPlayer
+Runs on the app-wide `ExoPlayer` with a main-thread `CoroutineScope`:
+
+- `play(surah, fromAyah, mode)` → `QuranMediaItems.build(surah, mode)` → `setMediaItems` starting
+  at `QueuePlan.indexOfAyah(...)` → `prepare()`/`play()` → starts the app's `MediaSessionService`
+  (via the `androidx.media3.session.MediaSessionService` intent action) so playback and its
+  notification outlive the activity
+- Listener events fold into `nowPlaying: StateFlow<NowPlaying?>` (from `QueueItemId.parse` of the
+  current media id) and `error: StateFlow<String?>` (`errorMessage()` maps network error codes to
+  "Can't reach the audio. Check your connection or download this surah."; error clears when
+  playback resumes)
+- The saved position is rewritten only when the **ayah** changes, not per item
+- `togglePlayPause` re-`prepare()`s when the player sits idle with a queue (after an error)
+- `restoreLast(playWhenReady)` re-queues the saved position (paused by default), no-op if
+  something is queued
+- `sessionPlayer` — an ayah-aware `ForwardingPlayer` handed to the `MediaSession`: its
+  `seekToNext`/`seekToNextMediaItem`/`seekToPrevious`/`seekToPreviousMediaItem` call
+  `nextAyah()`/`previousAyah()`, so the notification's skip buttons move **by ayah**, not by track
+
+## `audio/QuranMediaItems.kt` — queue → media items
+`build(surah, mode): List<MediaItem>` from `QueuePlan.plan`: uri = the file's URL (also the cache
+key), media id = `QueueItemId.toMediaId()` (`surah:ayah:trackCode`), metadata for the notification
+(title "Al-Baqara 2:255" or "Al-Baqara · Bismillah", artist = Mishary Alafasy / Saheeh
+International / Bangla translation, album = surah name).
+
+## Downloads
+`audio/MediaSurahDownloads.kt` implements `SurahDownloads` (see `repositories.md`):
+one `DownloadRequest` per verse file into `QuranCache.downloadManager`; the pure
+`DownloadAggregation` derives the per-surah states; `audio/QuranDownloadService.kt` is the
+foreground `DownloadService` (channel `quran_downloads`, progress notification) declared in the
+`:core:data` manifest and merged into both apps.
+
+## MediaSession services
+- Phone: `app/.../service/QuranPlaybackService.kt` — `MediaSessionService` returning the singleton
+  `MediaSession` injected from `di/MediaModule.kt` (built over `ExoQuranPlayer.sessionPlayer`).
+- Watch: `wear/.../service/QuranPlaybackService.kt` — builds the same kind of session over its own
+  player in `onCreate`, releases it in `onDestroy`.
+
+## ExoPlayer construction (both apps' `di/MediaModule.kt`)
+`AudioAttributes` speech content type + media usage (handles audio focus), audio-becoming-noisy
+handling, `DefaultMediaSourceFactory` on `QuranCache.playbackDataSourceFactory`.
+
+## Testing
+`:core:data` tests drive `ExoQuranPlayer` with `media3-test-utils-robolectric`
+(`TestExoPlayerBuilder`, `TestPlayerRunHelper`, `FakeMediaSource`); the queue/aggregation
+logic is tested on the JVM in `:core:domain`; ViewModels use `FakeQuranPlayer`.

@@ -1,211 +1,205 @@
-# QIt - WearOS Music Streaming App
+# Architecture
 
-## Architecture Overview
+QIt is a Quran player for phone and Wear OS, built as clean architecture with ports and adapters.
+The domain is a pure Kotlin island; everything Android (ExoPlayer, DataStore, assets, the Wearable
+data layer) lives in adapters behind interfaces. Both apps (`:app`, `:wear`) are thin presentation
+layers over the same core.
 
-This app follows **Domain-Driven Design (DDD)** and **Clean Architecture** principles with a clear separation of concerns.
+## Modules
 
-### Module Structure
+```mermaid
+flowchart TD
+    app[":app — phone UI (Compose, Material 3)"]
+    wear[":wear — watch UI (Compose for Wear OS)"]
+    data[":core:data — adapters (Android library)"]
+    domain[":core:domain — models, pure logic, ports (pure Kotlin/JVM)"]
+    testing[":core:testing — fakes + sample data (test only)"]
+    arch[":architecture-test — Konsist rules (test only)"]
 
-```
-QIt/
-├── app/           # Phone application (Android)
-├── wear/          # Watch application (WearOS)
-└── shared/        # Shared domain logic and models
-```
-
-## Clean Architecture Layers
-
-### 1. Domain Layer (`shared/domain/`)
-**Pure business logic - no Android dependencies**
-
-- **Entities**: `Song`, `Playlist` - Rich models with behavior
-- **Value Objects**: `Duration`, `FileSize`, `AudioQuality`, `DownloadStatus`, `PlaybackState`, `StreamingMode`
-- **Repository Interfaces**: Contracts for data access (defined in domain, implemented in infrastructure)
-- **Domain Services**: `PlaylistOrchestrator`, `SyncCoordinator`, `StreamingCoordinator`
-- **Domain Events**: Event-driven communication between layers
-
-**Key Features:**
-- Type-safe IDs (`SongId`, `PlaylistId`)
-- Business rules enforced in entities (e.g., max 1000 songs per playlist)
-- Immutable value objects with formatting and validation
-- Rich behavior (e.g., `Song.estimatedSizeForQuality()`)
-
-### 2. Application Layer (`app/application/` & `wear/application/`)
-**Use cases - application-specific business rules**
-
-**Phone App Use Cases:**
-- Music: `ScanMusicLibraryUseCase`, `GetAllSongsUseCase`, `SearchSongsUseCase`
-- Playlist: `CreatePlaylistUseCase`, `AddSongToPlaylistUseCase`, `GetAllPlaylistsUseCase`, `DeletePlaylistUseCase`
-- Sync: `SyncAllToWatchUseCase`, `SyncPlaylistToWatchUseCase`, `PerformDeltaSyncUseCase`
-
-**Wear App Use Cases:**
-- Sync: `RequestPlaylistSyncUseCase`
-- Playlist: `GetAllPlaylistsUseCase`, `GetPlaylistSongsUseCase`
-- Download: `DownloadSongUseCase`, `DownloadPlaylistUseCase`, `CancelDownloadUseCase`, `GetDownloadedSongsUseCase`
-- Playback: `PlaySongUseCase` (determines local vs streaming)
-- Storage: `GetStorageInfoUseCase`
-
-### 3. Infrastructure Layer (`app/infrastructure/` & `wear/infrastructure/`)
-**Implementation details - frameworks and tools**
-
-**Phone App:**
-- `RoomMusicRepository` - MediaStore scanning + Room database
-- `RoomPlaylistRepository` - Playlist CRUD operations
-- `DataStoreSettingsRepository` - User preferences (quality, auto-sync, etc.)
-- `WearableSyncRepository` - Phone-watch communication via Wearable Data Layer
-- `BasicStreamingRepository` - Audio streaming via ChannelClient
-
-**Mappers:**
-- `SongMapper` - Domain `Song` ↔ Room `SongEntity`
-- `PlaylistMapper` - Domain `Playlist` ↔ Room `PlaylistEntity`
-- `DtoMapper` - Domain models ↔ DTOs (for network serialization)
-
-### 4. Presentation Layer (`app/presentation/` & `wear/presentation/`)
-**UI - ViewModels and Compose screens**
-
-- **ViewModels**: Use use cases, expose state as `StateFlow`
-- **Screens**: Jetpack Compose UI
-- **Navigation**: Navigation Compose
-
-**Example (Phone):**
-```kotlin
-@HiltViewModel
-class MusicLibraryViewModel @Inject constructor(
-    private val scanMusicLibraryUseCase: ScanMusicLibraryUseCase,
-    private val getAllSongsUseCase: GetAllSongsUseCase
-) : ViewModel() {
-    // Uses use cases, not repositories directly
-}
+    app --> data
+    app --> domain
+    wear --> data
+    wear --> domain
+    data --> domain
+    testing --> domain
+    arch -.->|scans sources of| app
+    arch -.->|scans sources of| wear
+    arch -.->|scans sources of| data
+    arch -.->|scans sources of| domain
 ```
 
-## Data Flow
+Dependency rule: **inward only**. `:core:domain` imports nothing from Android or the outer layers
+(enforced by `DomainIsolationTest`); presentation code (`..presentation..`) imports domain ports
+only, never `dev.sadakat.qit.core.data` (enforced by `PresentationIsolationTest`). Both tests are
+Konsist rules in `:architecture-test`.
 
-### Phone → Watch Sync
-```
-1. User action (e.g., "Sync to Watch")
-   ↓
-2. ViewModel calls SyncAllToWatchUseCase
-   ↓
-3. Use case coordinates:
-   - SyncCoordinator gets playlists from PlaylistRepository
-   - Maps to DTOs and serializes to JSON
-   - SyncRepository sends via MessageClient to watch
-   ↓
-4. Watch receives via PhoneDataService
-   ↓
-5. Deserializes JSON, maps to domain entities
-   ↓
-6. Saves to watch database
-```
+## The domain (`:core:domain`)
 
-### Audio Streaming (MVP Goal)
-```
-1. User selects song on watch
-   ↓
-2. PlaySongUseCase determines strategy:
-   - Local if downloaded
-   - Stream if not downloaded + phone connected
-   ↓
-3. StreamingCoordinator requests stream from phone
-   ↓
-4. Phone opens ChannelClient, streams audio file
-   ↓
-5. Watch receives stream, plays with ExoPlayer
-```
+**Fixed structure of the Quran** — `model/QuranMeta.kt` knows the 114 surah lengths and converts
+between per-surah ayah numbers and the global ayah numbering (1..6236) every audio source uses. It
+also answers `hasBasmalaPrefix` (true for every surah except Al-Fatiha and At-Tawbah).
 
-## Technology Stack
+**Models** (`model/`):
 
-- **Language**: Kotlin
-- **DI**: Hilt (Dagger)
-- **Database**: Room
-- **Settings**: DataStore
-- **Serialization**: kotlinx.serialization
-- **Async**: Coroutines + Flow
-- **UI**: Jetpack Compose (Material3 for phone, Wear Compose for watch)
-- **Playback**: Media3 (ExoPlayer + MediaSession)
-- **Phone-Watch**: Wearable Data Layer (MessageClient, DataClient, ChannelClient)
+- `Surah` — number, Arabic/transliterated/English names, ayah count, `Revelation` (Meccan/Medinan).
+- `Ayah` — one verse with Arabic (Uthmani), English (Saheeh International) and Bangla (Muhiuddin
+  Khan) text; `translation(track)` picks the translation of a track.
+- `AyahRef` — a position (`surah`, `ayah`); ayah 0 is the basmala before verse 1.
+- `Track` — one recording: `ARABIC`/`ENGLISH`/`BANGLA` with stable codes `ar`/`en`/`bn` used in
+  media ids, download ids and messages.
+- `RecitationMode` — what plays for each ayah, in order: `ARABIC_ONLY`, `ARABIC_ENGLISH` or
+  `ARABIC_BANGLA`.
 
-## Current Status (MVP)
+**Pure logic** (`audio/`):
 
-### ✅ Completed
-1. **Domain Layer**: Complete with 17 files (entities, value objects, repositories, services, events)
-2. **Application Layer**: 21 use cases across both apps
-3. **Infrastructure (Phone)**:
-   - RoomMusicRepository
-   - RoomPlaylistRepository
-   - DataStoreSettingsRepository
-   - WearableSyncRepository
-   - BasicStreamingRepository
-4. **DI Setup**: Hilt modules configured
-5. **DTO Layer**: JSON serialization with kotlinx.serialization
-6. **ViewModels**: Template created (MusicLibraryViewModel uses use cases)
+- `QuranAudioUrls` — where each verse file lives (see [Audio sources](#audio-and-downloads)) and
+  the download id of each file (`"ar/255"`, `"bn/intro/2"`, …).
+- `QueuePlan` — builds a surah's play queue and computes next/previous by ayah (see
+  [The queue model](#the-queue-model)).
+- `DownloadAggregation` — derives per-surah download state from per-file state (see
+  [Downloads](#audio-and-downloads)).
 
-### 🚧 Remaining for MVP
+**Ports** — interfaces the adapters implement:
 
-#### Phone App:
-1. Update remaining ViewModels (PlaylistViewModel, WatchSyncViewModel)
-2. Implement WatchDataService handlers (currently TODOs)
-3. Add file streaming logic to BasicStreamingRepository
+| Port | Package | What it gives |
+| --- | --- | --- |
+| `QuranText` | `repository/` | All surahs and every surah's ayahs (offline, from assets) |
+| `QuranSettings` | `repository/` | `Flow<RecitationMode>` and `Flow<LastPosition?>`, persisted |
+| `SurahDownloads` | `repository/` | `StateFlow<Map<Int, Map<Track, SurahDownloadState>>>` (surah number → track → state), `download(surah, tracks)`, `remove(surah, tracks)` |
+| `QuranPlayer` | `player/` | `StateFlow<NowPlaying?>` + `StateFlow<String?>` error; `play`, `togglePlayPause`, `nextAyah`, `previousAyah`, `stop`, `restoreLast` |
 
-#### Wear App:
-1. Create similar infrastructure:
-   - Mappers (SongMapper, PlaylistMapper)
-   - Repositories (RoomMusicRepository, RoomPlaylistRepository, etc.)
-2. Update ViewModels to use use cases
-3. Implement PhoneDataService handlers
-4. Initialize MusicPlaybackService with MediaSession
+## The adapters (`:core:data`)
 
-#### Both:
-5. Test full flow: Scan → Create Playlist → Sync → Stream → Play
-6. Fix any build errors
+| Port | Adapter | How |
+| --- | --- | --- |
+| `QuranText` | `text/AssetQuranText` | Reads `assets/quran/surahs.json` and `assets/quran/text/001..114.json` (generated by `scripts/build_quran_text.py`), parsed by `QuranTextParser`; keeps the 6 most recently used surahs in memory |
+| `QuranSettings` | `settings/DataStoreQuranSettings` | Preferences DataStore `quran_settings` |
+| `SurahDownloads` | `audio/MediaSurahDownloads` | Media3 `DownloadManager` from `QuranCache`, one download per verse file |
+| `QuranPlayer` | `player/ExoQuranPlayer` | The app-wide `ExoPlayer` |
 
-## Next Steps for Full Feature Set
+Supporting pieces: `audio/QuranCache` (the shared cache + download manager), `audio/QuranDownloadService`
+(foreground service for downloads), `audio/QuranMediaItems` (queue → media items), `link/QuranDownloadMessage`
++ `link/WearPaths` (phone → watch message).
 
-After MVP works:
-1. **Download Management**: WorkManager, queue system, storage cleanup
-2. **Quality Selection**: UI for quality settings, transcoding with MediaCodec
-3. **Progressive Download**: Fallback streaming mode
-4. **Auto-sync**: Background sync when phone connects
-5. **Error Handling**: Retry logic, user feedback
-6. **UI Polish**: Loading states, empty states, error messages
-7. **Testing**: Unit, integration, and UI tests
+## The queue model
 
-## File Count
+`QueuePlan.plan(surah, mode)` builds the queue as a flat list of `QueueEntry`s:
 
-**Total Created: ~65 files**
-- Domain: 17 files
-- Application: 21 files
-- Infrastructure: 10 files
-- DTOs: 5 files
-- DI/Config: 12 files
+1. **Basmala prefix** (ayah 0), only for surahs with one (`QuranMeta.hasBasmalaPrefix`):
+   - Arabic only → the Arabic basmala,
+   - Arabic + English → Arabic basmala, then the English one,
+   - Arabic + Bangla → only the Bangla intro (`bn/intro/{surah}`) — it already contains the Arabic
+     basmala followed by its translation, so no separate Arabic prefix.
+2. **Verses** — for each ayah 1..ayahCount, one entry per track of the mode, in the mode's order.
 
-## Build Instructions
+Each entry's identity is a `QueueItemId` (`surah`, `ayah`, `track`); its media id is
+`"{surah}:{ayah}:{trackCode}"`, e.g. `2:255:ar`. `QueueItemId.parse` is the inverse, returning null
+for anything that is not a Quran queue item.
 
-1. **Sync Gradle**: Open project in Android Studio, sync Gradle
-2. **Build Phone App**: `./gradlew :app:assembleDebug`
-3. **Build Wear App**: `./gradlew :wear:assembleDebug`
-4. **Install Both**: Install on phone and paired watch
+Navigation is **by ayah, not by item**: because ayah numbers grow monotonically along the queue,
+`nextAyahIndex` finds the first item beyond the current ayah's, and `previousAyahIndex` restarts the
+current ayah when the player is past its first item or more than 3 s into it, else jumps to the
+previous ayah's first item. The same rules apply to the media notification's next/previous buttons
+(see below).
 
-## Key Design Patterns
+## Audio and downloads
 
-- **Repository Pattern**: Clean data access abstraction
-- **Use Case Pattern**: Single responsibility for business operations
-- **Factory Pattern**: Entity creation methods
-- **Observer Pattern**: Domain events, Flow-based reactivity
-- **Strategy Pattern**: Streaming modes (real-time vs progressive vs local)
-- **Aggregate Pattern**: Playlist enforces consistency of song references
-- **Value Object Pattern**: Immutable, self-validating objects
+Three verse-by-verse recordings, addressed by global ayah number (`QuranAudioUrls`):
 
-## Dependencies Inversion
+| Track | Source |
+| --- | --- |
+| Arabic (Alafasy, 128k) | `https://cdn.islamic.network/quran/audio/128/ar.alafasy/{global}.mp3` |
+| English (Walk, 192k) | `https://cdn.islamic.network/quran/audio/192/en.walk/{global}.mp3` |
+| Bangla | `https://huggingface.co/datasets/faddy001/quran_audio/resolve/main/bangla/bangla-translation-verses/{NNNNN}.mp3` |
 
-```
-Presentation Layer (ViewModels)
-    ↓ depends on
-Application Layer (Use Cases)
-    ↓ depends on
-Domain Layer (Entities, Repository Interfaces, Services)
-    ↑ implemented by
-Infrastructure Layer (Room, Wearable, DataStore)
-```
+Arabic and English reuse verse 1 of the Quran (which *is* the basmala) as their basmala; Bangla uses
+a per-surah intro file. `QuranAudioUrls.surahFiles(surah, track)` lists every file a surah/track
+pair needs — basmala (if any) plus all verses.
 
-**Key Principle**: Domain layer has ZERO dependencies on outer layers. Infrastructure implements domain interfaces.
+**One Media3 download per verse file.** `MediaSurahDownloads.download(surah, tracks)` enqueues a
+`DownloadRequest` per file into `QuranCache`'s `DownloadManager` (max 4 parallel downloads, requires
+a network), skipping files already completed, and starts `QuranDownloadService` so downloads survive
+the app going away. Downloaded files land in `QuranCache`'s `SimpleCache`
+(`<filesDir>/quran_audio`, never evicted — files leave only through `remove`).
+
+**Aggregation** (`DownloadAggregation`): the state of a surah/track pair is derived from the states
+of its files, keyed by download id. Download ids are globally unique per verse file — except the
+shared basmala `"ar/1"`/`"en/1"`, which every surah's file list contains (and which doubles as
+Al-Fatiha's first verse). The aggregator therefore only counts *own* files — ids that belong to this
+pair alone — when deciding whether a pair is tracked at all, so downloading Al-Baqarah never makes
+Al-Fatiha look half-downloaded. A pair is `Downloaded` when all files are completed, `Downloading`
+while any file is active, `Failed` when some failed for good (downloading again retries).
+`remove` deletes a pair's files, but keeps a shared basmala alive while any other tracked pair still
+needs it. The combined `stateOf(surah, tracks)` helpers roll several tracks (e.g. a mode's) into
+one state for the UI.
+
+## Playback wiring
+
+Both apps use **one app-wide `ExoPlayer`** (provided by each app's `di/MediaModule.kt`), with a
+`CacheDataSource` from `QuranCache`: downloaded files are read from the cache (works offline), and
+anything else streams over the network — the data source is **read-only for streaming**
+(`setCacheWriteDataSinkFactory(null)`), so streaming never masquerades as a download.
+
+`ExoQuranPlayer` implements `QuranPlayer` on that player:
+
+- `play(surah, fromAyah, mode)` builds the media items (`QuranMediaItems`: uri = the file's URL,
+  which is also the cache key; media id = the queue item id; metadata for the notification, e.g.
+  title "Al-Baqara 2:255"), seeks to the first item of `fromAyah`, prepares, plays, and starts the
+  app's `MediaSessionService` (resolved through its `androidx.media3.session.MediaSessionService`
+  intent filter) so playback survives the background.
+- Player listener events are folded into `nowPlaying: StateFlow<NowPlaying?>` (surah, ayah, track,
+  mode, isPlaying, isBuffering) and `error: StateFlow<String?>` (network failures get a
+  "check your connection or download this surah" message; the error clears when playback resumes).
+- The position is persisted via `QuranSettings.saveLastPosition` whenever the **ayah** changes
+  (moving between tracks of the same ayah does not rewrite it).
+- `restoreLast` re-queues the saved position, paused, so the player bar reappears after an app
+  restart.
+
+**MediaSession.** The session wraps not the raw player but `ExoQuranPlayer.sessionPlayer` — an
+ayah-aware `ForwardingPlayer` whose `seekToNext`/`seekToPrevious` (and their media-item variants)
+delegate to `nextAyah()`/`previousAyah()`. So the notification's skip buttons move by ayah, not by
+track. The phone's `service/QuranPlaybackService` (`MediaSessionService`) injects the singleton
+`MediaSession` built in `di/MediaModule.kt`; the watch's `service/QuranPlaybackService` builds the
+same kind of session over its own player instance.
+
+## Phone → watch
+
+The reader's "send to watch" action calls `WatchConnection` (an interface in `:app` so the ViewModel
+stays testable). `WatchLink` implements it over the Wearable Data Layer: it looks up reachable
+nodes by the `qit_watch_app` capability (declared in each app's `res/values/wear.xml`) and sends a
+`QuranDownloadMessage` (`{surah, trackCodes}`, kotlinx.serialization JSON) on the
+`/quran/download` path.
+
+On the watch, `service/QuranMessageService` (a `WearableListenerService`) receives it; payload
+handling lives in the top-level `handleQuranMessage` function (unit-tested): bad payloads or invalid
+surahs/tracks are logged and dropped, anything valid goes to `SurahDownloads.download`.
+
+Because a watch on Bluetooth would crawl through the phone's proxy network, the watch's
+`network/WifiForDownloads` watches the download states and, while any surah is downloading, requests
+a Wi-Fi network and binds the process to it (`WifiRequestStateMachine` turns download activity into
+rising/falling edges so the request isn't churned); it releases the network when downloads finish.
+
+## Testing strategy
+
+- **Fakes, not mocks** — `:core:testing` ships `FakeQuranText`, `FakeSurahDownloads`,
+  `FakeQuranSettings`, `FakeQuranPlayer`, sample data (`TestQuran`: real surah structure,
+  placeholder text) and `MainDispatcherRule`. Tests use these; no new fakes of the ports.
+- **Pure logic on the JVM** — `QueuePlan`, `DownloadAggregation`, `QuranAudioUrls`, `SurahSearch`
+  and `QuranTextParser` are plain functions/objects tested without Android.
+- **Robolectric** for everything touching Android (sdk 34, pinned per module in
+  `src/test/resources/robolectric.properties`), including Compose UI tests
+  (`createComposeRule()`) for the screens.
+- **Media3 test utils** (`media3-test-utils-robolectric`: `TestExoPlayerBuilder`,
+  `TestPlayerRunHelper`) drive `ExoQuranPlayer` against a real, clock-controlled player in
+  `:core:data`'s tests.
+- **Coroutines** — `kotlinx-coroutines-test` (`runTest`) and Turbine (`flow.test { }`).
+- **Architecture tests** — `:architecture-test` holds the Konsist rules: domain purity
+  (`DomainIsolationTest`), presentation isolation (`PresentationIsolationTest`), ViewModel shape
+  (one immutable `StateFlow<UiState>`, no `Context`, no public `MutableStateFlow` —
+  `ViewModelArchitectureTest`, `UiStateArchitectureTest`) and `*Test` naming
+  (`TestNamingArchitectureTest`). They read all modules' sources, so after changing another
+  module's sources force a re-run: `./gradlew :architecture-test:test --rerun-tasks`.
+- **Coverage** — Kover: at least 70 % aggregate line coverage (`./gradlew :koverVerify`) and 90 %
+  in `:core:domain`.
+
+`./gradlew qualityGate` runs all of this plus spotless, detekt and lint — see [QUALITY.md](QUALITY.md).

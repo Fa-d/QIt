@@ -1,213 +1,74 @@
-# QIt Data Flow Patterns
+# Data Flow
 
-## Phone-to-Watch Sync Flow
+How state moves through the app. Sources are cold/hot flows from the ports; ViewModels combine
+them into one `StateFlow<UiState>`; screens render it and call ViewModel functions back.
 
-```
-User Action: "Sync to Watch"
-    ↓
-ViewModel.syncMusicLibrary()
-    ↓
-SyncAllToWatchUseCase.invoke()
-    ├─ Publishes SyncStarted event
-    ├─ Calls SyncCoordinator.syncAllToWatch()
-    │   ├─ Gets playlists from PlaylistRepository
-    │   ├─ Gets songs from MusicRepository
-    │   └─ Sends via WearableSyncRepository
-    │       ├─ Maps Domain → DTO (DtoMapper)
-    │       ├─ Serializes to JSON (kotlinx.serialization)
-    │       └─ Sends via DataClient or MessageClient
-    ├─ Publishes SyncCompleted event
-    └─ Updates UI state via StateFlow
-
-Watch Receives Data
-    ↓
-PhoneDataService (WearableListenerService)
-    ├─ onDataChanged() or onMessageReceived()
-    ├─ Deserializes JSON → DTO
-    ├─ Maps DTO → Domain entities
-    └─ Saves to WearMusicDatabase
-```
-
-## Audio Streaming Flow
+## Reader → queue → player (playback)
 
 ```
-User selects song on watch
-    ↓
-PlaySongUseCase.invoke(songId)
-    ├─ StreamingCoordinator.determineStreamingStrategy()
-    │   ├─ Check if downloaded locally → Local
-    │   ├─ Check if phone connected → RealTime/Progressive
-    │   └─ Neither available → Unavailable
-    └─ If streaming needed:
-        ├─ WearStreamingRepository.requestStreamFromPhone()
-        │   └─ Send request via MessageClient
-        ↓
-Phone receives request (WatchDataService)
-        ├─ Opens ChannelClient stream
-        └─ Starts sending audio file bytes
-        ↓
-Watch receives stream
-        ├─ WearStreamingRepository receives via Channel callback
-        ├─ Writes to StreamingAudioBuffer (circular buffer)
-        ├─ Updates StreamingStatus (Buffering → Streaming)
-        └─ ExoPlayer reads from StreamingAudioSource
-            └─ Plays audio
+UI action (tap ayah / play surah / continue listening)
+  └─ ViewModel ──> QuranPlayer.play(surah, fromAyah, mode)          [port]
+        └─ ExoQuranPlayer.play                                      [adapter]
+             ├─ QuranText.surah(surah)                              [port]
+             ├─ QuranMediaItems.build(surah, mode)                  [:core:data]
+             │     └─ QueuePlan.plan(surah, mode)                   [:core:domain]
+             ├─ ExoPlayer.setMediaItems(items, startIndexOfAyah, 0)
+             ├─ ExoPlayer.prepare() + play()
+             └─ start MediaSessionService (intent by action)
+Player.Listener events
+  └─ ExoQuranPlayer.publish()
+       ├─ nowPlaying: StateFlow<NowPlaying?>   (surah, ayah, track, mode, isPlaying, isBuffering)
+       ├─ error: StateFlow<String?>            (network failures; cleared on resume)
+       └─ savePosition → QuranSettings.saveLastPosition (once per ayah change)
+ViewModels observe nowPlaying/error → UiState → Compose recomposes
 ```
 
-## Download Flow
+Restore: `PlayerViewModel.init` calls `QuranPlayer.restoreLast(playWhenReady = false)`, which
+reads `QuranSettings.lastPosition` and re-queues it (no-op if something is already queued).
+
+## Downloads
 
 ```
-User requests download on watch
-    ↓
-DownloadSongUseCase.invoke(songId, quality)
-    ├─ Creates DownloadWorker work request
-    ├─ Enqueues with WorkManager
-    └─ Returns immediately
-    ↓
-DownloadWorker.doWork()
-    ├─ Shows notification (progress)
-    ├─ Requests file from phone via MessageClient
-    ├─ Receives file chunks via Channel
-    ├─ Writes to local storage
-    ├─ Updates MusicRepository download status
-    └─ Shows completion notification
-
-Progress updates
-    ├─ WorkManager progress data
-    ├─ DownloadRepository.observeDownloadProgress()
-    └─ ViewModel observes and updates UI
+UI action ──> ViewModel ──> SurahDownloads.download(surah, tracks)   [port]
+                 └─ MediaSurahDownloads.download                     [adapter]
+                      ├─ QuranAudioUrls.surahFiles(surah, track)     [:core:domain]
+                      ├─ one DownloadRequest per file → QuranCache.downloadManager (Media3)
+                      └─ start QuranDownloadService (foreground)
+DownloadManager events / initial index load
+  └─ MediaSurahDownloads: Map<fileId, FileDownloadState>
+       └─ DownloadAggregation.stateOf(surah, track, files)           [:core:domain]
+            └─ states: StateFlow<Map<Int, Map<Track, SurahDownloadState>>>  (surah number → track)
+ViewModels combine states + mode → per-surah state via stateOf(surah, mode.tracks) → UiState
 ```
 
-## UI State Flow (MVVM)
+On the watch, the same `states` flow also drives `WifiForDownloads`
+(rising/falling edges → acquire/release a Wi-Fi network).
+
+## Settings
+
+`QuranSettings.mode` and `.lastPosition` are cold Flows (DataStore). ViewModels combine them into
+their UiState **and** keep the latest value in a field for synchronous actions (e.g.
+`SurahReaderViewModel.setMode` restarts playback with the cached mode when this surah is playing).
+
+## Phone → watch download request
 
 ```
-Repository (Flow<T>)
-    ↓ collected by
-Use Case
-    ↓ returns Flow to
-ViewModel (StateFlow<UiState>)
-    ↓ collected by
-Compose UI (@Composable)
-    ↓ triggers user action
-ViewModel.onAction()
-    ↓ calls
-Use Case.invoke()
-    ↓ updates
-Repository
+Reader "send to watch" ──> SurahReaderViewModel.sendToWatch()
+  └─ WatchConnection (interface, :app)
+       └─ WatchLink: capability qit_watch_app → nodes → sendMessage(/quran/download, JSON)
+            watch: QuranMessageService.onMessageReceived
+              └─ handleQuranMessage → SurahDownloads.download(surah, tracks)
 ```
 
-**Example:**
-```kotlin
-// ViewModel
-private val _uiState = MutableStateFlow(MusicLibraryUiState())
-val uiState: StateFlow<MusicLibraryUiState> = _uiState.asStateFlow()
+Result surfaces as a one-shot `ReaderMessage` snackbar (`SentToWatch(count)` / `NoWatch`).
 
-init {
-    viewModelScope.launch {
-        getAllSongsUseCase().collect { songs ->
-            _uiState.update { it.copy(songs = songs, isLoading = false) }
-        }
-    }
-}
+## One-shot messages and errors
 
-// Compose
-@Composable
-fun MusicLibraryScreen(viewModel: MusicLibraryViewModel = hiltViewModel()) {
-    val uiState by viewModel.uiState.collectAsState()
+Transient signals (reader snackbars, player-bar errors) are a `MutableStateFlow<Message?>` **inside
+the ViewModel** (never public); the UiState carries the value and the UI calls a `consumeMessage()`
+/ `consumeError()` function to clear it.
 
-    if (uiState.isLoading) {
-        CircularProgressIndicator()
-    } else {
-        LazyColumn {
-            items(uiState.songs) { song -> SongItem(song) }
-        }
-    }
-}
-```
+## Load failures
 
-## Wearable Communication Channels
-
-### DataClient (Persistent Data)
-- **Purpose:** Guaranteed delivery, survives disconnection
-- **Usage:** Playlists, songs (sync metadata)
-- **Path:** `/playlists`, `/songs`
-
-### MessageClient (Fire-and-Forget)
-- **Purpose:** Best-effort delivery
-- **Usage:** Playback commands, download progress
-- **Path:** `/sync/playlists`, `/download/request`
-
-### ChannelClient (Streaming)
-- **Purpose:** Reliable bi-directional stream
-- **Usage:** Audio file transfer
-- **Path:** `/stream/audio/{songId}`
-
-### CapabilityClient (Discovery)
-- **Purpose:** Detect companion app
-- **Usage:** Check if phone/watch app installed
-
-## Sync Paths (WearPaths Constants)
-
-```kotlin
-// /shared/src/main/java/dev/sadakat/qit/shared/constants/WearPaths.kt
-object WearPaths {
-    const val PLAYLISTS = "/playlists"
-    const val SONGS = "/songs"
-    const val SYNC_PLAYLISTS = "/sync/playlists"
-    const val SYNC_SONGS = "/sync/songs"
-    const val DOWNLOAD_REQUEST = "/download/request"
-    const val DOWNLOAD_PROGRESS = "/download/progress"
-    const val STREAM_AUDIO = "/stream/audio/"
-    const val CONNECTION_STATUS = "/connection/status"
-}
-```
-
-## Delta Sync Strategy
-
-```
-On manual sync:
-    ├─ Get lastSyncTimestamp from preferences
-    ├─ Query changes since timestamp from SyncMetadata
-    │   └─ ChangeRecord: entityId, entityType, operation, timestamp
-    ├─ Filter to only modified playlists/songs
-    ├─ Send only changed entities
-    └─ Update lastSyncTimestamp
-```
-
-## Domain Events
-
-```kotlin
-// Event types
-sealed class DomainEvent {
-    data class SyncStarted(val timestamp: Long) : DomainEvent()
-    data class SyncCompleted(val result: SyncResult) : DomainEvent()
-    data class SyncFailed(val error: String) : DomainEvent()
-    data class DownloadStarted(val songId: SongId) : DomainEvent()
-    data class DownloadCompleted(val songId: SongId) : DomainEvent()
-    data class PlaybackStarted(val songId: SongId) : DomainEvent()
-}
-
-// Publisher
-class DomainEventPublisher {
-    private val _events = MutableSharedFlow<DomainEvent>()
-    val events: SharedFlow<DomainEvent> = _events.asSharedFlow()
-
-    suspend fun publish(event: DomainEvent) {
-        _events.emit(event)
-    }
-}
-```
-
-## Error Handling Pattern
-
-All repository methods return `Result<T>`:
-```kotlin
-suspend fun syncPlaylistToWatch(playlist: Playlist): Result<Unit>
-
-// Usage
-val result = syncRepository.syncPlaylistToWatch(playlist)
-result.fold(
-    onSuccess = { /* success handling */ },
-    onFailure = { error -> /* error handling */ }
-)
-```
+One-shot loads use `flow { emit(...) }.catch { emit(failed = true) }` — the UiState carries a
+`loadFailed`/error flag instead of throwing into Compose.
