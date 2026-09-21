@@ -50,7 +50,7 @@ class QuranCache private constructor(context: Context) {
         databaseProvider,
         cache,
         httpDataSourceFactory,
-        Executors.newFixedThreadPool(MAX_PARALLEL_DOWNLOADS)
+        Executors.newFixedThreadPool(MAX_PARALLEL_DOWNLOADS),
     ).apply {
         maxParallelDownloads = MAX_PARALLEL_DOWNLOADS
         requirements = Requirements(Requirements.NETWORK)
@@ -62,9 +62,8 @@ class QuranCache private constructor(context: Context) {
         @Volatile
         private var instance: QuranCache? = null
 
-        fun get(context: Context): QuranCache =
-            instance ?: synchronized(this) {
-                instance ?: QuranCache(context.applicationContext).also { instance = it }
-            }
+        fun get(context: Context): QuranCache = instance ?: synchronized(this) {
+            instance ?: QuranCache(context.applicationContext).also { instance = it }
+        }
     }
 }

@@ -34,6 +34,10 @@ style:
   ForbiddenComment:
     # Leftover TODO:/FIXME:/STOPSHIP: comments must not ship.
     active: true
+  ReturnCount:
+    # Early-return guard clauses are idiomatic Kotlin; count only the "real" returns.
+    max: 3
+    excludeGuardClauses: true
   UnusedPrivateMember:
     # @Preview functions reference their parameters indirectly.
     ignoreAnnotated: ['Preview']

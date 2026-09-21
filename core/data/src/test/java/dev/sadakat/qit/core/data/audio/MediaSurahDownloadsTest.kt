@@ -154,12 +154,11 @@ class MediaSurahDownloadsTest {
             "paused=${cache.downloadManager.downloadsPaused} index=$byState states=${downloads.states.value}"
     }
 
-    private fun indexIds(): Set<String> =
-        cache.downloadManager.downloadIndex.getDownloads().use { cursor ->
-            buildSet {
-                while (cursor.moveToNext()) add(cursor.download.request.id)
-            }
+    private fun indexIds(): Set<String> = cache.downloadManager.downloadIndex.getDownloads().use { cursor ->
+        buildSet {
+            while (cursor.moveToNext()) add(cursor.download.request.id)
         }
+    }
 
     private fun expectedIds(surah: Int, track: Track): Set<String> =
         QuranAudioUrls.surahFiles(surah, track).mapTo(mutableSetOf()) { it.id }

@@ -26,7 +26,7 @@ android {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
     }
@@ -105,11 +105,9 @@ dependencies {
     // Wearable Data Layer
     implementation(libs.play.services.wearable)
 
-
     // Media3 for audio playback
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
-
 
     // Lifecycle for collectAsStateWithLifecycle
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.2")

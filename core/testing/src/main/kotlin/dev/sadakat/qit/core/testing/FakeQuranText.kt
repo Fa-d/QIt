@@ -7,7 +7,7 @@ import dev.sadakat.qit.core.domain.repository.QuranText
 /** [QuranText] over [TestQuran]. Set [failure] to make every call throw it. */
 class FakeQuranText(
     private val surahs: List<Surah> = TestQuran.allSurahs,
-    private val ayahs: (Int) -> List<Ayah> = TestQuran::ayahs
+    private val ayahs: (Int) -> List<Ayah> = TestQuran::ayahs,
 ) : QuranText {
 
     var failure: Throwable? = null

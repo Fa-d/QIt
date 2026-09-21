@@ -13,13 +13,14 @@ import dev.sadakat.qit.core.data.R
 
 /** Foreground service that runs [QuranCache.downloadManager]. Declared in the :core:data manifest. */
 @OptIn(UnstableApi::class)
-class QuranDownloadService : DownloadService(
-    FOREGROUND_NOTIFICATION_ID,
-    DEFAULT_FOREGROUND_NOTIFICATION_UPDATE_INTERVAL,
-    CHANNEL_ID,
-    R.string.quran_download_channel_name,
-    0
-) {
+class QuranDownloadService :
+    DownloadService(
+        FOREGROUND_NOTIFICATION_ID,
+        DEFAULT_FOREGROUND_NOTIFICATION_UPDATE_INTERVAL,
+        CHANNEL_ID,
+        R.string.quran_download_channel_name,
+        0,
+    ) {
 
     private val notificationHelper = DownloadNotificationHelper(this, CHANNEL_ID)
 
@@ -28,10 +29,7 @@ class QuranDownloadService : DownloadService(
     /** The process is never killed for downloads on the devices we target, so no scheduler is needed. */
     override fun getScheduler(): Scheduler? = null
 
-    override fun getForegroundNotification(
-        downloads: MutableList<Download>,
-        notMetRequirements: Int
-    ): Notification {
+    override fun getForegroundNotification(downloads: MutableList<Download>, notMetRequirements: Int): Notification {
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
         val contentIntent = launchIntent?.let {
             PendingIntent.getActivity(this, 0, it, PendingIntent.FLAG_IMMUTABLE)
@@ -42,7 +40,7 @@ class QuranDownloadService : DownloadService(
             contentIntent,
             getString(R.string.quran_download_notification_title),
             downloads,
-            notMetRequirements
+            notMetRequirements,
         )
     }
 

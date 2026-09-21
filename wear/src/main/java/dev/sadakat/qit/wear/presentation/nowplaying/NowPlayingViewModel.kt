@@ -6,19 +6,17 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.core.domain.player.NowPlaying
 import dev.sadakat.qit.core.domain.player.QuranPlayer
 import dev.sadakat.qit.core.domain.repository.QuranText
-import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
+import javax.inject.Inject
 
 /** Now playing: what is queued, its Arabic text, and the playback controls. */
 @HiltViewModel
-class NowPlayingViewModel @Inject constructor(
-    private val quranText: QuranText,
-    private val player: QuranPlayer,
-) : ViewModel() {
+class NowPlayingViewModel @Inject constructor(private val quranText: QuranText, private val player: QuranPlayer) :
+    ViewModel() {
 
     data class UiState(
         val surahNumber: Int? = null,

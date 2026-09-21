@@ -10,12 +10,12 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState
 import dev.sadakat.qit.core.domain.repository.SurahDownloads
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /** The Android calls [WifiRequestStateMachine] triggers; kept behind an interface for tests. */
 internal interface NetworkOps {
@@ -51,7 +51,7 @@ internal class WifiRequestStateMachine(internal val networkOps: NetworkOps) {
 @Singleton
 class WifiForDownloads @Inject constructor(
     @ApplicationContext context: Context,
-    private val surahDownloads: SurahDownloads
+    private val surahDownloads: SurahDownloads,
 ) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -71,15 +71,7 @@ class WifiForDownloads @Inject constructor(
 
     /** Starts watching download state. Called once from [dev.sadakat.qit.wear.WearApplication]. */
     fun start() {
-        scope.launch {
-            try {
-                surahDownloads.states.collect(machine::onStates)
-            } catch (e: Throwable) {
-                // Best-effort optimization: if download state is unavailable, downloads simply run
-                // on the default network. Never take app startup down with us.
-                Log.w(TAG, "Not watching download state; Wi-Fi binding disabled", e)
-            }
-        }
+        scope.launch { surahDownloads.states.collect(machine::onStates) }
     }
 
     /** The real [NetworkOps]: request/unregister a Wi-Fi network via the system connectivity service. */

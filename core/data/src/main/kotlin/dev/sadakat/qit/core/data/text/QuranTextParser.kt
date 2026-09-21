@@ -27,13 +27,7 @@ internal object QuranTextParser {
     )
 
     @Serializable
-    private data class AyahDto(
-        val n: Int,
-        val g: Int,
-        val ar: String,
-        val en: String,
-        val bn: String,
-    )
+    private data class AyahDto(val n: Int, val g: Int, val ar: String, val en: String, val bn: String)
 
     /**
      * @throws IllegalArgumentException if the JSON is not a valid surah list

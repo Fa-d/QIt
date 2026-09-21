@@ -1,13 +1,13 @@
 package dev.sadakat.qit.core.domain.audio
 
+import dev.sadakat.qit.core.domain.audio.QuranAudioUrls.AudioFile
 import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.Track
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import java.util.Locale
-import dev.sadakat.qit.core.domain.audio.QuranAudioUrls.AudioFile
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 
 class QuranAudioUrlsTest {
 

@@ -12,7 +12,6 @@ import dev.sadakat.qit.core.domain.repository.QuranText
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState
 import dev.sadakat.qit.core.domain.repository.SurahDownloads
 import dev.sadakat.qit.core.domain.repository.stateOf
-import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,6 +20,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /** What the continue-listening card resumes. */
 data class ContinueListening(val surah: Int, val surahName: String, val ayah: Int)

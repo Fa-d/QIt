@@ -18,7 +18,7 @@ class MainActivity : ComponentActivity() {
 
     // Notifications show playback controls and download progress; the app works without them.
     private val notificationPermission = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
+        ActivityResultContracts.RequestPermission(),
     ) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {

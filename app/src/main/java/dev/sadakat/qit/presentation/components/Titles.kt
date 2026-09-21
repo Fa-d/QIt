@@ -11,5 +11,4 @@ fun ayahTitleText(surahName: String, surahNumber: Int, ayah: Int): String =
 
 /** "Al-Baqara · Bismillah" — ayah 0, the basmala played before verse 1. */
 @Composable
-fun bismillahTitleText(surahName: String): String =
-    stringResource(R.string.bismillah_title, surahName)
+fun bismillahTitleText(surahName: String): String = stringResource(R.string.bismillah_title, surahName)

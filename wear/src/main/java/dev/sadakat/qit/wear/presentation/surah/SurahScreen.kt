@@ -37,11 +37,7 @@ import dev.sadakat.qit.wear.R
 import kotlin.math.roundToInt
 
 @Composable
-fun SurahRoute(
-    onPlayNow: () -> Unit,
-    modifier: Modifier = Modifier,
-    viewModel: WearSurahViewModel = hiltViewModel(),
-) {
+fun SurahRoute(onPlayNow: () -> Unit, modifier: Modifier = Modifier, viewModel: WearSurahViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
     SurahScreen(
         uiState = uiState,

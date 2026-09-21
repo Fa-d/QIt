@@ -2,7 +2,6 @@ package dev.sadakat.qit.core.domain.audio
 
 import dev.sadakat.qit.core.domain.audio.QuranAudioUrls.surahFiles
 import dev.sadakat.qit.core.domain.model.Track
-import dev.sadakat.qit.core.domain.repository.SurahDownloadState
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState.Downloaded
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState.Downloading
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState.Failed

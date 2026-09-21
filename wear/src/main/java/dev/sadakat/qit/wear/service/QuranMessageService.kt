@@ -30,8 +30,9 @@ internal fun handleQuranMessage(path: String, data: ByteArray, surahDownloads: S
     if (path != WearPaths.QURAN_DOWNLOAD) return
     val message = try {
         QuranDownloadMessage.fromBytes(data)
-    } catch (e: Exception) {
-        Log.w(TAG, "Ignoring malformed Quran download message (${e.message})")
+    } catch (e: IllegalArgumentException) {
+        // kotlinx.serialization's SerializationException is an IllegalArgumentException.
+        Log.w(TAG, "Ignoring malformed Quran download message", e)
         return
     }
     if (message.surah !in 1..QuranMeta.SURAH_COUNT) {

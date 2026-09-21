@@ -6,7 +6,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.core.domain.player.NowPlaying
 import dev.sadakat.qit.core.domain.player.QuranPlayer
 import dev.sadakat.qit.core.domain.repository.QuranText
-import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +13,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
+import javax.inject.Inject
 
 data class PlayerBarUiState(
     val nowPlaying: NowPlaying? = null,
@@ -23,10 +23,7 @@ data class PlayerBarUiState(
 )
 
 @HiltViewModel
-class PlayerViewModel @Inject constructor(
-    private val player: QuranPlayer,
-    quranText: QuranText,
-) : ViewModel() {
+class PlayerViewModel @Inject constructor(private val player: QuranPlayer, quranText: QuranText) : ViewModel() {
 
     init {
         // Rebuild the queue from the last session, paused, so the player bar reappears where

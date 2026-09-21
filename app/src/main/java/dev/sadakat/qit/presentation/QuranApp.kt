@@ -25,10 +25,7 @@ import dev.sadakat.qit.presentation.surahlist.SurahListRoute
  * pinned to the bottom whenever something is queued.
  */
 @Composable
-fun QuranApp(
-    modifier: Modifier = Modifier,
-    playerViewModel: PlayerViewModel = hiltViewModel(),
-) {
+fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = hiltViewModel()) {
     val navController = rememberNavController()
     val playerState by playerViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }

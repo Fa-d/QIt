@@ -26,10 +26,7 @@ object MediaModule {
      */
     @Provides
     @Singleton
-    fun provideExoPlayer(
-        @ApplicationContext context: Context,
-        quranCache: QuranCache
-    ): ExoPlayer {
+    fun provideExoPlayer(@ApplicationContext context: Context, quranCache: QuranCache): ExoPlayer {
         val audioAttributes = AudioAttributes.Builder()
             .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
             .setUsage(C.USAGE_MEDIA)
@@ -37,7 +34,7 @@ object MediaModule {
 
         return ExoPlayer.Builder(context)
             .setMediaSourceFactory(
-                DefaultMediaSourceFactory(context).setDataSourceFactory(quranCache.playbackDataSourceFactory)
+                DefaultMediaSourceFactory(context).setDataSourceFactory(quranCache.playbackDataSourceFactory),
             )
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)

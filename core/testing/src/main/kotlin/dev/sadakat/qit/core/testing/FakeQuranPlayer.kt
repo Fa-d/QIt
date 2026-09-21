@@ -35,7 +35,8 @@ class FakeQuranPlayer : QuranPlayer {
     }
 
     override fun previousAyah() {
-        nowPlaying.value = nowPlaying.value?.let { it.copy(ayah = (it.ayah - 1).coerceAtLeast(0), track = Track.ARABIC) }
+        nowPlaying.value =
+            nowPlaying.value?.let { it.copy(ayah = (it.ayah - 1).coerceAtLeast(0), track = Track.ARABIC) }
     }
 
     override fun stop() {

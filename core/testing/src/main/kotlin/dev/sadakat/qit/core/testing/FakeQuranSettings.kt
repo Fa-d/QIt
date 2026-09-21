@@ -6,10 +6,8 @@ import dev.sadakat.qit.core.domain.repository.QuranSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /** In-memory [QuranSettings]. */
-class FakeQuranSettings(
-    mode: RecitationMode = RecitationMode.ARABIC_BANGLA,
-    lastPosition: LastPosition? = null
-) : QuranSettings {
+class FakeQuranSettings(mode: RecitationMode = RecitationMode.ARABIC_BANGLA, lastPosition: LastPosition? = null) :
+    QuranSettings {
 
     override val mode = MutableStateFlow(mode)
     override val lastPosition = MutableStateFlow(lastPosition)

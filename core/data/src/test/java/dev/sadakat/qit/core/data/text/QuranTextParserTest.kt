@@ -2,13 +2,13 @@ package dev.sadakat.qit.core.data.text
 
 import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.Revelation
-import java.io.File
-import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
+import java.util.Locale
 
 /**
  * Verifies the parser against the real generated assets (Gradle runs unit tests with the module

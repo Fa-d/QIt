@@ -23,8 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -39,10 +39,7 @@ import androidx.wear.compose.material.TimeText
 import dev.sadakat.qit.wear.R
 
 @Composable
-fun NowPlayingRoute(
-    modifier: Modifier = Modifier,
-    viewModel: NowPlayingViewModel = hiltViewModel(),
-) {
+fun NowPlayingRoute(modifier: Modifier = Modifier, viewModel: NowPlayingViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
     NowPlayingScreen(
         uiState = uiState,
@@ -88,8 +85,11 @@ fun NowPlayingScreen(
                 )
                 Text(
                     text =
-                        if (uiState.ayah == 0) stringResource(R.string.bismillah)
-                        else stringResource(R.string.ayah_position, surahNumber, uiState.ayah),
+                    if (uiState.ayah == 0) {
+                        stringResource(R.string.bismillah)
+                    } else {
+                        stringResource(R.string.ayah_position, surahNumber, uiState.ayah)
+                    },
                     style = MaterialTheme.typography.title3,
                     color = MaterialTheme.colors.secondary,
                 )

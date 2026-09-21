@@ -1,7 +1,6 @@
 package dev.sadakat.qit.core.domain.repository
 
 import dev.sadakat.qit.core.domain.audio.QuranAudioUrls
-
 import dev.sadakat.qit.core.domain.model.Track
 import kotlinx.coroutines.flow.StateFlow
 
@@ -24,7 +23,10 @@ interface SurahDownloads {
     /** surah -> track -> state. Surah/track pairs never requested are absent (= [SurahDownloadState.NotDownloaded]). */
     val states: StateFlow<Map<Int, Map<Track, SurahDownloadState>>>
 
-    /** Queues every file of [surah] for each of [tracks]. Already downloaded files are skipped. Safe to call from any thread. */
+    /**
+     * Queues every file of [surah] for each of [tracks]. Already downloaded files are skipped.
+     * Safe to call from any thread.
+     */
     fun download(surah: Int, tracks: List<Track>)
 
     /** Cancels and deletes [surah]'s files for [tracks]. */
@@ -43,8 +45,14 @@ fun Map<Int, Map<Track, SurahDownloadState>>.stateOf(surah: Int, tracks: List<Tr
     var total = 0
     for (state in states) {
         when (state) {
-            is SurahDownloadState.Downloading -> { done += state.completedFiles; total += state.totalFiles }
-            is SurahDownloadState.Failed -> { done += state.completedFiles; total += state.totalFiles }
+            is SurahDownloadState.Downloading -> {
+                done += state.completedFiles
+                total += state.totalFiles
+            }
+            is SurahDownloadState.Failed -> {
+                done += state.completedFiles
+                total += state.totalFiles
+            }
             else -> {}
         }
     }

@@ -11,7 +11,10 @@ object QuranDestinations {
 
     val surahReaderArguments = listOf(
         androidx.navigation.navArgument(ARG_SURAH) { type = NavType.IntType },
-        androidx.navigation.navArgument(ARG_AYAH) { type = NavType.IntType; defaultValue = 0 },
+        androidx.navigation.navArgument(ARG_AYAH) {
+            type = NavType.IntType
+            defaultValue = 0
+        },
     )
 
     /** Route of the reader for [surah], optionally scrolling to [ayah]. */

@@ -11,7 +11,7 @@ data class Surah(
     /** e.g. "The Opening" */
     val meaningEnglish: String,
     val ayahCount: Int,
-    val revelation: Revelation
+    val revelation: Revelation,
 ) {
     fun globalAyah(ayah: Int): Int = QuranMeta.globalAyah(number, ayah)
 }
@@ -25,7 +25,7 @@ data class Ayah(
     /** Saheeh International */
     val english: String,
     /** Muhiuddin Khan */
-    val bangla: String
+    val bangla: String,
 ) {
     fun translation(track: Track): String? = when (track) {
         Track.ENGLISH -> english

@@ -91,7 +91,9 @@ class SurahListViewModelTest {
             downloads.setState(2, Track.ARABIC, SurahDownloadState.Downloaded)
             assertEquals(
                 SurahDownloadState.NotDownloaded,
-                awaitWhere { it.downloadStates[2] is SurahDownloadState.NotDownloaded && it.surahs.isNotEmpty() }.downloadStates[2],
+                awaitWhere {
+                    it.downloadStates[2] is SurahDownloadState.NotDownloaded && it.surahs.isNotEmpty()
+                }.downloadStates[2],
             )
 
             downloads.setState(2, Track.ENGLISH, SurahDownloadState.Downloaded)
@@ -101,7 +103,11 @@ class SurahListViewModelTest {
             )
 
             downloads.setState(2, Track.ENGLISH, SurahDownloadState.Downloading(3, 286))
-            assertTrue(awaitWhere { it.downloadStates[2] is SurahDownloadState.Downloading }.downloadStates[2] is SurahDownloadState.Downloading)
+            assertTrue(
+                awaitWhere {
+                    it.downloadStates[2] is SurahDownloadState.Downloading
+                }.downloadStates[2] is SurahDownloadState.Downloading,
+            )
 
             cancelAndIgnoreRemainingEvents()
         }

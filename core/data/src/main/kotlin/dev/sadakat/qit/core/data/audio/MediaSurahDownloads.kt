@@ -32,21 +32,17 @@ import kotlinx.coroutines.launch
  * rows are deleted by the manager and must not count towards any surah.
  */
 @OptIn(UnstableApi::class)
-internal fun fileDownloadStateOf(download: Download): FileDownloadState? =
-    when (download.state) {
-        Download.STATE_QUEUED, Download.STATE_DOWNLOADING, Download.STATE_RESTARTING, Download.STATE_STOPPED ->
-            FileDownloadState.ACTIVE
-        Download.STATE_COMPLETED -> FileDownloadState.COMPLETED
-        Download.STATE_FAILED -> FileDownloadState.FAILED
-        else -> null
-    }
+internal fun fileDownloadStateOf(download: Download): FileDownloadState? = when (download.state) {
+    Download.STATE_QUEUED, Download.STATE_DOWNLOADING, Download.STATE_RESTARTING, Download.STATE_STOPPED ->
+        FileDownloadState.ACTIVE
+    Download.STATE_COMPLETED -> FileDownloadState.COMPLETED
+    Download.STATE_FAILED -> FileDownloadState.FAILED
+    else -> null
+}
 
 /** [SurahDownloads] backed by [QuranCache.downloadManager] and [QuranDownloadService]. */
 @OptIn(UnstableApi::class)
-class MediaSurahDownloads(
-    private val context: Context,
-    private val quranCache: QuranCache
-) : SurahDownloads {
+class MediaSurahDownloads(private val context: Context, private val quranCache: QuranCache) : SurahDownloads {
 
     private val downloadManager = quranCache.downloadManager
 
@@ -118,9 +114,10 @@ class MediaSurahDownloads(
                 // The shared basmala ("ar/1"/"en/1") outlives a surah while any other tracked
                 // pair still needs it. Per-surah files ("bn/intro/…", verses) always go.
                 val sharers = DownloadAggregation.pairsContaining(id)
-                sharers.size > 1 && sharers.any { pair ->
-                    pair !in removing && tracked[pair.first]?.containsKey(pair.second) == true
-                }
+                sharers.size > 1 &&
+                    sharers.any { pair ->
+                        pair !in removing && tracked[pair.first]?.containsKey(pair.second) == true
+                    }
             }
         onMain { for (id in doomed) downloadManager.removeDownload(id) }
     }
@@ -164,12 +161,15 @@ class MediaSurahDownloads(
      * a plain start and finally give up: the manager keeps downloading in-process either way.
      */
     private fun startService() {
+        // ForegroundServiceStartNotAllowedException (API 31+) and the background-start error of
+        // startService are both IllegalStateExceptions.
         try {
             DownloadService.startForeground(context, QuranDownloadService::class.java)
-        } catch (e: Exception) {
+        } catch (e: IllegalStateException) {
+            Log.i(TAG, "Foreground start not allowed (${e.message}); trying a plain start")
             try {
                 DownloadService.start(context, QuranDownloadService::class.java)
-            } catch (e: Exception) {
+            } catch (e: IllegalStateException) {
                 Log.w(TAG, "Could not start QuranDownloadService; downloading in-process", e)
             }
         }

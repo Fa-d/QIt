@@ -123,11 +123,7 @@ private fun NowPlayingChipRow(
 }
 
 @Composable
-private fun ContinueChipRow(
-    chip: WearHomeViewModel.ContinueChip,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+private fun ContinueChipRow(chip: WearHomeViewModel.ContinueChip, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Chip(
         onClick = onClick,
         label = { Text(stringResource(R.string.continue_chip, chip.position)) },

@@ -1,6 +1,7 @@
 package dev.sadakat.qit.watch
 
 import android.content.Context
+import android.util.Log
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.Wearable
@@ -8,20 +9,19 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.sadakat.qit.core.data.link.QuranDownloadMessage
 import dev.sadakat.qit.core.data.link.WearPaths
 import dev.sadakat.qit.core.domain.model.Track
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.coroutines.tasks.await
 
 /** [WatchConnection] over the Wearable Data Layer. */
 @Singleton
-class WatchLink @Inject constructor(
-    @ApplicationContext private val context: Context
-) : WatchConnection {
+class WatchLink @Inject constructor(@ApplicationContext private val context: Context) : WatchConnection {
 
     override suspend fun isWatchReachable(): Boolean = try {
         reachableNodes().isNotEmpty()
     } catch (e: ApiException) {
         // Phones without Wear OS services: no watch can ever be reachable.
+        Log.i(TAG, "Wearable API unavailable: ${e.statusCode}")
         false
     }
 
@@ -45,3 +45,5 @@ class WatchLink @Inject constructor(
 
     private object NoWatchException : IllegalStateException("No reachable watch with the QIt app")
 }
+
+private const val TAG = "WatchLink"

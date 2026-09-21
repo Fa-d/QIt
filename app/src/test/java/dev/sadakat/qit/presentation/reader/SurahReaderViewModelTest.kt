@@ -155,10 +155,19 @@ class SurahReaderViewModelTest {
         viewModel.uiState.test {
             assertEquals(SurahDownloadState.NotDownloaded, awaitWhere { it.surah != null }.downloadState)
             downloads.setState(2, Track.ARABIC, SurahDownloadState.Downloading(1, 7))
-            assertTrue(awaitWhere { it.downloadState is SurahDownloadState.Downloading }.downloadState is SurahDownloadState.Downloading)
+            assertTrue(
+                awaitWhere {
+                    it.downloadState is SurahDownloadState.Downloading
+                }.downloadState is SurahDownloadState.Downloading,
+            )
             downloads.setState(2, Track.ARABIC, SurahDownloadState.Downloaded)
             downloads.setState(2, Track.BANGLA, SurahDownloadState.Downloaded)
-            assertEquals(SurahDownloadState.Downloaded, awaitWhere { it.downloadState is SurahDownloadState.Downloaded }.downloadState)
+            assertEquals(
+                SurahDownloadState.Downloaded,
+                awaitWhere {
+                    it.downloadState is SurahDownloadState.Downloaded
+                }.downloadState,
+            )
             cancelAndIgnoreRemainingEvents()
         }
     }

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -21,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.Tune
@@ -45,9 +43,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -67,6 +67,7 @@ import dev.sadakat.qit.core.domain.model.Ayah
 import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Surah
+import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState
 import dev.sadakat.qit.presentation.components.NumberBadge
 import dev.sadakat.qit.ui.theme.AmiriQuran
@@ -121,10 +122,12 @@ fun SurahReaderScreen(
             ReaderMessage.NoWatch -> stringResource(R.string.no_watch_found)
         }
     }
+    // The effect outlives recompositions; always call the latest callback, not the first one.
+    val currentOnConsumeMessage by rememberUpdatedState(onConsumeMessage)
     LaunchedEffect(messageText) {
         messageText?.let {
             snackbarHostState.showSnackbar(it)
-            onConsumeMessage()
+            currentOnConsumeMessage()
         }
     }
 
@@ -214,11 +217,7 @@ fun SurahReaderScreen(
 
 /** The reader's download action: offer, show progress, or offer removal (after confirmation). */
 @Composable
-private fun DownloadAction(
-    state: SurahDownloadState,
-    onDownload: () -> Unit,
-    onRemoveClick: () -> Unit,
-) {
+private fun DownloadAction(state: SurahDownloadState, onDownload: () -> Unit, onRemoveClick: () -> Unit) {
     when (state) {
         is SurahDownloadState.Downloading -> {
             val downloadingText = stringResource(R.string.cd_downloading)
@@ -359,22 +358,15 @@ private fun ReaderHeader(surah: Surah, onPlaySurah: () -> Unit) {
 
 /** One ayah: number badge, Arabic (right-aligned, Amiri) and the mode's translation below. */
 @Composable
-private fun AyahRow(
-    ayah: Ayah,
-    translationTrack: dev.sadakat.qit.core.domain.model.Track?,
-    isPlaying: Boolean,
-    onClick: () -> Unit,
-) {
+private fun AyahRow(ayah: Ayah, translationTrack: Track?, isPlaying: Boolean, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("ayah_${ayah.number}")
             .semantics { ayahIsPlaying = isPlaying }
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isPlaying) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
             .clickable(onClick = onClick)
-            .background(
-                if (isPlaying) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
-                RoundedCornerShape(12.dp),
-            )
             .padding(16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

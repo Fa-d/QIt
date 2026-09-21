@@ -15,7 +15,6 @@ import dev.sadakat.qit.core.domain.repository.SurahDownloadState
 import dev.sadakat.qit.core.domain.repository.SurahDownloads
 import dev.sadakat.qit.core.domain.repository.stateOf
 import dev.sadakat.qit.watch.WatchConnection
-import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -24,6 +23,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /** One-shot result of a "send to watch" request, shown as a snackbar. */
 sealed interface ReaderMessage {

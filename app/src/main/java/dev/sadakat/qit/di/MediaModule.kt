@@ -25,10 +25,7 @@ object MediaModule {
     /** The app-wide player. Reads downloaded audio from [QuranCache] and streams the rest. */
     @Provides
     @Singleton
-    fun provideExoPlayer(
-        @ApplicationContext context: Context,
-        quranCache: QuranCache
-    ): ExoPlayer {
+    fun provideExoPlayer(@ApplicationContext context: Context, quranCache: QuranCache): ExoPlayer {
         val audioAttributes = AudioAttributes.Builder()
             .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
             .setUsage(C.USAGE_MEDIA)
@@ -36,7 +33,7 @@ object MediaModule {
 
         return ExoPlayer.Builder(context)
             .setMediaSourceFactory(
-                DefaultMediaSourceFactory(context).setDataSourceFactory(quranCache.playbackDataSourceFactory)
+                DefaultMediaSourceFactory(context).setDataSourceFactory(quranCache.playbackDataSourceFactory),
             )
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
@@ -46,8 +43,6 @@ object MediaModule {
     /** Session over [ExoQuranPlayer.sessionPlayer] so notification next/previous move by ayah. */
     @Provides
     @Singleton
-    fun provideMediaSession(
-        @ApplicationContext context: Context,
-        quranPlayer: ExoQuranPlayer
-    ): MediaSession = MediaSession.Builder(context, quranPlayer.sessionPlayer).build()
+    fun provideMediaSession(@ApplicationContext context: Context, quranPlayer: ExoQuranPlayer): MediaSession =
+        MediaSession.Builder(context, quranPlayer.sessionPlayer).build()
 }

@@ -13,12 +13,12 @@ import dev.sadakat.qit.core.domain.repository.QuranText
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState
 import dev.sadakat.qit.core.domain.repository.SurahDownloads
 import dev.sadakat.qit.core.domain.repository.stateOf
-import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
+import javax.inject.Inject
 
 /** One surah: play it, download its audio in the current mode, or remove it. */
 @HiltViewModel

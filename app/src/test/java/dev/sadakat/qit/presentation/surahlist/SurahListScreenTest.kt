@@ -14,7 +14,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.sadakat.qit.core.testing.TestQuran
 import dev.sadakat.qit.ui.theme.QItTheme
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -58,7 +57,10 @@ class SurahListScreenTest {
                         query = shownQuery,
                         surahs = surahs.filter { it.nameEnglish.contains(shownQuery, ignoreCase = true) },
                     ),
-                    onSearchQueryChange = { query = it; shownQuery = it },
+                    onSearchQueryChange = {
+                        query = it
+                        shownQuery = it
+                    },
                     onSurahClick = {},
                     onContinueListening = {},
                 )

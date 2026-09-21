@@ -4,7 +4,8 @@ package dev.sadakat.qit.core.domain.model
 enum class Track(val code: String, val label: String) {
     ARABIC("ar", "Arabic"),
     ENGLISH("en", "English"),
-    BANGLA("bn", "Bangla");
+    BANGLA("bn", "Bangla"),
+    ;
 
     companion object {
         fun fromCode(code: String): Track? = entries.firstOrNull { it.code == code }
@@ -15,7 +16,8 @@ enum class Track(val code: String, val label: String) {
 enum class RecitationMode(val tracks: List<Track>, val label: String) {
     ARABIC_ONLY(listOf(Track.ARABIC), "Arabic"),
     ARABIC_ENGLISH(listOf(Track.ARABIC, Track.ENGLISH), "Arabic + English"),
-    ARABIC_BANGLA(listOf(Track.ARABIC, Track.BANGLA), "Arabic + Bangla");
+    ARABIC_BANGLA(listOf(Track.ARABIC, Track.BANGLA), "Arabic + Bangla"),
+    ;
 
     /** The translation shown and played after the Arabic, or null for Arabic only. */
     val translation: Track? get() = tracks.firstOrNull { it != Track.ARABIC }

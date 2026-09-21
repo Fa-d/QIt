@@ -11,7 +11,7 @@ data class NowPlaying(
     val track: Track,
     val mode: RecitationMode,
     val isPlaying: Boolean,
-    val isBuffering: Boolean
+    val isBuffering: Boolean,
 )
 
 /** Plays a surah ayah by ayah. Implemented in :core:data on the app-wide ExoPlayer. */
@@ -36,6 +36,9 @@ interface QuranPlayer {
 
     fun stop()
 
-    /** Queues the last saved position, paused unless [playWhenReady]. No-op if nothing is saved or something is queued. */
+    /**
+     * Queues the last saved position, paused unless [playWhenReady].
+     * No-op if nothing is saved or something is already queued.
+     */
     fun restoreLast(playWhenReady: Boolean = false)
 }

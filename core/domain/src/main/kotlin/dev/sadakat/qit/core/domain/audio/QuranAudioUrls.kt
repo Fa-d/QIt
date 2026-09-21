@@ -41,13 +41,12 @@ object QuranAudioUrls {
             Track.ARABIC, Track.ENGLISH -> verse(track, 1)
             Track.BANGLA -> AudioFile(
                 "bn/intro/$surah",
-                "$BANGLA_VERSES/intro/" + String.format(Locale.ROOT, "%03d", surah) + ".mp3"
+                "$BANGLA_VERSES/intro/" + String.format(Locale.ROOT, "%03d", surah) + ".mp3",
             )
         }
     }
 
     /** Every file needed to play [surah] on [track] offline: the basmala (if any), then each verse. */
-    fun surahFiles(surah: Int, track: Track): List<AudioFile> =
-        listOfNotNull(basmala(track, surah)) +
-            (1..QuranMeta.ayahCount(surah)).map { verse(track, QuranMeta.globalAyah(surah, it)) }
+    fun surahFiles(surah: Int, track: Track): List<AudioFile> = listOfNotNull(basmala(track, surah)) +
+        (1..QuranMeta.ayahCount(surah)).map { verse(track, QuranMeta.globalAyah(surah, it)) }
 }

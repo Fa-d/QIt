@@ -27,7 +27,7 @@ android {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
     }
@@ -117,7 +117,6 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
 
-
     // DataStore
     implementation(libs.datastore.preferences)
 
@@ -129,7 +128,6 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
-
 
     // Testing: JVM unit tests (fakes from :core:testing) and Robolectric Compose UI tests
     testImplementation(project(":core:testing"))
