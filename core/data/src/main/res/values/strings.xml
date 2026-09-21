@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="quran_download_channel_name">Quran downloads</string>
+    <string name="quran_download_notification_title">Downloading surah audio</string>
+</resources>
