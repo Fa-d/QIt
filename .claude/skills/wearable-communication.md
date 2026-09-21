@@ -1,321 +1,48 @@
-# QIt Wearable Communication
+# Wearable Communication
 
-## Overview
+Phone → watch messaging over the Google Play Services **Wearable Data Layer** (MessageClient +
+CapabilityClient). playServicesWearable 18.1.0.
 
-QIt uses Google's Wearable Data Layer API for phone-watch communication.
+## Shared message types (`:core:data/link/`)
 
-## Communication Channels
+- `WearPaths.kt` — `object WearPaths`:
+  - `QURAN_DOWNLOAD = "/quran/download"` — the phone → watch message path
+  - `CAPABILITY_PHONE_APP = "qit_phone_app"`, `CAPABILITY_WATCH_APP = "qit_watch_app"` — capability
+    names, declared in each app's `res/values/wear.xml`
+- `QuranDownloadMessage.kt` — `@Serializable data class QuranDownloadMessage(surah, trackCodes)`;
+  `of(surah, tracks)` / `toBytes()` on the sender, `fromBytes(bytes)` on the receiver; `tracks`
+  maps codes through `Track.fromCode` (unknown codes drop out)
 
-### 1. DataClient (Persistent Data)
-- **Purpose:** Guaranteed delivery, survives disconnection
-- **Best for:** Playlists, songs (sync metadata)
-- **Delivery:** Guaranteed (synced when connected)
+## Phone side (`:app`)
 
-```kotlin
-// Send data
-val dataClient = Wearable.getDataClient(context)
-val putDataRequest = PutDataMapRequest.create("/playlists").apply {
-    dataMap.putString("data", jsonString)
-}.asPutDataRequest()
-dataClient.putDataItem(putDataRequest)
+- `watch/WatchConnection.kt` — the interface (`isWatchReachable()`, `sendDownload(surah, tracks):
+  Result<Int>`), abstracted so ViewModels test without Play services
+- `watch/WatchLink.kt` — the implementation: looks up reachable nodes by the `qit_watch_app`
+  capability, sends the JSON payload on `/quran/download` to each (counts nodes that acknowledge ≥
+  0 bytes; fails when none did; `ApiException` — no Wear OS services — means "no watch")
+- `di/WatchModule.kt` binds `WatchLink` as `WatchConnection`
+- Used by `SurahReaderViewModel.sendToWatch()`; the result is shown as a snackbar
+  (`ReaderMessage.SentToWatch(count)` / `NoWatch`)
 
-// Receive data (in WearableListenerService)
-override fun onDataChanged(dataEvents: DataEventBuffer) {
-    dataEvents.forEach { event ->
-        if (event.type == DataEvent.TYPE_CHANGED) {
-            val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
-            val jsonString = dataMap.getString("data")
-            // Process data
-        }
-    }
-}
-```
+## Watch side (`:wear`)
 
-### 2. MessageClient (Fire-and-Forget)
-- **Purpose:** Best-effort delivery
-- **Best for:** Playback commands, download requests
-- **Delivery:** Not guaranteed
+- `service/QuranMessageService.kt` — `WearableListenerService` (`@AndroidEntryPoint`, injects
+  `SurahDownloads`); `onMessageReceived` delegates to the top-level internal
+  `handleQuranMessage(path, data, surahDownloads)` — deliberately free of wearable types so the
+  payload handling is unit-tested. Bad payloads/invalid surahs/empty track lists are logged and
+  dropped, never thrown; a valid message calls `surahDownloads.download(surah, tracks)`.
 
-```kotlin
-// Send message
-val messageClient = Wearable.getMessageClient(context)
-val nodeId = getConnectedNode() // Get watch/phone node
-messageClient.sendMessage(nodeId, "/download/request", jsonBytes)
+## Watch network (`:wear/network/WifiForDownloads.kt`)
 
-// Receive message (in WearableListenerService)
-override fun onMessageReceived(messageEvent: MessageEvent) {
-    when (messageEvent.path) {
-        "/download/request" -> {
-            val data = messageEvent.data
-            // Process request
-        }
-    }
-}
-```
+Downloads over the phone's Bluetooth proxy crawl, so while any surah is downloading the watch
+requests a Wi-Fi network (`TRANSPORT_WIFI` + `NET_CAPABILITY_INTERNET`) and binds the process to
+it, releasing when downloads finish:
 
-### 3. ChannelClient (Streaming)
-- **Purpose:** Reliable bi-directional stream
-- **Best for:** Audio file transfer
-- **Delivery:** Reliable stream
+- `WifiRequestStateMachine` — turns download activity into edges: a rising edge (any surah starts)
+  acquires once, a falling edge (none left) releases; progress updates in between are ignored
+- `NetworkOps` — the Android calls, behind an interface for tests
+- Started once from `WearApplication.onCreate()`
 
-```kotlin
-// Open channel (sender)
-val channelClient = Wearable.getChannelClient(context)
-val channel = channelClient.openChannel(nodeId, "/stream/audio/$songId").await()
-val outputStream = channelClient.getOutputStream(channel).await()
-
-// Write audio data
-outputStream.use { stream ->
-    FileInputStream(audioFile).use { fis ->
-        fis.copyTo(stream, bufferSize = 8192)
-    }
-}
-channelClient.close(channel)
-
-// Receive stream (receiver)
-override fun onChannelOpened(channel: Channel) {
-    val inputStream = channelClient.getInputStream(channel).await()
-    inputStream.use { stream ->
-        // Read and buffer audio data
-        val buffer = ByteArray(8192)
-        var bytesRead: Int
-        while (stream.read(buffer).also { bytesRead = it } != -1) {
-            audioBuffer.write(buffer, 0, bytesRead)
-        }
-    }
-}
-```
-
-### 4. CapabilityClient (Discovery)
-- **Purpose:** Detect companion app
-- **Best for:** Check if phone/watch app installed
-
-```kotlin
-val capabilityClient = Wearable.getCapabilityClient(context)
-
-// Check capability
-val capabilityInfo = capabilityClient.getCapability(
-    "qit_watch_app",
-    CapabilityClient.FILTER_REACHABLE
-).await()
-
-val connectedNodes = capabilityInfo.nodes
-val isConnected = connectedNodes.isNotEmpty()
-
-// Listen for capability changes
-capabilityClient.addListener({ capabilityInfo ->
-    // Handle connection change
-}, "qit_watch_app")
-```
-
-## Sync Paths (WearPaths)
-
-**Location:** `/shared/src/main/java/dev/sadakat/qit/shared/constants/WearPaths.kt`
-
-```kotlin
-object WearPaths {
-    // Data Layer paths
-    const val PLAYLISTS = "/playlists"
-    const val SONGS = "/songs"
-
-    // Message paths
-    const val SYNC_PLAYLISTS = "/sync/playlists"
-    const val SYNC_SONGS = "/sync/songs"
-    const val DOWNLOAD_REQUEST = "/download/request"
-    const val DOWNLOAD_PROGRESS = "/download/progress"
-    const val PLAYBACK_COMMAND = "/playback/command"
-
-    // Channel paths
-    const val STREAM_AUDIO = "/stream/audio/"  // Append songId
-
-    // Status paths
-    const val CONNECTION_STATUS = "/connection/status"
-}
-```
-
-## Services
-
-### Phone Side - WatchDataService
-**Location:** `/app/src/main/java/dev/sadakat/qit/service/WatchDataService.kt`
-
-```kotlin
-class WatchDataService : WearableListenerService() {
-
-    override fun onDataChanged(dataEvents: DataEventBuffer) {
-        dataEvents.forEach { event ->
-            if (event.type == DataEvent.TYPE_CHANGED) {
-                when {
-                    event.dataItem.uri.path?.startsWith(WearPaths.SYNC_PLAYLISTS) == true -> {
-                        // Handle sync request from watch
-                    }
-                }
-            }
-        }
-    }
-
-    override fun onMessageReceived(messageEvent: MessageEvent) {
-        when (messageEvent.path) {
-            WearPaths.DOWNLOAD_REQUEST -> {
-                // Handle download request
-                val songId = String(messageEvent.data)
-                // Start streaming audio
-            }
-        }
-    }
-}
-```
-
-**Manifest registration:**
-```xml
-<service
-    android:name=".service.WatchDataService"
-    android:exported="true">
-    <intent-filter>
-        <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
-        <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
-        <data android:scheme="wear" android:host="*" android:pathPrefix="/sync" />
-        <data android:scheme="wear" android:host="*" android:pathPrefix="/download" />
-    </intent-filter>
-</service>
-```
-
-### Watch Side - PhoneDataService
-**Location:** `/wear/src/main/java/dev/sadakat/qit/wear/service/PhoneDataService.kt`
-
-```kotlin
-class PhoneDataService : WearableListenerService() {
-
-    override fun onDataChanged(dataEvents: DataEventBuffer) {
-        dataEvents.forEach { event ->
-            if (event.type == DataEvent.TYPE_CHANGED) {
-                val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
-                when {
-                    event.dataItem.uri.path == WearPaths.PLAYLISTS -> {
-                        val jsonString = dataMap.getString("data")
-                        val playlists = Json.decodeFromString<List<PlaylistDto>>(jsonString)
-                        // Save playlists to local database
-                    }
-                    event.dataItem.uri.path == WearPaths.SONGS -> {
-                        val jsonString = dataMap.getString("data")
-                        val songs = Json.decodeFromString<List<SongDto>>(jsonString)
-                        // Save songs to local database
-                    }
-                }
-            }
-        }
-    }
-
-    override fun onChannelOpened(channel: Channel) {
-        // Handle incoming audio stream
-        if (channel.path.startsWith(WearPaths.STREAM_AUDIO)) {
-            val songId = channel.path.removePrefix(WearPaths.STREAM_AUDIO)
-            // Start buffering audio
-        }
-    }
-}
-```
-
-**Manifest registration:**
-```xml
-<service
-    android:name=".service.PhoneDataService"
-    android:exported="true">
-    <intent-filter>
-        <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
-        <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
-        <action android:name="com.google.android.gms.wearable.CHANNEL_EVENT" />
-        <data android:scheme="wear" android:host="*" android:pathPrefix="/playlists" />
-        <data android:scheme="wear" android:host="*" android:pathPrefix="/songs" />
-        <data android:scheme="wear" android:host="*" android:pathPrefix="/stream" />
-    </intent-filter>
-</service>
-```
-
-## Repository Implementations
-
-### WearableSyncRepository (Phone)
-**Location:** `/app/src/main/java/dev/sadakat/qit/infrastructure/wearable/WearableSyncRepository.kt`
-
-```kotlin
-class WearableSyncRepository @Inject constructor(
-    private val dataClient: DataClient,
-    private val messageClient: MessageClient,
-    private val channelClient: ChannelClient,
-    private val nodeClient: NodeClient
-) : SyncRepository {
-
-    override suspend fun syncPlaylistsToWatch(playlists: List<Playlist>): Result<Unit> {
-        return try {
-            val jsonString = Json.encodeToString(playlists.map { it.toDto() })
-            val putDataRequest = PutDataMapRequest.create(WearPaths.PLAYLISTS).apply {
-                dataMap.putString("data", jsonString)
-                dataMap.putLong("timestamp", System.currentTimeMillis())
-            }.asPutDataRequest().setUrgent()
-
-            dataClient.putDataItem(putDataRequest).await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun isWatchConnected(): Boolean {
-        return try {
-            val nodes = nodeClient.connectedNodes.await()
-            nodes.isNotEmpty()
-        } catch (e: Exception) {
-            false
-        }
-    }
-}
-```
-
-### WearStreamingRepository (Watch)
-**Location:** `/wear/src/main/java/dev/sadakat/qit/wear/infrastructure/streaming/WearStreamingRepository.kt`
-
-Handles incoming audio streams and buffers data for ExoPlayer.
-
-## Serialization
-
-Uses kotlinx.serialization for JSON encoding/decoding:
-
-```kotlin
-// Serialize
-val jsonString = Json.encodeToString(playlists.map { it.toDto() })
-
-// Deserialize
-val playlists = Json.decodeFromString<List<PlaylistDto>>(jsonString)
-```
-
-## Error Handling
-
-All wearable operations should handle:
-- `ApiException` - API call failures
-- `TimeoutException` - Connection timeouts
-- `SecurityException` - Missing permissions
-
-```kotlin
-try {
-    dataClient.putDataItem(request).await()
-} catch (e: ApiException) {
-    Log.e(TAG, "Failed to sync: ${e.statusCode}")
-} catch (e: TimeoutException) {
-    Log.e(TAG, "Sync timed out")
-}
-```
-
-## Connection Monitoring
-
-```kotlin
-fun observeWatchConnection(): Flow<Boolean> = callbackFlow {
-    val listener = CapabilityClient.OnCapabilityChangedListener { capabilityInfo ->
-        trySend(capabilityInfo.nodes.isNotEmpty())
-    }
-
-    capabilityClient.addListener(listener, "qit_watch_app")
-
-    awaitClose {
-        capabilityClient.removeListener(listener)
-    }
-}
-```
+Note: `MediaSurahDownloads` starts downloads from wherever a message arrives — including the
+background — so its foreground-service start falls back to a plain start and then to in-process
+downloading when Android 12+ forbids it.
