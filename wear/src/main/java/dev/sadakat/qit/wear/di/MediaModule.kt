@@ -12,7 +12,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import dev.sadakat.qit.shared.quran.audio.QuranCache
+import dev.sadakat.qit.core.data.audio.QuranCache
 import javax.inject.Singleton
 
 @OptIn(UnstableApi::class)

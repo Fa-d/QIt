@@ -7,15 +7,15 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import dev.sadakat.qit.shared.quran.audio.MediaSurahDownloads
-import dev.sadakat.qit.shared.quran.audio.QuranCache
-import dev.sadakat.qit.shared.quran.audio.SurahDownloads
-import dev.sadakat.qit.shared.quran.player.ExoQuranPlayer
-import dev.sadakat.qit.shared.quran.player.QuranPlayer
-import dev.sadakat.qit.shared.quran.settings.DataStoreQuranSettings
-import dev.sadakat.qit.shared.quran.settings.QuranSettings
-import dev.sadakat.qit.shared.quran.text.AssetQuranText
-import dev.sadakat.qit.shared.quran.text.QuranText
+import dev.sadakat.qit.core.data.audio.MediaSurahDownloads
+import dev.sadakat.qit.core.data.audio.QuranCache
+import dev.sadakat.qit.core.domain.repository.SurahDownloads
+import dev.sadakat.qit.core.data.player.ExoQuranPlayer
+import dev.sadakat.qit.core.domain.player.QuranPlayer
+import dev.sadakat.qit.core.data.settings.DataStoreQuranSettings
+import dev.sadakat.qit.core.domain.repository.QuranSettings
+import dev.sadakat.qit.core.data.text.AssetQuranText
+import dev.sadakat.qit.core.domain.repository.QuranText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -46,16 +46,19 @@ object QuranModule {
 
     @Provides
     @Singleton
-    fun provideQuranPlayer(
+    fun provideExoQuranPlayer(
         @ApplicationContext context: Context,
         exoPlayer: ExoPlayer,
         quranText: QuranText,
         settings: QuranSettings
-    ): QuranPlayer = ExoQuranPlayer(
+    ): ExoQuranPlayer = ExoQuranPlayer(
         context,
         exoPlayer,
         quranText,
         settings,
         CoroutineScope(SupervisorJob() + Dispatchers.Main)
     )
+
+    @Provides
+    fun provideQuranPlayer(player: ExoQuranPlayer): QuranPlayer = player
 }

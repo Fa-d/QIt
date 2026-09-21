@@ -2,7 +2,7 @@ package dev.sadakat.qit.wear.network
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
-import dev.sadakat.qit.shared.quran.audio.SurahDownloads
+import dev.sadakat.qit.core.domain.repository.SurahDownloads
 import javax.inject.Inject
 import javax.inject.Singleton
 

@@ -2,7 +2,7 @@ package dev.sadakat.qit.watch
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
-import dev.sadakat.qit.shared.quran.model.Track
+import dev.sadakat.qit.core.domain.model.Track
 import javax.inject.Inject
 import javax.inject.Singleton
 

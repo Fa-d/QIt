@@ -37,6 +37,9 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
     buildFeatures {
         compose = true
     }
@@ -47,7 +50,7 @@ hilt {
 }
 
 dependencies {
-    implementation(project(":shared"))
+    implementation(project(":core:data"))
 
     // Kotlin Serialization
     implementation(libs.kotlinx.serialization.json)
@@ -91,7 +94,14 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
 
 
-    // Testing
+    // Testing: JVM unit tests (fakes from :core:testing) and Robolectric Compose UI tests
+    testImplementation(project(":core:testing"))
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core.ktx)
+    testImplementation(libs.androidx.test.ext.junit)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

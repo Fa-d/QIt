@@ -19,4 +19,6 @@ dependencyResolutionManagement {
 rootProject.name = "QIt"
 include(":app")
 include(":wear")
-include(":shared")
+include(":core:domain")
+include(":core:data")
+include(":core:testing")

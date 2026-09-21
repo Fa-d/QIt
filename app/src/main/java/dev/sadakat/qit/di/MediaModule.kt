@@ -13,8 +13,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import dev.sadakat.qit.shared.quran.audio.QuranCache
-import dev.sadakat.qit.shared.quran.player.QuranPlayer
+import dev.sadakat.qit.core.data.audio.QuranCache
+import dev.sadakat.qit.core.data.player.ExoQuranPlayer
 import javax.inject.Singleton
 
 @OptIn(UnstableApi::class)
@@ -43,11 +43,11 @@ object MediaModule {
             .build()
     }
 
-    /** Session over [QuranPlayer.sessionPlayer] so notification next/previous move by ayah. */
+    /** Session over [ExoQuranPlayer.sessionPlayer] so notification next/previous move by ayah. */
     @Provides
     @Singleton
     fun provideMediaSession(
         @ApplicationContext context: Context,
-        quranPlayer: QuranPlayer
+        quranPlayer: ExoQuranPlayer
     ): MediaSession = MediaSession.Builder(context, quranPlayer.sessionPlayer).build()
 }

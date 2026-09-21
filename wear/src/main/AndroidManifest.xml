@@ -4,7 +4,7 @@
 
     <uses-feature android:name="android.hardware.type.watch" />
 
-    <!-- INTERNET, notifications and the download service's permissions come from :shared -->
+    <!-- INTERNET, notifications and the download service's permissions come from :core:data -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <!-- WifiForDownloads: request a Wi-Fi network while surahs download -->
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
