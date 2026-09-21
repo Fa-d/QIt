@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.core.domain.player.NowPlaying
 import dev.sadakat.qit.core.domain.player.QuranPlayer
 import dev.sadakat.qit.core.domain.repository.QuranText
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 /** Now playing: what is queued, its Arabic text, and the playback controls. */
+@OptIn(ExperimentalCoroutinesApi::class) // mapLatest: cancel a stale ayah-text lookup.
 @HiltViewModel
 class NowPlayingViewModel @Inject constructor(private val quranText: QuranText, private val player: QuranPlayer) :
     ViewModel() {

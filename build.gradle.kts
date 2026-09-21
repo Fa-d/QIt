@@ -65,6 +65,35 @@ dependencies {
 
 kover {
     reports {
+        // The aggregated report doesn't inherit the modules' filters, so the gate's exclusions live here.
+        filters {
+            excludes {
+                androidGeneratedClasses()
+                // Generated code (Hilt/Dagger/Compose) and DI wiring: nothing of ours to test.
+                classes(
+                    "*_Factory*",
+                    "*_MembersInjector",
+                    "*.Hilt_*",
+                    "*.Dagger*",
+                    "*_HiltModules*",
+                    "*_ComponentTreeDeps*",
+                    "*_GeneratedInjector",
+                    "*.di.*",
+                    "*.BuildConfig",
+                    "*.R",
+                    "*.R$*",
+                    "*ComposableSingletons*",
+                )
+                packages("hilt_aggregated_deps", "dagger")
+                annotatedBy("androidx.compose.ui.tooling.preview.Preview")
+                // Android entry points are thin system glue, exercised on devices rather than by unit tests.
+                inheritedFrom(
+                    "android.app.Activity",
+                    "android.app.Service",
+                    "android.app.Application",
+                )
+            }
+        }
         total {
             verify {
                 rule("aggregate line coverage") {

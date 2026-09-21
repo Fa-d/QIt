@@ -6,6 +6,7 @@ import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.testing.FakeQuranPlayer
 import dev.sadakat.qit.core.testing.FakeQuranText
 import dev.sadakat.qit.core.testing.MainDispatcherRule
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -16,6 +17,7 @@ import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class NowPlayingViewModelTest {
 
     @get:Rule

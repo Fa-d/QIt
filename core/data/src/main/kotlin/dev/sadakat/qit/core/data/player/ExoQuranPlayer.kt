@@ -3,10 +3,12 @@ package dev.sadakat.qit.core.data.player
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.annotation.OptIn
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import dev.sadakat.qit.core.data.audio.QuranMediaItems
 import dev.sadakat.qit.core.domain.audio.QueueItemId
@@ -38,7 +40,7 @@ class ExoQuranPlayer(
     private val exoPlayer: ExoPlayer,
     private val quranText: QuranText,
     private val settings: QuranSettings,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
 ) : QuranPlayer {
 
     private val _nowPlaying = MutableStateFlow<NowPlaying?>(null)
@@ -172,11 +174,9 @@ class ExoQuranPlayer(
         exoPlayer.seekTo(target, 0)
     }
 
-    private fun queueIds(): List<QueueItemId> =
-        ids((0 until exoPlayer.mediaItemCount).map(exoPlayer::getMediaItemAt))
+    private fun queueIds(): List<QueueItemId> = ids((0 until exoPlayer.mediaItemCount).map(exoPlayer::getMediaItemAt))
 
-    private fun ids(items: List<MediaItem>): List<QueueItemId> =
-        items.mapNotNull { QueueItemId.parse(it.mediaId) }
+    private fun ids(items: List<MediaItem>): List<QueueItemId> = items.mapNotNull { QueueItemId.parse(it.mediaId) }
 
     /**
      * Starts the app's MediaSessionService so playback and its notification outlive the activity.
@@ -195,6 +195,7 @@ class ExoQuranPlayer(
     }
 
     /** Forwards the session's next/previous buttons to the ayah-wise seeks. */
+    @OptIn(UnstableApi::class) // ForwardingPlayer's constructor; stable in practice since Media3 1.0.
     private inner class AyahAwarePlayer : ForwardingPlayer(exoPlayer) {
         override fun seekToNext() = this@ExoQuranPlayer.nextAyah()
 
@@ -213,7 +214,8 @@ class ExoQuranPlayer(
         internal fun errorMessage(errorCode: Int): String = when (errorCode) {
             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
-            PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ->
+            PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
+            ->
                 "Can't reach the audio. Check your connection or download this surah."
             else -> "Playback failed. Please try again."
         }

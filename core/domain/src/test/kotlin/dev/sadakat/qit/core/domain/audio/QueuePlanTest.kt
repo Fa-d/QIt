@@ -47,7 +47,7 @@ class QueuePlanTest {
         assertEquals(QueueItemId(2, 0, Track.BANGLA), queue[0].id)
         assertEquals("bn/intro/2", queue[0].file.id)
         assertEquals(
-            "https://github.com/Fa-d/qit-quran-audio/releases/download/bn-intro/002.mp3",
+            "${QuranAudioUrls.HF_DATASET}/bangla/bangla-translation-verses/intro/002.mp3",
             queue[0].file.url,
         )
         assertEquals(QueueItemId(2, 1, Track.ARABIC), queue[1].id)

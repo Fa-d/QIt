@@ -15,24 +15,25 @@ import dev.sadakat.qit.core.domain.model.Track
  */
 object QuranMediaItems {
 
-    fun build(surah: Surah, mode: RecitationMode): List<MediaItem> =
-        QueuePlan.plan(surah.number, mode).map { entry ->
-            MediaItem.Builder()
-                .setUri(entry.file.url)
-                .setMediaId(entry.id.toMediaId())
-                .setMediaMetadata(
-                    MediaMetadata.Builder()
-                        .setTitle(title(surah, entry.id))
-                        .setArtist(entry.id.track.artist)
-                        .setAlbumTitle(surah.nameEnglish)
-                        .build(),
-                )
-                .build()
-        }
+    fun build(surah: Surah, mode: RecitationMode): List<MediaItem> = QueuePlan.plan(surah.number, mode).map { entry ->
+        MediaItem.Builder()
+            .setUri(entry.file.url)
+            .setMediaId(entry.id.toMediaId())
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(title(surah, entry.id))
+                    .setArtist(entry.id.track.artist)
+                    .setAlbumTitle(surah.nameEnglish)
+                    .build(),
+            )
+            .build()
+    }
 
-    private fun title(surah: Surah, id: QueueItemId): String =
-        if (id.ayah == 0) "${surah.nameEnglish} · Bismillah"
-        else "${surah.nameEnglish} ${surah.number}:${id.ayah}"
+    private fun title(surah: Surah, id: QueueItemId): String = if (id.ayah == 0) {
+        "${surah.nameEnglish} · Bismillah"
+    } else {
+        "${surah.nameEnglish} ${surah.number}:${id.ayah}"
+    }
 
     /** Who the media notification credits for the item's audio. */
     private val Track.artist: String

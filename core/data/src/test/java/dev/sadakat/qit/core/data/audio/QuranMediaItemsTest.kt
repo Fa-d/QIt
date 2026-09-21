@@ -31,7 +31,7 @@ class QuranMediaItemsTest {
 
         // The Bangla intro, then 2:1 on both tracks (global ayah 8).
         assertEquals(
-            "https://github.com/Fa-d/qit-quran-audio/releases/download/bn-intro/002.mp3",
+            "${QuranAudioUrls.HF_DATASET}/bangla/bangla-translation-verses/intro/002.mp3",
             items[0].localConfiguration?.uri.toString(),
         )
         assertEquals(

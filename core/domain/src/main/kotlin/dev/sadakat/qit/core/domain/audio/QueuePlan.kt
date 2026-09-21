@@ -11,10 +11,12 @@ data class QueueItemId(val surah: Int, val ayah: Int, val track: Track) {
     fun toMediaId(): String = "$surah:$ayah:${track.code}"
 
     companion object {
+        private const val MEDIA_ID_PARTS = 3
+
         /** Inverse of [toMediaId]; null for anything that is not a Quran queue item. */
         fun parse(mediaId: String?): QueueItemId? {
             val parts = mediaId?.split(':') ?: return null
-            if (parts.size != 3) return null
+            if (parts.size != MEDIA_ID_PARTS) return null
             val surah = parts[0].toIntOrNull() ?: return null
             val ayah = parts[1].toIntOrNull() ?: return null
             val track = Track.fromCode(parts[2]) ?: return null

@@ -63,11 +63,10 @@ class ExoQuranPlayerTest {
         players.forEach(ExoPlayer::release)
     }
 
-    private fun newPlayer(factory: MediaSource.Factory): ExoPlayer =
-        TestExoPlayerBuilder(context)
-            .setMediaSourceFactory(factory)
-            .build()
-            .also(players::add)
+    private fun newPlayer(factory: MediaSource.Factory): ExoPlayer = TestExoPlayerBuilder(context)
+        .setMediaSourceFactory(factory)
+        .build()
+        .also(players::add)
 
     private fun nowPlaying(): NowPlaying = player.nowPlaying.value ?: error("Nothing playing")
 
@@ -301,15 +300,23 @@ class ExoQuranPlayerTest {
         override fun createMediaSource(mediaItem: MediaItem): MediaSource = FakeMediaSource(
             FakeTimeline(
                 FakeTimeline.TimelineWindowDefinition(
-                    /* periodCount = */ 1,
+                    /* periodCount = */
+                    1,
                     mediaItem.mediaId,
-                    /* isSeekable = */ true,
-                    /* isDynamic = */ false,
-                    /* isLive = */ false,
-                    /* isPlaceholder = */ false,
-                    /* durationUs = */ 10 * C.MICROS_PER_SECOND,
-                    /* defaultPositionUs = */ 0,
-                    /* windowOffsetInFirstPeriodUs = */ 0,
+                    /* isSeekable = */
+                    true,
+                    /* isDynamic = */
+                    false,
+                    /* isLive = */
+                    false,
+                    /* isPlaceholder = */
+                    false,
+                    /* durationUs = */
+                    10 * C.MICROS_PER_SECOND,
+                    /* defaultPositionUs = */
+                    0,
+                    /* windowOffsetInFirstPeriodUs = */
+                    0,
                     ImmutableList.of(AdPlaybackState.NONE),
                     mediaItem,
                 ),
@@ -332,7 +339,7 @@ class ExoQuranPlayerTest {
             // Prepare properly first so a later release passes FakeMediaSource's own assertions.
             super.prepareSourceInternal(transferListener)
             if (failedOnce.compareAndSet(false, true)) {
-                throw IllegalStateException("source failed")
+                error("source failed")
             }
         }
     }
