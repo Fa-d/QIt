@@ -143,6 +143,10 @@ class ExoQuranPlayer(
             exoPlayer.setMediaItems(items, QueuePlan.indexOfAyah(ids(items), last.ref.ayah), 0)
             exoPlayer.prepare()
             exoPlayer.playWhenReady = playWhenReady
+            if (playWhenReady) {
+                // Resuming playback must survive the app going to the background just like play().
+                startPlaybackService()
+            }
         }
     }
 
