@@ -13,6 +13,7 @@ import dev.sadakat.qit.core.domain.audio.QuranAudioUrls
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState
 import dev.sadakat.qit.core.domain.repository.stateOf
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
@@ -35,6 +36,16 @@ class MediaSurahDownloadsTest {
         cache.downloadManager.requirements =
             Requirements(Requirements.NETWORK or Requirements.DEVICE_IDLE)
         clearIndex()
+    }
+
+    /**
+     * Releases this test's process-wide [QuranCache] singleton: Robolectric hands every test a
+     * fresh Application but keeps the singleton, and the surviving DownloadManager cannot
+     * unregister its RequirementsWatcher receiver from a later test's environment.
+     */
+    @After
+    fun tearDown() {
+        releaseProcessWideQuranCache()
     }
 
     @Test
