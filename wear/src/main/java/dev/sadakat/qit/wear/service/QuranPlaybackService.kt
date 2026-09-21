@@ -21,7 +21,9 @@ class QuranPlaybackService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        mediaSession = MediaSession.Builder(this, quranPlayer.sessionPlayer).build()
+        // Added explicitly: Media3 only adds a session itself when a controller connects, and the
+        // app drives its player directly, so otherwise no media notification ever appears.
+        mediaSession = MediaSession.Builder(this, quranPlayer.sessionPlayer).build().also(::addSession)
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession

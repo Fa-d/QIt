@@ -129,6 +129,9 @@ dependencies {
 
     // Testing: JVM unit tests (fakes from :core:testing) and Robolectric Compose UI tests
     testImplementation(project(":core:testing"))
+    // Hilt-injected Android entry points (services) under Robolectric
+    testImplementation(libs.hilt.android.testing)
+    kspTest(libs.hilt.compiler)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core.ktx)
     testImplementation(libs.androidx.test.ext.junit)

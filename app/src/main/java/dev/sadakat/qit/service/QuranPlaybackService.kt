@@ -10,7 +10,7 @@ import javax.inject.Inject
 
 /**
  * Keeps Quran playback alive in the background. Media3's default notification provider posts the
- * media notification while the session is active.
+ * media notification for every session added to this service.
  *
  * The MediaSession and its player are app-scoped singletons (see MediaModule), so they are not
  * released here.
@@ -21,6 +21,13 @@ class QuranPlaybackService : MediaSessionService() {
 
     @Inject
     lateinit var mediaSession: MediaSession
+
+    override fun onCreate() {
+        super.onCreate() // Hilt injects here.
+        // Media3 only adds a session itself when a controller connects, and the app drives its
+        // player directly, so without this no notification (or foreground service) ever appears.
+        addSession(mediaSession)
+    }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession = mediaSession
 
