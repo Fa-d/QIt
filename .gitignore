@@ -97,3 +97,9 @@ Desktop.ini
 *.swp
 *.swo
 *~
+
+# Downloaded Quran audio (large media assets)
+quran_audio/
+
+# Python bytecode
+__pycache__/
