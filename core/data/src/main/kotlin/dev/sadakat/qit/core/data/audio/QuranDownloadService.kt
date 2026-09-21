@@ -22,7 +22,8 @@ class QuranDownloadService :
         0,
     ) {
 
-    private val notificationHelper = DownloadNotificationHelper(this, CHANNEL_ID)
+    // Lazy: the Service's base context is attached after construction, so it can't be used in an initializer.
+    private val notificationHelper by lazy { DownloadNotificationHelper(this, CHANNEL_ID) }
 
     override fun getDownloadManager(): DownloadManager = QuranCache.get(this).downloadManager
 
