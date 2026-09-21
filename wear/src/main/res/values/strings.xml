@@ -1,4 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">QIt</string>
+
+    <!-- Home / surah list -->
+    <string name="now_playing_chip">Now playing — %1$s %2$s</string>
+    <string name="continue_chip">Continue %1$s</string>
+    <string name="recitation_mode_hint">Recitation mode</string>
+    <string name="surah_label">%1$d. %2$s</string>
+    <string name="ayah_count_secondary">%1$d ayahs · %2$s</string>
+    <string name="download_state_offline">Offline</string>
+    <string name="download_state_downloaded">Downloaded</string>
+    <string name="download_state_failed">Failed</string>
+    <string name="download_progress">%1$d%%</string>
+    <string name="loading">Loading…</string>
+
+    <!-- Surah -->
+    <string name="surah_not_found">Surah not found</string>
+    <string name="ayah_count">%1$d ayahs</string>
+    <string name="mode_label">Mode: %1$s</string>
+    <string name="play">Play</string>
+    <string name="download">Download</string>
+    <string name="downloading">Downloading %1$s</string>
+    <string name="retry_download">Retry download</string>
+    <string name="remove">Remove</string>
+
+    <!-- Now playing -->
+    <string name="nothing_playing">Nothing playing</string>
+    <string name="ayah_position">%1$d:%2$d</string>
+    <string name="bismillah">Bismillah</string>
+    <string name="bismillah_arabic">بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ</string>
+    <string name="previous_ayah">Previous ayah</string>
+    <string name="play_pause">Play or pause</string>
+    <string name="pause">Pause</string>
+    <string name="next_ayah">Next ayah</string>
 </resources>
