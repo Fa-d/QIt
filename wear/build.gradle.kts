@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
@@ -10,7 +9,7 @@ plugins {
 
 android {
     namespace = "dev.sadakat.qit.wear"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "dev.sadakat.qit"
@@ -25,18 +24,13 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
     }
+    // Built-in Kotlin takes its jvmTarget from targetCompatibility.
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-    kotlinOptions {
-        jvmTarget = "11"
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     testOptions {
         unitTests.isIncludeAndroidResources = true
@@ -110,9 +104,6 @@ dependencies {
     // Wearable Data Layer
     implementation(libs.play.services.wearable)
 
-    // Wear OS input for rotary
-    implementation("androidx.wear:wear-input:1.2.0-alpha02")
-
     // Media3 for audio playback
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
@@ -127,7 +118,7 @@ dependencies {
     // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
-    implementation(libs.hilt.navigation.compose)
+    implementation(libs.hilt.lifecycle.viewmodel.compose)
 
     // Testing: JVM unit tests (fakes from :core:testing) and Robolectric Compose UI tests
     testImplementation(project(":core:testing"))

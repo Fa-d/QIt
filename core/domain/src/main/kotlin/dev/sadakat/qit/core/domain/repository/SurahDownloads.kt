@@ -49,16 +49,20 @@ fun Map<Int, Map<Track, SurahDownloadState>>.stateOf(surah: Int, tracks: List<Tr
                 done += state.completedFiles
                 total += state.totalFiles
             }
+
             is SurahDownloadState.Failed -> {
                 done += state.completedFiles
                 total += state.totalFiles
             }
+
             else -> {}
         }
     }
     return when {
         states.any { it is SurahDownloadState.Downloading } -> SurahDownloadState.Downloading(done, total)
+
         states.any { it is SurahDownloadState.Failed } -> SurahDownloadState.Failed(done, total)
+
         // Some tracks downloaded, others never requested: not fully available offline.
         else -> SurahDownloadState.NotDownloaded
     }

@@ -42,10 +42,10 @@ class ViewModelArchitectureTest {
         val violations = viewModels()
             .flatMap { viewModel ->
                 constructorParameters(viewModel)
-                    .filter { it.type?.name in forbiddenTypes }
+                    .filter { it.type.name in forbiddenTypes }
                     .map { parameter ->
                         "${viewModel.containingFile.path}: ${viewModel.name} constructor takes " +
-                            "${parameter.type?.name} (${parameter.name})"
+                            "${parameter.type.name} (${parameter.name})"
                     }
             }
 

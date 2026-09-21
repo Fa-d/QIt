@@ -5,7 +5,6 @@ import io.gitlab.arturbosch.detekt.extensions.DetektExtension
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.android.library) apply false
-    alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.kotlin.compose) apply false
@@ -43,13 +42,20 @@ subprojects {
         )
     }
 
-    // detekt 1.23.7 is compiled against Kotlin 2.0.10 while this build uses KGP 2.0.0; without
-    // this force detekt fails with "detekt was compiled with Kotlin 2.0.10 but is currently
-    // running with 2.0.0" (https://detekt.dev/docs/introduction/compatibility).
+    // detekt 1.23.8 is compiled against Kotlin 2.0.21 and refuses to run on the build's newer
+    // Kotlin ("detekt was compiled with Kotlin 2.0.21 but is currently running with ...",
+    // https://detekt.dev/docs/introduction/compatibility). It only parses sources (no type
+    // resolution), so its own compiler version is safe to pin.
     configurations.matching { it.name == "detekt" }.all {
         resolutionStrategy.eachDependency {
-            if (requested.group == "org.jetbrains.kotlin") useVersion("2.0.10")
+            if (requested.group == "org.jetbrains.kotlin") useVersion("2.0.21")
         }
+    }
+
+    // Robolectric's SDK 36 runtime (ApplicationSharedMemory) reaches into FileDescriptor internals
+    // through jdk.internal.access, which java.base doesn't export to the classpath by default.
+    tasks.withType<Test>().configureEach {
+        jvmArgs("--add-opens=java.base/jdk.internal.access=ALL-UNNAMED")
     }
 }
 

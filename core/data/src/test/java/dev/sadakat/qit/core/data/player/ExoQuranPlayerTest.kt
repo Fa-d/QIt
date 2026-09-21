@@ -2,7 +2,6 @@ package dev.sadakat.qit.core.data.player
 
 import android.content.Context
 import android.os.Looper
-import androidx.media3.common.AdPlaybackState
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -20,7 +19,6 @@ import androidx.media3.test.utils.robolectric.RobolectricUtil.runMainLooperUntil
 import androidx.media3.test.utils.robolectric.TestPlayerRunHelper
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.google.common.collect.ImmutableList
 import dev.sadakat.qit.core.domain.model.AyahRef
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
@@ -260,7 +258,7 @@ class ExoQuranPlayerTest {
         player.togglePlayPause()
 
         // The re-prepare happens on the playback thread; let it complete before waiting for play.
-        TestPlayerRunHelper.run(exoPlayer).untilPendingCommandsAreFullyHandled()
+        TestPlayerRunHelper.advance(exoPlayer).untilPendingCommandsAreFullyHandled()
         runMainLooperUntil { player.nowPlaying.value?.isPlaying == true }
     }
 
@@ -330,27 +328,14 @@ class ExoQuranPlayerTest {
     private class SeekableFakeMediaSourceFactory : MediaSource.Factory {
         override fun createMediaSource(mediaItem: MediaItem): MediaSource = FakeMediaSource(
             FakeTimeline(
-                FakeTimeline.TimelineWindowDefinition(
-                    /* periodCount = */
-                    1,
-                    mediaItem.mediaId,
-                    /* isSeekable = */
-                    true,
-                    /* isDynamic = */
-                    false,
-                    /* isLive = */
-                    false,
-                    /* isPlaceholder = */
-                    false,
-                    /* durationUs = */
-                    10 * C.MICROS_PER_SECOND,
-                    /* defaultPositionUs = */
-                    0,
-                    /* windowOffsetInFirstPeriodUs = */
-                    0,
-                    ImmutableList.of(AdPlaybackState.NONE),
-                    mediaItem,
-                ),
+                FakeTimeline.TimelineWindowDefinition.Builder()
+                    .setUid(mediaItem.mediaId)
+                    .setSeekable(true)
+                    .setDurationUs(10 * C.MICROS_PER_SECOND)
+                    .setDefaultPositionUs(0)
+                    .setWindowPositionInFirstPeriodUs(0)
+                    .setMediaItem(mediaItem)
+                    .build(),
             ),
         )
 

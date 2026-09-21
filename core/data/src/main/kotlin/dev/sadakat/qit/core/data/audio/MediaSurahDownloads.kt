@@ -35,8 +35,11 @@ import kotlinx.coroutines.launch
 internal fun fileDownloadStateOf(download: Download): FileDownloadState? = when (download.state) {
     Download.STATE_QUEUED, Download.STATE_DOWNLOADING, Download.STATE_RESTARTING, Download.STATE_STOPPED ->
         FileDownloadState.ACTIVE
+
     Download.STATE_COMPLETED -> FileDownloadState.COMPLETED
+
     Download.STATE_FAILED -> FileDownloadState.FAILED
+
     else -> null
 }
 

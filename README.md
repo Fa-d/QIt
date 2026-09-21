@@ -42,8 +42,9 @@ The bundled text assets (`core/data/src/main/assets/quran/`) are generated from 
 
 ## Build and run
 
-Requirements: Android SDK (compileSdk 36), minSdk 26. Kotlin/JVM target 11; `gradle.properties`
-pins Gradle itself to Android Studio's bundled JDK (CI runs it on JDK 21).
+Requirements: Android SDK (compileSdk 37, targetSdk 36), minSdk 26. AGP 9 with built-in Kotlin,
+JVM target 17. The Gradle daemon runs on JDK 21 (`gradle/gradle-daemon-jvm.properties`; Gradle
+provisions it if missing).
 
 ```bash
 ./gradlew :app:installDebug        # install the phone app

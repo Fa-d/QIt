@@ -15,7 +15,7 @@ import javax.inject.Singleton
 
 /** [WatchConnection] over the Wearable Data Layer. */
 @Singleton
-class WatchLink @Inject constructor(@ApplicationContext private val context: Context) : WatchConnection {
+class WatchLink @Inject constructor(@param:ApplicationContext private val context: Context) : WatchConnection {
 
     override suspend fun isWatchReachable(): Boolean = try {
         reachableNodes().isNotEmpty()

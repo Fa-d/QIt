@@ -23,7 +23,9 @@ object QuranAudioUrls {
         require(globalAyah in 1..QuranMeta.TOTAL_AYAHS) { "Invalid global ayah $globalAyah" }
         val url = when (track) {
             Track.ARABIC -> "$ISLAMIC_NETWORK/128/ar.alafasy/$globalAyah.mp3"
+
             Track.ENGLISH -> "$ISLAMIC_NETWORK/192/en.walk/$globalAyah.mp3"
+
             // Locale.ROOT: a Bangla-locale device would otherwise format Bengali digits.
             Track.BANGLA -> "$BANGLA_VERSES/" + String.format(Locale.ROOT, "%05d", globalAyah) + ".mp3"
         }
@@ -39,6 +41,7 @@ object QuranAudioUrls {
         if (!QuranMeta.hasBasmalaPrefix(surah)) return null
         return when (track) {
             Track.ARABIC, Track.ENGLISH -> verse(track, 1)
+
             Track.BANGLA -> AudioFile(
                 "bn/intro/$surah",
                 "$BANGLA_VERSES/intro/" + String.format(Locale.ROOT, "%03d", surah) + ".mp3",

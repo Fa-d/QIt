@@ -35,7 +35,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sadakat.qit.R
 import dev.sadakat.qit.core.domain.model.Revelation
@@ -94,7 +94,9 @@ fun SurahListScreen(
         )
         when {
             state.loadFailed -> LoadError()
+
             state.surahs.isEmpty() && state.query.isBlank() -> Loading()
+
             else -> {
                 LazyColumn {
                     state.continueListening?.let { card ->
@@ -211,6 +213,7 @@ fun DownloadIndicator(state: SurahDownloadState, modifier: Modifier = Modifier) 
             tint = MaterialTheme.colorScheme.primary,
             modifier = modifier.size(20.dp),
         )
+
         is SurahDownloadState.Downloading -> CircularProgressIndicator(
             progress = { state.progress },
             strokeWidth = 2.dp,
@@ -218,12 +221,14 @@ fun DownloadIndicator(state: SurahDownloadState, modifier: Modifier = Modifier) 
                 .size(20.dp)
                 .semantics { contentDescription = downloadingText },
         )
+
         is SurahDownloadState.Failed -> Icon(
             imageVector = Icons.Rounded.ErrorOutline,
             contentDescription = stringResource(R.string.cd_download_failed),
             tint = MaterialTheme.colorScheme.error,
             modifier = modifier.size(20.dp),
         )
+
         is SurahDownloadState.NotDownloaded -> Unit
     }
 }

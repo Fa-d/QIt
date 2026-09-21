@@ -4,6 +4,11 @@ on:
   push:
   pull_request:
 
+# A newer push to the same branch makes the running check pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -16,11 +21,6 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-
-      # The project gradle.properties pins org.gradle.java.home to a macOS path; a user-level
-      # ~/.gradle/gradle.properties takes precedence, so the build works on Linux runners.
-      - name: Point Gradle at the runner JDK
-        run: echo "org.gradle.java.home=$JAVA_HOME" >> ~/.gradle/gradle.properties
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4

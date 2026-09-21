@@ -16,7 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.res.stringResource
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.wear.compose.foundation.ExperimentalWearFoundationApi
 import androidx.wear.compose.foundation.lazy.AutoCenteringParams
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
@@ -166,9 +166,11 @@ private fun SurahChipRow(row: WearHomeViewModel.SurahRow, onSurahClick: (Int) ->
 @Composable
 private fun downloadLabel(download: SurahDownloadState): String? = when (download) {
     SurahDownloadState.NotDownloaded -> null
+
     is SurahDownloadState.Downloading ->
         stringResource(R.string.download_progress, (download.progress * 100).roundToInt())
 
     SurahDownloadState.Downloaded -> stringResource(R.string.download_state_downloaded)
+
     is SurahDownloadState.Failed -> stringResource(R.string.download_state_failed)
 }

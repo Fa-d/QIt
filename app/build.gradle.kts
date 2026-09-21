@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
@@ -9,7 +8,7 @@ plugins {
 
 android {
     namespace = "dev.sadakat.qit"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "dev.sadakat.qit"
@@ -30,12 +29,10 @@ android {
             )
         }
     }
+    // Built-in Kotlin takes its jvmTarget from targetCompatibility.
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-    kotlinOptions {
-        jvmTarget = "11"
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     testOptions {
         unitTests.isIncludeAndroidResources = true
@@ -110,7 +107,7 @@ dependencies {
     implementation(libs.media3.session)
 
     // Lifecycle for collectAsStateWithLifecycle
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.2")
+    implementation(libs.androidx.lifecycle.runtime.compose)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
@@ -119,7 +116,7 @@ dependencies {
     // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
-    implementation(libs.hilt.navigation.compose)
+    implementation(libs.hilt.lifecycle.viewmodel.compose)
 
     // DataStore
     implementation(libs.datastore.preferences)

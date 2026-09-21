@@ -22,7 +22,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
-import org.robolectric.annotation.Config
 
 /**
  * ExoQuranPlayer resolves the app's MediaSessionService by intent filter and starts it so playback
@@ -30,7 +29,6 @@ import org.robolectric.annotation.Config
  * asserted here rather than in :core:data.
  */
 @RunWith(AndroidJUnit4::class)
-@Config(sdk = [34])
 class ExoQuranPlayerServiceStartTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()

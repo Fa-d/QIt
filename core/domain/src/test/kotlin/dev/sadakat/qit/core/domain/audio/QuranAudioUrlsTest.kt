@@ -40,7 +40,7 @@ class QuranAudioUrlsTest {
         // A Bangla-locale device would otherwise format Bengali digits into the URL.
         val original = Locale.getDefault()
         try {
-            Locale.setDefault(Locale("bn", "BD"))
+            Locale.setDefault(Locale.forLanguageTag("bn-BD"))
             assertEquals(
                 "$BANGLA/01234.mp3",
                 QuranAudioUrls.verse(Track.BANGLA, 1234).url,

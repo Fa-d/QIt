@@ -45,7 +45,9 @@ object QueuePlan {
     fun plan(surah: Int, mode: RecitationMode): List<QueueEntry> {
         val prefixTracks = when (mode) {
             RecitationMode.ARABIC_ONLY -> listOf(Track.ARABIC)
+
             RecitationMode.ARABIC_ENGLISH -> listOf(Track.ARABIC, Track.ENGLISH)
+
             // The Bangla intro already contains the Arabic basmala, so no separate Arabic prefix.
             RecitationMode.ARABIC_BANGLA -> listOf(Track.BANGLA)
         }

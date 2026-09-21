@@ -229,6 +229,7 @@ class ExoQuranPlayer(
             PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
             ->
                 "Can't reach the audio. Check your connection or download this surah."
+
             else -> "Playback failed. Please try again."
         }
     }

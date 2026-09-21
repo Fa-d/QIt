@@ -46,6 +46,7 @@ fun QItTheme(
         }
 
         darkTheme -> DarkColorScheme
+
         else -> LightColorScheme
     }
 

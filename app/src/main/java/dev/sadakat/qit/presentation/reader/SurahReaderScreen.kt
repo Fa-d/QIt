@@ -60,7 +60,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sadakat.qit.R
 import dev.sadakat.qit.core.domain.model.Ayah
@@ -119,6 +119,7 @@ fun SurahReaderScreen(
         when (message) {
             is ReaderMessage.SentToWatch ->
                 pluralStringResource(R.plurals.sent_to_watch, message.watches, message.watches)
+
             ReaderMessage.NoWatch -> stringResource(R.string.no_watch_found)
         }
     }
@@ -200,9 +201,11 @@ fun SurahReaderScreen(
                         modifier = Modifier.padding(16.dp),
                     )
                 }
+
                 state.surah == null -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
+
                 else -> AyahList(
                     state = state,
                     onAyahClick = onAyahClick,
@@ -229,12 +232,14 @@ private fun DownloadAction(state: SurahDownloadState, onDownload: () -> Unit, on
                     .semantics { contentDescription = downloadingText },
             )
         }
+
         is SurahDownloadState.Downloaded -> IconButton(onClick = onRemoveClick) {
             Icon(
                 imageVector = Icons.Rounded.DownloadDone,
                 contentDescription = stringResource(R.string.cd_remove_download),
             )
         }
+
         else -> IconButton(onClick = onDownload) {
             Icon(imageVector = Icons.Rounded.Download, contentDescription = stringResource(R.string.cd_download))
         }
