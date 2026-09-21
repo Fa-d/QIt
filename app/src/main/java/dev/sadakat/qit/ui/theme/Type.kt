@@ -3,8 +3,13 @@ package dev.sadakat.qit.ui.theme
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import dev.sadakat.qit.R
+
+/** Amiri Quran, bundled for the Arabic text of the Quran. */
+val AmiriQuran = FontFamily(Font(R.font.amiri_quran))
 
 // Set of Material typography styles to start with
 val Typography = Typography(

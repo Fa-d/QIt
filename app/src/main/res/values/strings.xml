@@ -1,3 +1,48 @@
 <resources>
     <string name="app_name">QIt</string>
+
+    <!-- Surah list -->
+    <string name="surah_list_title">Quran</string>
+    <string name="surah_search_hint">Search surahs</string>
+    <string name="surah_subtitle">%1$s · %2$s · %3$s</string>
+    <plurals name="ayah_count">
+        <item quantity="one">%d ayah</item>
+        <item quantity="other">%d ayahs</item>
+    </plurals>
+    <string name="revelation_meccan">Meccan</string>
+    <string name="revelation_medinan">Medinan</string>
+    <string name="continue_listening">Continue listening</string>
+    <string name="ayah_title">%1$s %2$d:%3$d</string>
+    <string name="bismillah_title">%1$s · Bismillah</string>
+    <string name="surah_fallback_name">Surah %1$d</string>
+    <string name="load_error">Couldn\'t load the Quran text.</string>
+
+    <!-- Surah reader -->
+    <string name="cd_back">Back</string>
+    <string name="cd_download">Download</string>
+    <string name="cd_downloading">Downloading</string>
+    <string name="cd_downloaded">Downloaded</string>
+    <string name="cd_download_failed">Download failed</string>
+    <string name="cd_remove_download">Remove download</string>
+    <string name="cd_send_to_watch">Send to watch</string>
+    <string name="cd_recitation_mode">Recitation mode</string>
+    <string name="play_surah">Play surah</string>
+    <string name="basmala">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</string>
+    <string name="remove_download_title">Remove download?</string>
+    <string name="remove_download_text">Remove the downloaded audio of %1$s from this phone.</string>
+    <string name="remove">Remove</string>
+    <string name="cancel">Cancel</string>
+    <plurals name="sent_to_watch">
+        <item quantity="one">Sent to %d watch</item>
+        <item quantity="other">Sent to %d watches</item>
+    </plurals>
+    <string name="no_watch_found">No watch with QIt found</string>
+
+    <!-- Player bar -->
+    <string name="cd_play">Play</string>
+    <string name="cd_pause">Pause</string>
+    <string name="cd_previous_ayah">Previous ayah</string>
+    <string name="cd_next_ayah">Next ayah</string>
+    <string name="cd_close_player">Close player</string>
+    <string name="cd_buffering">Buffering</string>
 </resources>
