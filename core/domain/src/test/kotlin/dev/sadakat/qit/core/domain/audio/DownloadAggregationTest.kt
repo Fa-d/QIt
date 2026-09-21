@@ -26,6 +26,16 @@ class DownloadAggregationTest {
     }
 
     @Test
+    fun `downloading another surah does not make al-fatiha look tracked`() {
+        // "ar/1" is Al-Fatiha's first verse AND every other surah's basmala.
+        val activeSurahTwo = surahTwoIds.associateWith { FileDownloadState.ACTIVE }
+        val doneSurahTwo = surahTwoIds.associateWith { FileDownloadState.COMPLETED }
+        assertNull(DownloadAggregation.stateOf(1, Track.ARABIC, activeSurahTwo))
+        assertNull(DownloadAggregation.stateOf(1, Track.ARABIC, doneSurahTwo))
+        assertEquals(Downloaded, DownloadAggregation.stateOf(2, Track.ARABIC, doneSurahTwo))
+    }
+
+    @Test
     fun `all files completed means downloaded`() {
         val files = surahOneIds.associateWith { FileDownloadState.COMPLETED }
         assertEquals(Downloaded, DownloadAggregation.stateOf(1, Track.ARABIC, files))

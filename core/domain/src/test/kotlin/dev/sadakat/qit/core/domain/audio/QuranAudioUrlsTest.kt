@@ -11,6 +11,10 @@ import org.junit.Assert.assertNull
 
 class QuranAudioUrlsTest {
 
+    private companion object {
+        const val BANGLA = "${QuranAudioUrls.HF_DATASET}/bangla/bangla-translation-verses"
+    }
+
     @Test
     fun `arabic and english verses come from the islamic network cdn`() {
         assertEquals(
@@ -24,24 +28,11 @@ class QuranAudioUrlsTest {
     }
 
     @Test
-    fun `bangla verses are partitioned into releases of at most 1000 assets`() {
-        assertEquals(
-            "${QuranAudioUrls.BANGLA_RELEASES}/bn-1/00001.mp3",
-            QuranAudioUrls.verse(Track.BANGLA, 1).url,
-        )
-        assertEquals(
-            "${QuranAudioUrls.BANGLA_RELEASES}/bn-1/01000.mp3",
-            QuranAudioUrls.verse(Track.BANGLA, 1000).url,
-        )
-        assertEquals(
-            "${QuranAudioUrls.BANGLA_RELEASES}/bn-2/01001.mp3",
-            QuranAudioUrls.verse(Track.BANGLA, 1001).url,
-        )
-        assertEquals(
-            "${QuranAudioUrls.BANGLA_RELEASES}/bn-7/06236.mp3",
-            QuranAudioUrls.verse(Track.BANGLA, QuranMeta.TOTAL_AYAHS).url,
-        )
-        assertEquals("bn/1234", QuranAudioUrls.verse(Track.BANGLA, 1234).id)
+    fun `bangla verses and intros come from the hugging face dataset mirroring quran_audio`() {
+        val base = "https://huggingface.co/datasets/faddy001/quran_audio/resolve/main/bangla/bangla-translation-verses"
+        assertEquals(AudioFile("bn/1", "$base/00001.mp3"), QuranAudioUrls.verse(Track.BANGLA, 1))
+        assertEquals("$base/06236.mp3", QuranAudioUrls.verse(Track.BANGLA, QuranMeta.TOTAL_AYAHS).url)
+        assertEquals(AudioFile("bn/intro/114", "$base/intro/114.mp3"), QuranAudioUrls.basmala(Track.BANGLA, 114))
     }
 
     @Test
@@ -51,11 +42,11 @@ class QuranAudioUrlsTest {
         try {
             Locale.setDefault(Locale("bn", "BD"))
             assertEquals(
-                "${QuranAudioUrls.BANGLA_RELEASES}/bn-2/01234.mp3",
+                "$BANGLA/01234.mp3",
                 QuranAudioUrls.verse(Track.BANGLA, 1234).url,
             )
             assertEquals(
-                "${QuranAudioUrls.BANGLA_RELEASES}/bn-intro/002.mp3",
+                "$BANGLA/intro/002.mp3",
                 QuranAudioUrls.basmala(Track.BANGLA, 2)!!.url,
             )
         } finally {
@@ -84,7 +75,7 @@ class QuranAudioUrlsTest {
         assertEquals(QuranAudioUrls.verse(Track.ARABIC, 1), QuranAudioUrls.basmala(Track.ARABIC, 2))
         assertEquals(QuranAudioUrls.verse(Track.ENGLISH, 1), QuranAudioUrls.basmala(Track.ENGLISH, 114))
         assertEquals(
-            AudioFile("bn/intro/2", "${QuranAudioUrls.BANGLA_RELEASES}/bn-intro/002.mp3"),
+            AudioFile("bn/intro/2", "$BANGLA/intro/002.mp3"),
             QuranAudioUrls.basmala(Track.BANGLA, 2),
         )
     }

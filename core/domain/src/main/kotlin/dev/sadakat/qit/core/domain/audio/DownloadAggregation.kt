@@ -22,12 +22,14 @@ object DownloadAggregation {
         }
     }
 
-    /** The ids that prove a pair is tracked: its verse files, basmala excluded. */
-    private val verseIdsByPair: Map<Pair<Int, Track>, Set<String>> by lazy {
-        filesByPair.mapValues { (pair, files) ->
-            val verseIds = files.mapTo(mutableSetOf()) { it.id }
-            QuranAudioUrls.basmala(pair.second, pair.first)?.id?.let(verseIds::remove)
-            verseIds
+    /**
+     * The ids that prove a pair is tracked: files that belong to this pair only. That excludes the
+     * shared basmala ("ar/1" is also Al-Fatiha's first verse), so downloading Al-Baqarah does not make
+     * Al-Fatiha look half-downloaded.
+     */
+    private val ownIdsByPair: Map<Pair<Int, Track>, Set<String>> by lazy {
+        filesByPair.mapValues { (_, files) ->
+            files.mapNotNullTo(mutableSetOf()) { file -> file.id.takeIf { pairsByFileId.getValue(it).size == 1 } }
         }
     }
 
@@ -41,12 +43,12 @@ object DownloadAggregation {
 
     /**
      * State of [surah]/[track] given the known files (keyed by [QuranAudioUrls.AudioFile.id]).
-     * Null when the pair is not tracked, i.e. none of its *verse* files (basmala excluded) is known.
+     * Null when the pair is not tracked, i.e. none of the files only it uses is known.
      */
     fun stateOf(surah: Int, track: Track, files: Map<String, FileDownloadState>): SurahDownloadState? {
         val pairFiles = filesByPair[surah to track] ?: return null
-        val verseIds = verseIdsByPair.getValue(surah to track)
-        if (files.keys.none { it in verseIds }) return null
+        val ownIds = ownIdsByPair.getValue(surah to track)
+        if (files.keys.none { it in ownIds }) return null
         var completed = 0
         var active = false
         for (file in pairFiles) {
