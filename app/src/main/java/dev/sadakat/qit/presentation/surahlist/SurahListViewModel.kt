@@ -67,7 +67,7 @@ class SurahListViewModel @Inject constructor(
     ) { load, query, mode, lastPosition, states ->
         SurahListUiState(
             query = query,
-            surahs = load.surahs.filter { it.matches(query) },
+            surahs = load.surahs.filter { SurahSearch.matches(it, query) },
             loadFailed = load.failed,
             mode = mode,
             downloadStates = load.surahs.associate { it.number to states.stateOf(it.number, mode.tracks) },
@@ -88,14 +88,4 @@ class SurahListViewModel @Inject constructor(
         val last = currentLastPosition ?: return
         player.play(last.ref.surah, last.ref.ayah, last.mode)
     }
-}
-
-/** A surah matches by its exact number, or a case-insensitive substring of any of its names. */
-private fun Surah.matches(rawQuery: String): Boolean {
-    val query = rawQuery.trim()
-    if (query.isEmpty()) return true
-    if (query.toIntOrNull() == number) return true
-    return nameEnglish.contains(query, ignoreCase = true) ||
-        meaningEnglish.contains(query, ignoreCase = true) ||
-        nameArabic.contains(query)
 }
