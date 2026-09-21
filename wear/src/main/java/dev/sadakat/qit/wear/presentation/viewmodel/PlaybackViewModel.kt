@@ -6,7 +6,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.shared.domain.entity.PlaylistId
 import dev.sadakat.qit.shared.domain.entity.Song
 import dev.sadakat.qit.shared.domain.entity.SongId
-import dev.sadakat.qit.shared.domain.repository.StreamingRepository
 import dev.sadakat.qit.shared.domain.valueobject.AudioQuality
 import dev.sadakat.qit.shared.domain.valueobject.DownloadStatus
 import dev.sadakat.qit.wear.application.usecase.playback.PlaySongUseCase
@@ -24,8 +23,7 @@ import javax.inject.Inject
 @HiltViewModel
 class PlaybackViewModel @Inject constructor(
     private val playSongUseCase: PlaySongUseCase,
-    private val playbackManager: PlaybackManager,
-    private val streamingRepository: StreamingRepository
+    private val playbackManager: PlaybackManager
 ) : ViewModel() {
 
     // Note: currentSong type changed from shared.model.Song to domain.entity.Song
@@ -157,53 +155,31 @@ class PlaybackViewModel @Inject constructor(
     /**
      * Play a song streamed from phone
      * Note: This is now private - use playSong() instead for proper use case handling
+     *
+     * The stream was already requested by PlaySongUseCase (via StreamingCoordinator),
+     * so we must NOT request it again here - a second request would open a second
+     * channel and interleave two copies of the audio into the streaming buffer.
      */
     private fun playStreamedSong(
         song: Song,
         strategy: dev.sadakat.qit.shared.domain.service.StreamingStrategy
     ) {
-        viewModelScope.launch {
-            when (strategy) {
-                is dev.sadakat.qit.shared.domain.service.StreamingStrategy.Local -> {
-                    // This shouldn't happen as playStreamedSong is only called for streaming
-                    _errorMessage.value = "Invalid strategy for streaming"
-                }
-                is dev.sadakat.qit.shared.domain.service.StreamingStrategy.RealTime -> {
-                    // Request stream from phone
-                    val result = streamingRepository.requestStreamFromPhone(
-                        songId = song.id,
-                        quality = strategy.quality
-                    )
+        when (strategy) {
+            is dev.sadakat.qit.shared.domain.service.StreamingStrategy.Local -> {
+                // This shouldn't happen as playStreamedSong is only called for streaming
+                _errorMessage.value = "Invalid strategy for streaming"
+            }
+            is dev.sadakat.qit.shared.domain.service.StreamingStrategy.RealTime,
+            is dev.sadakat.qit.shared.domain.service.StreamingStrategy.Progressive -> {
+                // Create a custom URI that will be handled by the SchemeAwareDataSource
+                val streamUri = android.net.Uri.parse("streaming://phone/${song.id.value}")
+                currentStreamUri = streamUri
 
-                    if (result.isSuccess) {
-                        // Create a custom URI that will be handled by a custom DataSource
-                        val streamUri = android.net.Uri.parse("streaming://phone/${song.id.value}")
-                        currentStreamUri = streamUri
-
-                        // PlaybackManager now uses domain entities directly
-                        playbackManager.playStreamedSong(song, streamUri)
-                    } else {
-                        _errorMessage.value = "Failed to start streaming: ${result.exceptionOrNull()?.message}"
-                    }
-                }
-                is dev.sadakat.qit.shared.domain.service.StreamingStrategy.Progressive -> {
-                    // Request stream from phone with progressive download
-                    val result = streamingRepository.requestStreamFromPhone(
-                        songId = song.id,
-                        quality = strategy.quality
-                    )
-
-                    if (result.isSuccess) {
-                        val streamUri = android.net.Uri.parse("streaming://phone/${song.id.value}")
-                        currentStreamUri = streamUri
-                        playbackManager.playStreamedSong(song, streamUri)
-                    } else {
-                        _errorMessage.value = "Failed to start progressive streaming: ${result.exceptionOrNull()?.message}"
-                    }
-                }
-                is dev.sadakat.qit.shared.domain.service.StreamingStrategy.Unavailable -> {
-                    _errorMessage.value = "Streaming unavailable: ${strategy.reason}"
-                }
+                // PlaybackManager now uses domain entities directly
+                playbackManager.playStreamedSong(song, streamUri)
+            }
+            is dev.sadakat.qit.shared.domain.service.StreamingStrategy.Unavailable -> {
+                _errorMessage.value = "Streaming unavailable: ${strategy.reason}"
             }
         }
     }
@@ -295,6 +271,9 @@ class PlaybackViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        playbackManager.release()
+        // Do NOT release the PlaybackManager/player here: it is an app-scoped
+        // singleton shared with MusicPlaybackService. Releasing it when a
+        // ViewModel is cleared (e.g. screen rotation) would kill playback for
+        // the rest of the process lifetime.
     }
 }

@@ -10,11 +10,16 @@ import kotlinx.coroutines.flow.Flow
 interface StreamingRepository {
 
     /**
-     * Streams audio to watch in real-time
+     * Streams audio to watch in real-time.
+     *
+     * @param sourceNodeId id of the requesting watch node, if known. Used to
+     * negatively acknowledge failures via a StreamErrorMessage so the watch
+     * does not buffer until timeout.
      */
     suspend fun streamAudioToWatch(
         songId: SongId,
-        quality: AudioQuality = AudioQuality.ORIGINAL
+        quality: AudioQuality = AudioQuality.ORIGINAL,
+        sourceNodeId: String? = null
     ): Result<Unit>
 
     /**

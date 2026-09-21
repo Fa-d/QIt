@@ -14,6 +14,8 @@ object WearPaths {
     const val PLAYLIST_SYNC = "/sync/playlists"
     const val SONG_SYNC = "/sync/songs"
     const val DOWNLOAD_REQUEST = "/download/request"
+    const val DOWNLOAD_CANCEL = "/download/cancel"
+    const val DOWNLOAD_START = "/download/start"
     const val DOWNLOAD_PROGRESS = "/download/progress"
     const val DOWNLOAD_COMPLETE = "/download/complete"
     const val PLAYBACK_COMMAND = "/playback/command"
@@ -23,6 +25,14 @@ object WearPaths {
     // Channel paths for streaming large data
     const val AUDIO_STREAM = "/stream/audio/"
     const val DOWNLOAD_CHANNEL = "/download/"
+
+    /**
+     * Message path used by the phone to negatively acknowledge a failed
+     * audio-stream request (song missing, file unreadable, ...). Payload is a
+     * [dev.sadakat.qit.shared.dto.StreamErrorMessage]. Without this the watch
+     * would buffer for 30s and then silently "end" the track.
+     */
+    const val STREAM_AUDIO_ERROR = "/stream/audio/error"
 
     // Capability paths
     const val CAPABILITY_PHONE_APP = "qit_phone_app"

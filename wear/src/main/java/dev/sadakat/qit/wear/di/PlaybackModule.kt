@@ -1,6 +1,7 @@
 package dev.sadakat.qit.wear.di
 
 import android.content.Context
+import androidx.media3.exoplayer.ExoPlayer
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -34,8 +35,9 @@ object PlaybackModule {
     fun providePlaybackManager(
         @ApplicationContext context: Context,
         streamingRepository: StreamingRepository,
+        exoPlayer: ExoPlayer,
         @PlaybackScope coroutineScope: CoroutineScope
     ): PlaybackManager {
-        return PlaybackManager(context, streamingRepository, coroutineScope)
+        return PlaybackManager(context, streamingRepository, exoPlayer, coroutineScope)
     }
 }

@@ -6,7 +6,10 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Use case to request song synchronization from phone
+ * Use case to request song synchronization from phone.
+ *
+ * A null playlistId requests ALL songs from the phone.
+ * (Note: PlaylistId rejects blank values, so "all" must be expressed with null.)
  */
 @Singleton
 class RequestSongSyncUseCase @Inject constructor(
@@ -14,12 +17,7 @@ class RequestSongSyncUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(playlistId: PlaylistId? = null): Result<Unit> {
         return try {
-            if (playlistId != null) {
-                syncRepository.requestSongSyncFromPhone(playlistId)
-            } else {
-                // Request all songs sync
-                syncRepository.requestSongSyncFromPhone(PlaylistId(""))
-            }
+            syncRepository.requestSongSyncFromPhone(playlistId)
         } catch (e: Exception) {
             Result.failure(e)
         }

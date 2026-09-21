@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import kotlinx.serialization.encodeToString
@@ -61,43 +62,74 @@ class WearableSyncRepository @Inject constructor(
     // Sync metadata with persistent storage
     private var syncMetadata: SyncMetadata = SyncMetadata.initial()
 
+    // Last known watch app version, kept in memory to avoid blocking reads
+    // on the DataStore from capability-change listener callbacks.
+    @Volatile
+    private var cachedWatchVersion: String? = null
+
     override suspend fun syncPlaylistToWatch(playlist: Playlist): Result<Unit> {
-        return try {
-            val message = PlaylistSyncMessage(
-                playlists = listOf(playlist.toDto())
-            )
-            val data = json.encodeToString(message).toByteArray()
-
-            val nodes = nodeClient.connectedNodes.await()
-            if (nodes.isEmpty()) {
-                return Result.failure(IllegalStateException("No watch connected"))
-            }
-
-            for (node in nodes) {
-                messageClient.sendMessage(node.id, "/sync/playlists", data).await()
-            }
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        // Route through the chunked plural variant: a single playlist with a
+        // very large songIds list must also stay under the message cap.
+        return syncPlaylistsToWatch(listOf(playlist))
     }
 
-    override suspend fun syncPlaylistsToWatch(playlists: List<Playlist>): Result<Unit> {
+    override suspend fun syncPlaylistsToWatch(
+        playlists: List<Playlist>,
+        fullSync: Boolean
+    ): Result<Unit> {
         return try {
-            val message = PlaylistSyncMessage(
-                playlists = playlists.toPlaylistDtos()
-            )
-            val data = json.encodeToString(message).toByteArray()
-
             val nodes = nodeClient.connectedNodes.await()
             if (nodes.isEmpty()) {
                 return Result.failure(IllegalStateException("No watch connected"))
             }
 
-            for (node in nodes) {
-                messageClient.sendMessage(node.id, "/sync/playlists", data).await()
+            // Chunk by serialized byte budget (not count): a fixed count of
+            // playlists can exceed the ~100KB MessageClient cap with real
+            // paths/CJK metadata. Oversized playlists are split across
+            // multiple PlaylistDtos with the same id; the watch merges
+            // songIds for same-id chunks received within one burst.
+            val current = mutableListOf<PlaylistDto>()
+            var currentBytes = 0
+
+            suspend fun flushChunk() {
+                if (current.isEmpty()) return
+                val message = PlaylistSyncMessage(playlists = current.toList(), fullSync = fullSync)
+                val data = json.encodeToString(message).toByteArray()
+                for (node in nodes) {
+                    messageClient.sendMessage(node.id, WearPaths.PLAYLIST_SYNC, data).await()
+                }
+                current.clear()
+                currentBytes = 0
             }
+
+            for (playlist in playlists) {
+                val dto = playlist.toDto()
+                val dtoBytes = json.encodeToString(dto).toByteArray().size
+                if (dtoBytes <= MAX_MESSAGE_BYTES) {
+                    if (currentBytes + dtoBytes > MAX_MESSAGE_BYTES) flushChunk()
+                    current.add(dto)
+                    currentBytes += dtoBytes
+                } else {
+                    // Single playlist alone exceeds the budget: split its
+                    // songIds across continuation DTOs (same id).
+                    val ids = dto.songIds
+                    var index = 0
+                    while (index < ids.size) {
+                        val part = dto.copy(
+                            songIds = ids.subList(
+                                index,
+                                minOf(index + SONG_IDS_PER_SPLIT_PART, ids.size)
+                            )
+                        )
+                        val partBytes = json.encodeToString(part).toByteArray().size
+                        if (currentBytes + partBytes > MAX_MESSAGE_BYTES) flushChunk()
+                        current.add(part)
+                        currentBytes += partBytes
+                        index += SONG_IDS_PER_SPLIT_PART
+                    }
+                }
+            }
+            flushChunk()
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -109,20 +141,43 @@ class WearableSyncRepository @Inject constructor(
         return syncSongsToWatch(listOf(song))
     }
 
-    override suspend fun syncSongsToWatch(songs: List<Song>): Result<Unit> {
+    override suspend fun syncSongsToWatch(
+        songs: List<Song>,
+        fullSync: Boolean
+    ): Result<Unit> {
         return try {
-            val message = SongSyncMessage(
-                songs = songs.toSongDtos()
-            )
-            val data = json.encodeToString(message).toByteArray()
-
             val nodes = nodeClient.connectedNodes.await()
             if (nodes.isEmpty()) {
                 return Result.failure(IllegalStateException("No watch connected"))
             }
 
-            for (node in nodes) {
-                messageClient.sendMessage(node.id, "/sync/songs", data).await()
+            // MessageClient payloads are limited (~100KB). Chunk by serialized
+            // byte budget so the chunk count adapts to the real payload size
+            // (paths/CJK metadata can be several times larger than ASCII).
+            val current = mutableListOf<SongDto>()
+            var currentBytes = 0
+
+            for (song in songs) {
+                val dto = song.toDto()
+                val dtoBytes = json.encodeToString(dto).toByteArray().size
+                if (current.isNotEmpty() && currentBytes + dtoBytes > MAX_MESSAGE_BYTES) {
+                    val message = SongSyncMessage(songs = current.toList(), fullSync = fullSync)
+                    val data = json.encodeToString(message).toByteArray()
+                    for (node in nodes) {
+                        messageClient.sendMessage(node.id, WearPaths.SONG_SYNC, data).await()
+                    }
+                    current.clear()
+                    currentBytes = 0
+                }
+                current.add(dto)
+                currentBytes += dtoBytes
+            }
+            if (current.isNotEmpty()) {
+                val message = SongSyncMessage(songs = current.toList(), fullSync = fullSync)
+                val data = json.encodeToString(message).toByteArray()
+                for (node in nodes) {
+                    messageClient.sendMessage(node.id, WearPaths.SONG_SYNC, data).await()
+                }
             }
 
             Result.success(Unit)
@@ -136,7 +191,7 @@ class WearableSyncRepository @Inject constructor(
         return Result.failure(UnsupportedOperationException("This is a phone-side repository"))
     }
 
-    override suspend fun requestSongSyncFromPhone(playlistId: PlaylistId): Result<Unit> {
+    override suspend fun requestSongSyncFromPhone(playlistId: PlaylistId?): Result<Unit> {
         // Not used on phone side
         return Result.failure(UnsupportedOperationException("This is a phone-side repository"))
     }
@@ -158,23 +213,28 @@ class WearableSyncRepository @Inject constructor(
             trySend(hasWatchApp)
         }
 
-        // Add listener for watch capability
+        // Register the listener FIRST so no event is missed.
         capabilityClient.addListener(listener, WearPaths.CAPABILITY_WATCH_APP)
 
-        // Send initial state
-        try {
-            val capabilityInfo = capabilityClient
-                .getCapability(WearPaths.CAPABILITY_WATCH_APP, CapabilityClient.FILTER_REACHABLE)
-                .await()
-            val hasWatchApp = capabilityInfo.nodes.isNotEmpty()
-            Log.d(TAG, "Initial watch connection state: $hasWatchApp")
-            trySend(hasWatchApp)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting initial watch connection state", e)
-            trySend(false)
+        // Fetch the initial value from a CHILD coroutine: if the collector is
+        // cancelled while this producer is parked on getCapability().await(),
+        // awaitClose would never run and the listener above would leak on
+        // every screen visit. Suspending in awaitClose (below) instead means
+        // cancellation always runs the cleanup.
+        launch {
+            try {
+                val capabilityInfo = capabilityClient
+                    .getCapability(WearPaths.CAPABILITY_WATCH_APP, CapabilityClient.FILTER_REACHABLE)
+                    .await()
+                val hasWatchApp = capabilityInfo.nodes.isNotEmpty()
+                Log.d(TAG, "Initial watch connection state: $hasWatchApp")
+                trySend(hasWatchApp)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error getting initial watch connection state", e)
+                trySend(false)
+            }
         }
 
-        // Remove listener when flow is cancelled
         awaitClose {
             Log.d(TAG, "Removing watch connection listener")
             capabilityClient.removeListener(listener, WearPaths.CAPABILITY_WATCH_APP)
@@ -244,16 +304,9 @@ class WearableSyncRepository @Inject constructor(
                 )
             }
 
-            // Get stored watch version
-            val appVersion = try {
-                runBlocking {
-                    syncDataStore.data.map { preferences ->
-                        preferences[watchVersionKey]
-                    }.first()
-                }
-            } catch (e: Exception) {
-                null
-            }
+            // Use the cached version - reading DataStore here would require
+            // runBlocking on a binder callback thread (jank / possible ANR).
+            val appVersion = cachedWatchVersion
 
             val bluetoothEnabled = isBluetoothEnabled()
 
@@ -277,14 +330,18 @@ class WearableSyncRepository @Inject constructor(
 
         capabilityClient.addListener(listener, WearPaths.CAPABILITY_WATCH_APP)
 
-        // Send initial state
-        try {
-            val initialStatus = getWatchAppStatus().getOrNull()
-            if (initialStatus != null) {
-                trySend(initialStatus)
+        // Initial state fetched from a child coroutine so that cancellation
+        // during the fetch still runs the awaitClose cleanup (see
+        // observeWatchConnection).
+        launch {
+            try {
+                val initialStatus = getWatchAppStatus().getOrNull()
+                if (initialStatus != null) {
+                    trySend(initialStatus)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error getting initial watch app status", e)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting initial watch app status", e)
         }
 
         awaitClose {
@@ -302,7 +359,7 @@ class WearableSyncRepository @Inject constructor(
 
             val nodes = nodeClient.connectedNodes.await()
             for (node in nodes) {
-                messageClient.sendMessage(node.id, "/playback/command", data).await()
+                messageClient.sendMessage(node.id, WearPaths.PLAYBACK_COMMAND, data).await()
             }
 
             Result.success(Unit)
@@ -496,12 +553,14 @@ class WearableSyncRepository @Inject constructor(
      */
     private suspend fun getStoredWatchVersion(): String? {
         return try {
-            syncDataStore.data.map { preferences ->
+            val version = syncDataStore.data.map { preferences ->
                 preferences[watchVersionKey]
             }.first()
+            cachedWatchVersion = version ?: cachedWatchVersion
+            version
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get stored watch version", e)
-            null
+            cachedWatchVersion
         }
     }
 
@@ -510,6 +569,7 @@ class WearableSyncRepository @Inject constructor(
      */
     suspend fun storeWatchVersion(version: String) {
         try {
+            cachedWatchVersion = version
             syncDataStore.edit { preferences ->
                 preferences[watchVersionKey] = version
             }
@@ -534,5 +594,18 @@ class WearableSyncRepository @Inject constructor(
 
     companion object {
         private const val TAG = "WearableSyncRepository"
+
+        /**
+         * Serialized byte budget per sync message (~100KB MessageClient cap,
+         * with a large safety margin).
+         */
+        private const val MAX_MESSAGE_BYTES = 64 * 1024
+
+        /**
+         * Song ids per continuation part when a single playlist's songIds
+         * alone exceed [MAX_MESSAGE_BYTES]. MediaStore ids serialize to a
+         * few dozen bytes each, so 1000 parts stay comfortably in budget.
+         */
+        private const val SONG_IDS_PER_SPLIT_PART = 1000
     }
 }

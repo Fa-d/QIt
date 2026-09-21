@@ -13,6 +13,9 @@ import dev.sadakat.qit.shared.domain.repository.MusicRepository
 import dev.sadakat.qit.shared.domain.repository.PlaylistRepository
 import dev.sadakat.qit.shared.domain.valueobject.AudioQuality
 import dev.sadakat.qit.shared.domain.valueobject.FileSize
+import dev.sadakat.qit.shared.dto.DownloadCompleteMessage
+import dev.sadakat.qit.shared.dto.DownloadProgressMessage
+import dev.sadakat.qit.shared.dto.DownloadStartMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +29,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.FileInputStream
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 /**
@@ -48,8 +52,11 @@ class WearableDownloadRepository @Inject constructor(
     private val json = Json { ignoreUnknownKeys = true }
     private val mutex = Mutex()
 
-    // Track download progress for each song
-    private val downloadProgressMap = mutableMapOf<SongId, MutableStateFlow<Float>>()
+    // Track download progress for each song. ConcurrentHashMap:
+    // observeDownloadProgress() creates entries from the caller's thread
+    // (not suspend, cannot take the mutex); Kotlin's ConcurrentMap.getOrPut
+    // is atomic (putIfAbsent).
+    private val downloadProgressMap = ConcurrentHashMap<SongId, MutableStateFlow<Float>>()
 
     // Track active channels for downloads
     private val activeChannels = mutableMapOf<SongId, ChannelClient.Channel>()
@@ -65,7 +72,8 @@ class WearableDownloadRepository @Inject constructor(
 
     override suspend fun downloadSong(
         songId: SongId,
-        quality: AudioQuality
+        quality: AudioQuality,
+        sourceNodeId: String?
     ): Result<Unit> {
         return try {
             Log.d(TAG, "Starting download for song: ${songId.value} with quality: $quality")
@@ -75,6 +83,7 @@ class WearableDownloadRepository @Inject constructor(
             if (songResult.isFailure) {
                 val error = "Failed to get song details: ${songResult.exceptionOrNull()?.message}"
                 Log.e(TAG, error)
+                nackDownload(sourceNodeId, songId, error)
                 return Result.failure(songResult.exceptionOrNull() ?: Exception(error))
             }
 
@@ -82,6 +91,7 @@ class WearableDownloadRepository @Inject constructor(
             if (song == null) {
                 val error = "Song not found: ${songId.value}"
                 Log.e(TAG, error)
+                nackDownload(sourceNodeId, songId, error)
                 return Result.failure(IllegalStateException(error))
             }
 
@@ -90,6 +100,7 @@ class WearableDownloadRepository @Inject constructor(
             if (filePath.isNullOrBlank()) {
                 val error = "Song file path is null or empty"
                 Log.e(TAG, error)
+                nackDownload(sourceNodeId, songId, error)
                 return Result.failure(IllegalStateException(error))
             }
 
@@ -97,6 +108,7 @@ class WearableDownloadRepository @Inject constructor(
             if (!file.exists()) {
                 val error = "Song file does not exist: $filePath"
                 Log.e(TAG, error)
+                nackDownload(sourceNodeId, songId, error)
                 return Result.failure(IllegalStateException(error))
             }
 
@@ -107,15 +119,21 @@ class WearableDownloadRepository @Inject constructor(
             if (nodes.isEmpty()) {
                 val error = "No watch connected"
                 Log.e(TAG, error)
+                // The requesting node id is known even when connectedNodes
+                // reports empty (transient) - try to nack directly so the
+                // watch is not stuck pending forever.
+                nackDownload(sourceNodeId, songId, error)
                 return Result.failure(IllegalStateException(error))
             }
 
             val node = nodes.first()
             Log.d(TAG, "Downloading to node: ${node.displayName} (${node.id})")
 
-            // Initialize progress tracking
+            // Initialize progress tracking. Never REPLACE the flow instance:
+            // collectors hold a reference to it, so a replacement would leave
+            // them frozen at the old value.
             mutex.withLock {
-                downloadProgressMap[songId] = MutableStateFlow(0f)
+                downloadProgressMap.getOrPut(songId) { MutableStateFlow(0f) }.value = 0f
                 _downloadingQueue.value = _downloadingQueue.value + song
                 cancelledDownloads.remove(songId)
                 pausedDownloads.remove(songId)
@@ -137,8 +155,14 @@ class WearableDownloadRepository @Inject constructor(
             val downloadResult = downloadFile(channel, file, songId)
             if (downloadResult.isFailure) {
                 Log.e(TAG, "File download failed", downloadResult.exceptionOrNull())
+                // Exactly ONE terminal message per download: if the download
+                // was cancelled, cancelDownload() already sent complete(false)
+                // and the flag below tells us to skip this failure-path send.
+                val wasCancelled = mutex.withLock { cancelledDownloads.contains(songId) }
                 cleanupDownload(songId, song)
-                sendDownloadCompleteMessage(node.id, songId, false)
+                if (!wasCancelled) {
+                    sendDownloadCompleteMessage(node.id, songId, false)
+                }
                 return downloadResult
             }
 
@@ -154,6 +178,8 @@ class WearableDownloadRepository @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Download error", e)
 
+            val wasCancelled = mutex.withLock { cancelledDownloads.contains(songId) }
+
             // Cleanup on error
             mutex.withLock {
                 val song = _downloadingQueue.value.find { it.id == songId }
@@ -168,6 +194,10 @@ class WearableDownloadRepository @Inject constructor(
                         Log.e(TAG, "Error closing channel during error cleanup", closeEx)
                     }
                 }
+            }
+
+            if (!wasCancelled) {
+                nackDownload(sourceNodeId, songId, e.message ?: "Download error")
             }
 
             Result.failure(e)
@@ -387,14 +417,15 @@ class WearableDownloadRepository @Inject constructor(
                 var lastProgressUpdate = 0f
 
                 while (input.read(buffer).also { bytesRead = it } != -1) {
-                    // Check if download is cancelled
-                    if (cancelledDownloads.contains(songId)) {
+                    // Check if download is cancelled (flag read under the
+                    // mutex for cross-thread visibility)
+                    if (mutex.withLock { cancelledDownloads.contains(songId) }) {
                         Log.d(TAG, "Download cancelled, stopping: ${songId.value}")
                         break
                     }
 
                     // Check if download is paused
-                    while (pausedDownloads.contains(songId)) {
+                    while (mutex.withLock { pausedDownloads.contains(songId) }) {
                         Log.d(TAG, "Download paused, waiting: ${songId.value}")
                         kotlinx.coroutines.delay(100) // Wait 100ms before checking again
                     }
@@ -430,12 +461,9 @@ class WearableDownloadRepository @Inject constructor(
                 Log.d(TAG, "File download completed: $totalBytesWritten bytes written")
             }
 
-            // Close the channel after successful download
-            channelClient.close(channel).await()
-            Log.d(TAG, "Channel closed successfully")
-
             // Check if was cancelled
-            if (cancelledDownloads.contains(songId)) {
+            val wasCancelled = mutex.withLock { cancelledDownloads.contains(songId) }
+            if (wasCancelled) {
                 Result.failure(Exception("Download was cancelled"))
             } else {
                 Result.success(Unit)
@@ -443,24 +471,45 @@ class WearableDownloadRepository @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Error downloading file", e)
             Result.failure(e)
+        } finally {
+            // ALWAYS close the channel (success, failure, cancellation) - a
+            // leaked channel pins the connection and blocks the watch-side
+            // cleanup until the process dies.
+            try {
+                channelClient.close(channel).await()
+                Log.d(TAG, "Channel closed for download: ${songId.value}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error closing download channel", e)
+            }
         }
     }
 
     /**
-     * Helper function to clean up download state
+     * Helper function to clean up download state.
+     * Also closes the channel it removes from [activeChannels] so it cannot
+     * leak.
      */
     private suspend fun cleanupDownload(songId: SongId, song: Song) {
         mutex.withLock {
             _downloadingQueue.value = _downloadingQueue.value - song
             downloadProgressMap.remove(songId)
-            activeChannels.remove(songId)
             pausedDownloads.remove(songId)
             cancelledDownloads.remove(songId)
+            activeChannels.remove(songId)?.let { channel ->
+                try {
+                    channelClient.close(channel).await()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error closing channel during cleanup", e)
+                }
+            }
         }
     }
 
     /**
-     * Send download start message to watch
+     * Send download start message to watch.
+     * Uses the /download/start path (NOT /download/request, which is the path
+     * the watch itself uses to request downloads) and carries the file size so
+     * the watch can compute accurate progress.
      */
     private suspend fun sendDownloadStartMessage(
         nodeId: String,
@@ -477,7 +526,7 @@ class WearableDownloadRepository @Inject constructor(
             val messageJson = json.encodeToString(message)
             messageClient.sendMessage(
                 nodeId,
-                WearPaths.DOWNLOAD_REQUEST,
+                WearPaths.DOWNLOAD_START,
                 messageJson.toByteArray()
             ).await()
             Log.d(TAG, "Sent download start message for song: ${songId.value}")
@@ -537,28 +586,22 @@ class WearableDownloadRepository @Inject constructor(
             Log.e(TAG, "Error sending download complete message", e)
         }
     }
+
+    /**
+     * Negatively acknowledges a failed download to the requesting watch node
+     * (or the first connected node when the request did not carry a source
+     * node id, e.g. phone-UI-initiated playlist downloads). Without this the
+     * watch stays "pending" forever after a silent phone-side failure.
+     */
+    private suspend fun nackDownload(sourceNodeId: String?, songId: SongId, reason: String) {
+        val nodeId = sourceNodeId ?: try {
+            nodeClient.connectedNodes.await().firstOrNull()?.id
+        } catch (e: Exception) {
+            null
+        } ?: return
+        Log.w(TAG, "Nacking failed download for song ${songId.value}: $reason")
+        sendDownloadCompleteMessage(nodeId, songId, false)
+    }
 }
-
-/**
- * Message DTOs for download operations
- */
-@Serializable
-private data class DownloadStartMessage(
-    val songId: String,
-    val quality: String,
-    val fileSize: Long
-)
-
-@Serializable
-private data class DownloadProgressMessage(
-    val songId: String,
-    val progress: Float
-)
-
-@Serializable
-private data class DownloadCompleteMessage(
-    val songId: String,
-    val success: Boolean
-)
 
 

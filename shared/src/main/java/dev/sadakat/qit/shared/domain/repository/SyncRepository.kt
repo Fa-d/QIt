@@ -22,8 +22,14 @@ interface SyncRepository {
 
     /**
      * Syncs multiple playlists to the watch
+     *
+     * @param fullSync true when this is a FULL sync session (all data):
+     * messages are flagged so the watch can reconcile deletions.
      */
-    suspend fun syncPlaylistsToWatch(playlists: List<Playlist>): Result<Unit>
+    suspend fun syncPlaylistsToWatch(
+        playlists: List<Playlist>,
+        fullSync: Boolean = false
+    ): Result<Unit>
 
     /**
      * Syncs a song metadata to the watch
@@ -32,8 +38,14 @@ interface SyncRepository {
 
     /**
      * Syncs multiple songs metadata to the watch
+     *
+     * @param fullSync true when this is a FULL sync session (all data):
+     * messages are flagged so the watch can reconcile deletions.
      */
-    suspend fun syncSongsToWatch(songs: List<Song>): Result<Unit>
+    suspend fun syncSongsToWatch(
+        songs: List<Song>,
+        fullSync: Boolean = false
+    ): Result<Unit>
 
     /**
      * Requests playlist sync from phone (watch-side)
@@ -41,9 +53,10 @@ interface SyncRepository {
     suspend fun requestPlaylistSyncFromPhone(): Result<Unit>
 
     /**
-     * Requests song sync from phone (watch-side)
+     * Requests song sync from phone (watch-side).
+     * A null playlistId requests all songs.
      */
-    suspend fun requestSongSyncFromPhone(playlistId: PlaylistId): Result<Unit>
+    suspend fun requestSongSyncFromPhone(playlistId: PlaylistId?): Result<Unit>
 
     /**
      * Checks if watch is connected

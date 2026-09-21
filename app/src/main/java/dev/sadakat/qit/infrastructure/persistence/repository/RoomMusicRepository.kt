@@ -17,6 +17,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import java.io.File
 import javax.inject.Inject
 
 /**
@@ -95,6 +96,16 @@ class RoomMusicRepository @Inject constructor(
                     songs.add(song)
                 }
             }
+
+            // Reconcile deletions: drop DB rows whose backing file no longer
+            // exists on disk (e.g. music removed from the device). Playlist
+            // songIds pointing at removed songs are filtered out by the
+            // ordered getSongsForPlaylist mapping.
+            val staleRows = songDao.getAllSongsOnce().filter { row ->
+                val path = row.filePath
+                path.isNullOrBlank() || !File(path).exists()
+            }
+            staleRows.forEach { row -> songDao.deleteSong(row.id) }
 
             Result.success(songs)
         } catch (e: Exception) {

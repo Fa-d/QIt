@@ -8,12 +8,20 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class PlaylistSyncMessage(
-    val playlists: List<PlaylistDto>
+    val playlists: List<PlaylistDto>,
+    /**
+     * True when this message is part of a FULL sync session (all data).
+     * Additive optional field: old senders/receivers that don't know it stay
+     * compatible via ignoreUnknownKeys / default value.
+     */
+    val fullSync: Boolean = false
 )
 
 @Serializable
 data class SongSyncMessage(
-    val songs: List<SongDto>
+    val songs: List<SongDto>,
+    /** True when this message is part of a FULL sync session (all data). */
+    val fullSync: Boolean = false
 )
 
 @Serializable
@@ -22,10 +30,49 @@ data class DownloadRequestMessage(
     val quality: String // LOW, MEDIUM, HIGH, ORIGINAL
 )
 
+/**
+ * Sent by the phone when a download transfer is about to begin
+ */
+@Serializable
+data class DownloadStartMessage(
+    val songId: String,
+    val quality: String,
+    val fileSize: Long
+)
+
+/**
+ * Sent by the phone during a download transfer to report progress
+ */
+@Serializable
+data class DownloadProgressMessage(
+    val songId: String,
+    val progress: Float
+)
+
+/**
+ * Sent by the phone when a download transfer finished (successfully or not)
+ */
+@Serializable
+data class DownloadCompleteMessage(
+    val songId: String,
+    val success: Boolean
+)
+
 @Serializable
 data class StreamRequestMessage(
     val songId: String,
     val quality: String
+)
+
+/**
+ * Sent by the phone when an audio-stream request FAILS before a channel could
+ * be opened (song not found, file missing, ...) so the watch can surface an
+ * error instead of buffering until timeout.
+ */
+@Serializable
+data class StreamErrorMessage(
+    val songId: String,
+    val reason: String = ""
 )
 
 @Serializable

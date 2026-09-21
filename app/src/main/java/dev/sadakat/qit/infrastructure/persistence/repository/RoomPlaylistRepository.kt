@@ -10,6 +10,7 @@ import dev.sadakat.qit.shared.domain.entity.Song
 import dev.sadakat.qit.shared.domain.entity.SongId
 import dev.sadakat.qit.shared.domain.repository.PlaylistRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
@@ -71,8 +72,11 @@ class RoomPlaylistRepository @Inject constructor(
                 return Result.success(emptyList())
             }
 
+            // Re-establish playlist order: SQL `IN (:ids)` returns rows in DB
+            // order, not the order of the ids in the playlist.
             val entities = songDao.getSongsByIds(songIds)
-            val songs = SongMapper.toDomainList(entities)
+            val entityById = entities.associateBy { it.id }
+            val songs = SongMapper.toDomainList(songIds.mapNotNull { entityById[it] })
             Result.success(songs)
         } catch (e: Exception) {
             Result.failure(e)
@@ -91,9 +95,10 @@ class RoomPlaylistRepository @Inject constructor(
                 emptyList()
             } else {
                 val songIds = playlist.songIds.split(",")
-                // This is a simplification - in production, use a proper join query
-                val entities = songDao.getSongsByIds(songIds)
-                SongMapper.toDomainList(entities)
+                // Re-establish playlist order (SQL IN returns DB order) and
+                // silently drop ids whose song row no longer exists.
+                val entityById = songDao.getSongsByIds(songIds).associateBy { it.id }
+                SongMapper.toDomainList(songIds.mapNotNull { entityById[it] })
             }
         }
     }
@@ -106,11 +111,8 @@ class RoomPlaylistRepository @Inject constructor(
 
     override suspend fun getPlaylistsContainingSong(songId: SongId): Result<List<Playlist>> {
         return try {
-            val allPlaylists = mutableListOf<Playlist>()
-            playlistDao.getAllPlaylists().collect { entities ->
-                allPlaylists.clear()
-                allPlaylists.addAll(PlaylistMapper.toDomainList(entities))
-            }
+            // Take a single emission - collecting a Room Flow suspends forever
+            val allPlaylists = PlaylistMapper.toDomainList(playlistDao.getAllPlaylists().first())
 
             val filtered = allPlaylists.filter { playlist ->
                 playlist.containsSong(songId)

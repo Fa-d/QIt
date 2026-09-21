@@ -1,34 +1,29 @@
 package dev.sadakat.qit.wear.playback
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import androidx.annotation.OptIn
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.DataSource
-import androidx.media3.datasource.DataSpec
-import androidx.media3.datasource.FileDataSource
-import androidx.media3.datasource.TransferListener
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import dev.sadakat.qit.wear.infrastructure.streaming.StreamingAudioBuffer
-import dev.sadakat.qit.wear.infrastructure.streaming.StreamingAudioSource
-import dev.sadakat.qit.wear.infrastructure.streaming.WearStreamingRepository
+import dev.sadakat.qit.wear.service.MusicPlaybackService
 import dev.sadakat.qit.shared.domain.entity.Song
 import dev.sadakat.qit.shared.domain.entity.SongId
 import dev.sadakat.qit.shared.domain.repository.StreamingRepository
 import dev.sadakat.qit.shared.domain.repository.StreamingStatus
 import dev.sadakat.qit.shared.domain.valueobject.DownloadStatus
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -36,11 +31,15 @@ import javax.inject.Singleton
 /**
  * Manages audio playback using Media3 ExoPlayer
  * Supports both local and streamed playback with buffering and connection loss handling
+ *
+ * The ExoPlayer is injected (app-wide singleton, shared with MusicPlaybackService)
+ * so that UI controls and the MediaSession always act on the same player.
  */
 @Singleton
 class PlaybackManager @Inject constructor(
     private val context: Context,
     private val streamingRepository: StreamingRepository,
+    private val exoPlayer: ExoPlayer,
     private val coroutineScope: CoroutineScope
 ) {
 
@@ -48,26 +47,7 @@ class PlaybackManager @Inject constructor(
         private const val TAG = "PlaybackManager"
     }
 
-    @OptIn(UnstableApi::class)
-    private val _player: ExoPlayer by lazy {
-        // Cast to WearStreamingRepository to access the audio buffer
-        val wearRepo = streamingRepository as WearStreamingRepository
-        val audioBuffer = wearRepo.getAudioBuffer()
-
-        // Custom factory that routes based on URI scheme
-        val dataSourceFactory = DataSource.Factory {
-            SchemeAwareDataSource(audioBuffer, context)
-        }
-
-        ExoPlayer.Builder(context)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(context).setDataSourceFactory(dataSourceFactory))
-            .build()
-            .apply {
-                addListener(playerListener)
-            }
-    }
-
-    val player: Player get() = _player
+    val player: Player get() = exoPlayer
 
     private val _playbackState = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
@@ -100,7 +80,7 @@ class PlaybackManager @Inject constructor(
                 Player.STATE_BUFFERING -> {
                     _playbackState.value = PlaybackState.Buffering
                     if (currentPlaybackMode == PlaybackMode.Streaming) {
-                        val progress = _player.bufferedPercentage / 100f
+                        val progress = exoPlayer.bufferedPercentage / 100f
                         _streamingPlaybackState.value = StreamingPlaybackState.Buffering(progress)
                     }
                 }
@@ -122,10 +102,10 @@ class PlaybackManager @Inject constructor(
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _isPlaying.value = isPlaying
             if (isPlaying) {
-                lastKnownPosition = _player.currentPosition
+                lastKnownPosition = exoPlayer.currentPosition
                 _currentSong.value?.let { song ->
                     if (currentPlaybackMode == PlaybackMode.Streaming) {
-                        _streamingPlaybackState.value = StreamingPlaybackState.Playing(song, _player.currentPosition)
+                        _streamingPlaybackState.value = StreamingPlaybackState.Playing(song, exoPlayer.currentPosition)
                     }
                 }
             }
@@ -139,10 +119,29 @@ class PlaybackManager @Inject constructor(
         }
     }
 
+    // Attach the listener after it is initialized (init blocks and property
+    // initializers run in declaration order).
+    init {
+        exoPlayer.addListener(playerListener)
+    }
+
+    /**
+     * Ensures the MediaSessionService is running so playback survives the app
+     * going to the background (and so a media notification is shown).
+     */
+    private fun ensurePlaybackServiceStarted() {
+        try {
+            context.startService(Intent(context, MusicPlaybackService::class.java))
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to start MusicPlaybackService", e)
+        }
+    }
+
     /**
      * Play a song from local storage
      */
     fun playLocalSong(song: Song) {
+        ensurePlaybackServiceStarted()
         stopStreamingMonitor()
         currentPlaybackMode = PlaybackMode.Local
 
@@ -173,9 +172,9 @@ class PlaybackManager @Inject constructor(
             .build()
 
         _currentSong.value = song
-        _player.setMediaItem(mediaItem)
-        _player.prepare()
-        _player.play()
+        exoPlayer.setMediaItem(mediaItem)
+        exoPlayer.prepare()
+        exoPlayer.play()
     }
 
     /**
@@ -183,6 +182,7 @@ class PlaybackManager @Inject constructor(
      * Sets up streaming source and monitors buffering/connection status
      */
     fun playStreamedSong(song: Song, streamUri: Uri) {
+        ensurePlaybackServiceStarted()
         currentPlaybackMode = PlaybackMode.Streaming
         _currentSong.value = song
         _streamingPlaybackState.value = StreamingPlaybackState.Buffering(0f)
@@ -199,9 +199,9 @@ class PlaybackManager @Inject constructor(
             )
             .build()
 
-        _player.setMediaItem(mediaItem)
-        _player.prepare()
-        _player.play()
+        exoPlayer.setMediaItem(mediaItem)
+        exoPlayer.prepare()
+        exoPlayer.play()
 
         // Monitor streaming status
         startStreamingMonitor()
@@ -213,21 +213,22 @@ class PlaybackManager @Inject constructor(
      * Preserves playback position when switching
      */
     fun switchPlaybackMode(song: Song, mode: PlaybackMode, streamUri: Uri? = null) {
-        val currentPosition = _player.currentPosition
-        val wasPlaying = _player.isPlaying
+        val currentPosition = exoPlayer.currentPosition
+        val wasPlaying = exoPlayer.isPlaying
 
         when (mode) {
             PlaybackMode.Local -> {
                 stopStreamingMonitor()
                 playLocalSong(song)
-                _player.seekTo(currentPosition)
-                if (wasPlaying) _player.play() else _player.pause()
+                exoPlayer.seekTo(currentPosition)
+                if (wasPlaying) exoPlayer.play() else exoPlayer.pause()
             }
             PlaybackMode.Streaming -> {
                 if (streamUri != null) {
                     playStreamedSong(song, streamUri)
-                    _player.seekTo(currentPosition)
-                    if (wasPlaying) _player.play() else _player.pause()
+                    // The streaming buffer is a FIFO: no position-preserving
+                    // seek after switching to a stream (see seekTo).
+                    if (wasPlaying) exoPlayer.play() else exoPlayer.pause()
                 }
             }
         }
@@ -237,7 +238,7 @@ class PlaybackManager @Inject constructor(
      * Play/pause toggle
      */
     fun togglePlayPause() {
-        if (_player.isPlaying) {
+        if (exoPlayer.isPlaying) {
             pause()
         } else {
             play()
@@ -248,38 +249,47 @@ class PlaybackManager @Inject constructor(
      * Play
      */
     fun play() {
-        _player.play()
+        exoPlayer.play()
     }
 
     /**
      * Pause
      */
     fun pause() {
-        _player.pause()
+        exoPlayer.pause()
     }
 
     /**
      * Stop playback
      */
     fun stop() {
-        _player.stop()
+        exoPlayer.stop()
         _currentSong.value = null
         _playbackState.value = PlaybackState.Idle
     }
 
     /**
-     * Seek to position
+     * Seek to position.
+     *
+     * NOT supported while streaming: the streaming buffer is a FIFO with no
+     * byte-index mapping, so a seek would need a protocol extension to
+     * re-request from an offset. No-op with a log instead of corrupting
+     * playback.
      */
     fun seekTo(positionMs: Long) {
-        _player.seekTo(positionMs)
+        if (currentPlaybackMode == PlaybackMode.Streaming) {
+            Log.w(TAG, "seekTo($positionMs) ignored: seeking is not supported in streaming mode")
+            return
+        }
+        exoPlayer.seekTo(positionMs)
     }
 
     /**
      * Skip to next song
      */
     fun skipToNext() {
-        if (_player.hasNextMediaItem()) {
-            _player.seekToNextMediaItem()
+        if (exoPlayer.hasNextMediaItem()) {
+            exoPlayer.seekToNextMediaItem()
         }
     }
 
@@ -287,8 +297,8 @@ class PlaybackManager @Inject constructor(
      * Skip to previous song
      */
     fun skipToPrevious() {
-        if (_player.hasPreviousMediaItem()) {
-            _player.seekToPreviousMediaItem()
+        if (exoPlayer.hasPreviousMediaItem()) {
+            exoPlayer.seekToPreviousMediaItem()
         }
     }
 
@@ -296,6 +306,7 @@ class PlaybackManager @Inject constructor(
      * Set playlist
      */
     fun setPlaylist(songs: List<Song>, startIndex: Int = 0) {
+        ensurePlaybackServiceStarted()
         val mediaItems = songs.mapNotNull { song ->
             val downloadStatus = song.downloadStatus
             if (downloadStatus is DownloadStatus.Downloaded) {
@@ -313,8 +324,8 @@ class PlaybackManager @Inject constructor(
         }
 
         if (mediaItems.isNotEmpty()) {
-            _player.setMediaItems(mediaItems, startIndex, 0)
-            _player.prepare()
+            exoPlayer.setMediaItems(mediaItems, startIndex, 0)
+            exoPlayer.prepare()
             if (startIndex < songs.size) {
                 _currentSong.value = songs[startIndex]
             }
@@ -325,14 +336,14 @@ class PlaybackManager @Inject constructor(
      * Get current playback position
      */
     fun getCurrentPosition(): Long {
-        return _player.currentPosition
+        return exoPlayer.currentPosition
     }
 
     /**
      * Get total duration
      */
     fun getDuration(): Long {
-        return _player.duration
+        return exoPlayer.duration
     }
 
     /**
@@ -340,7 +351,7 @@ class PlaybackManager @Inject constructor(
      */
     fun release() {
         stopStreamingMonitor()
-        _player.release()
+        exoPlayer.release()
     }
 
     /**
@@ -386,43 +397,65 @@ class PlaybackManager @Inject constructor(
 
     /**
      * Handles connection loss during streaming
-     * 1. Pause playback immediately
+     * 1. Stop playback immediately (tears down the loader on the aborted buffer)
      * 2. Show "Connection lost" state
      * 3. Store last position for potential resume
      */
     private fun handleConnectionLoss() {
         if (currentPlaybackMode != PlaybackMode.Streaming) return
 
-        // Pause playback immediately
-        lastKnownPosition = _player.currentPosition
-        pause()
+        // Record the position, then STOP (not pause): the stream buffer has
+        // been aborted, so any parked loader read must be torn down and the
+        // player must leave the buffering state.
+        lastKnownPosition = exoPlayer.currentPosition
+        exoPlayer.stop()
 
         // Update state to show connection lost
         _streamingPlaybackState.value = StreamingPlaybackState.Error("Connection lost")
     }
 
     /**
-     * Attempts to retry streaming after connection loss
-     * Resumes from last known position if successful
+     * Attempts to retry streaming after connection loss.
+     *
+     * The streaming buffer is a FIFO: playback cannot resume at an arbitrary
+     * byte offset, so the retry RESTARTS the stream from the beginning
+     * (stop old stream -> fresh request from the phone -> position 0)
+     * instead of seeking to the last known position.
      */
     suspend fun retryStreaming(streamUri: Uri): Result<Unit> {
+        val song = _currentSong.value
+            ?: return Result.failure(IllegalStateException("No current song"))
         return try {
-            _currentSong.value?.let { song ->
-                _streamingPlaybackState.value = StreamingPlaybackState.Buffering(0f)
+            _streamingPlaybackState.value = StreamingPlaybackState.Buffering(0f)
 
-                val mediaItem = MediaItem.Builder()
-                    .setUri(streamUri)
-                    .setMediaId(song.id.value)
-                    .build()
+            // Kill the old loader first so it stops reading the old buffer.
+            withContext(Dispatchers.Main) { exoPlayer.stop() }
 
-                _player.setMediaItem(mediaItem)
-                _player.prepare()
-                _player.seekTo(lastKnownPosition)
-                _player.play()
+            // Stop the old stream (aborts + removes its buffer, closes its
+            // channel) and request a fresh one.
+            streamingRepository.stopStreaming(song.id)
+            val quality = streamingRepository.getRecommendedQuality()
+            val requestResult = streamingRepository.requestStreamFromPhone(song.id, quality)
+            if (requestResult.isFailure) {
+                val error = requestResult.exceptionOrNull()?.message ?: "Stream request failed"
+                _streamingPlaybackState.value = StreamingPlaybackState.Error("Retry failed: $error")
+                return requestResult
+            }
 
-                startStreamingMonitor()
-                Result.success(Unit)
-            } ?: Result.failure(IllegalStateException("No current song"))
+            val mediaItem = MediaItem.Builder()
+                .setUri(streamUri)
+                .setMediaId(song.id.value)
+                .build()
+
+            // setMediaItem resets the position to 0 - intentional (see kdoc).
+            withContext(Dispatchers.Main) {
+                exoPlayer.setMediaItem(mediaItem)
+                exoPlayer.prepare()
+                exoPlayer.play()
+            }
+
+            startStreamingMonitor()
+            Result.success(Unit)
         } catch (e: Exception) {
             _streamingPlaybackState.value = StreamingPlaybackState.Error(
                 "Retry failed: ${e.message}"
@@ -456,53 +489,6 @@ class PlaybackManager @Inject constructor(
      * - streaming:// → StreamingAudioSource (reads from buffer)
      * - file:// → FileDataSource (reads from local storage)
      */
-    @OptIn(UnstableApi::class)
-    private inner class SchemeAwareDataSource(
-        private val audioBuffer: StreamingAudioBuffer,
-        private val context: Context
-    ) : DataSource {
-        private var delegate: DataSource? = null
-        private var dataSpec: DataSpec? = null
-        private var transferListener: TransferListener? = null
-
-        override fun open(dataSpec: DataSpec): Long {
-            this.dataSpec = dataSpec
-
-            // Choose the appropriate delegate based on URI scheme
-            delegate = if (dataSpec.uri.scheme == "streaming") {
-                Log.d(TAG, "Using StreamingAudioSource for URI: ${dataSpec.uri}")
-                StreamingAudioSource(audioBuffer)
-            } else {
-                Log.d(TAG, "Using FileDataSource for URI: ${dataSpec.uri}")
-                FileDataSource()
-            }
-
-            // Add transfer listener to delegate if one was set
-            transferListener?.let { listener ->
-                delegate?.addTransferListener(listener)
-            }
-
-            return delegate!!.open(dataSpec)
-        }
-
-        override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
-            return delegate?.read(buffer, offset, length) ?: C.RESULT_END_OF_INPUT
-        }
-
-        override fun getUri(): Uri? {
-            return delegate?.uri
-        }
-
-        override fun close() {
-            delegate?.close()
-            delegate = null
-        }
-
-        override fun addTransferListener(transferListener: TransferListener) {
-            this.transferListener = transferListener
-            delegate?.addTransferListener(transferListener)
-        }
-    }
 }
 
 /**

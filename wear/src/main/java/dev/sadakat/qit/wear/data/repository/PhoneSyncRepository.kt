@@ -3,9 +3,13 @@ package dev.sadakat.qit.wear.data.repository
 import android.content.Context
 import com.google.android.gms.wearable.*
 import dev.sadakat.qit.shared.constants.WearPaths
+import dev.sadakat.qit.shared.dto.DownloadRequestMessage
+import dev.sadakat.qit.shared.dto.PlaybackCommandMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.io.File
 
 /**
@@ -26,6 +30,8 @@ class PhoneSyncRepository(
     private val channelClient: ChannelClient by lazy {
         Wearable.getChannelClient(context)
     }
+
+    private val json = Json { ignoreUnknownKeys = true }
 
     /**
      * Check if phone is connected
@@ -101,18 +107,22 @@ class PhoneSyncRepository(
     /**
      * Request download of a song from phone
      */
-    suspend fun requestSongDownload(songId: String): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun requestSongDownload(songId: String, quality: String = "MEDIUM"): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val nodes = nodeClient.connectedNodes.await()
             if (nodes.isEmpty()) {
                 return@withContext Result.failure(Exception("No phone connected"))
             }
 
+            // The phone parses this payload as a DownloadRequestMessage (JSON)
+            val request = DownloadRequestMessage(songId = songId, quality = quality)
+            val requestData = json.encodeToString(request).toByteArray()
+
             val node = nodes.first()
             messageClient.sendMessage(
                 node.id,
                 WearPaths.DOWNLOAD_REQUEST,
-                songId.toByteArray()
+                requestData
             ).await()
 
             Result.success(Unit)
@@ -132,17 +142,15 @@ class PhoneSyncRepository(
                     return@withContext Result.failure(Exception("No phone connected"))
                 }
 
-                val commandData = if (songId != null) {
-                    "$command::$songId"
-                } else {
-                    command
-                }
+                // The phone parses this payload as a PlaybackCommandMessage (JSON)
+                val message = PlaybackCommandMessage(command = command, songId = songId)
+                val commandData = json.encodeToString(message).toByteArray()
 
                 nodes.forEach { node ->
                     messageClient.sendMessage(
                         node.id,
                         WearPaths.PLAYBACK_COMMAND,
-                        commandData.toByteArray()
+                        commandData
                     ).await()
                 }
 

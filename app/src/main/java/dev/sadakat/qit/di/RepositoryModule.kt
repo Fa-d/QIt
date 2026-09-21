@@ -20,7 +20,22 @@ import dev.sadakat.qit.shared.domain.repository.PlaylistRepository
 import dev.sadakat.qit.shared.domain.repository.SettingsRepository
 import dev.sadakat.qit.shared.domain.repository.StreamingRepository
 import dev.sadakat.qit.shared.domain.repository.SyncRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import javax.inject.Qualifier
 import javax.inject.Singleton
+
+/**
+ * Scope for application-lifetime background work (media transfers, syncs).
+ *
+ * The WearableListenerService's own scope is cancelled in onDestroy, and GMS
+ * destroys listener services when idle - minutes-long downloads/streams must
+ * therefore NOT run there.
+ */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class ApplicationScope
 
 /**
  * Hilt module providing repository implementations
@@ -66,6 +81,12 @@ abstract class RepositoryModule {
     ): DownloadRepository
 
     companion object {
+        @Provides
+        @Singleton
+        @ApplicationScope
+        fun provideApplicationScope(): CoroutineScope =
+            CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
         @Provides
         @Singleton
         fun provideDataClient(@ApplicationContext context: Context) =

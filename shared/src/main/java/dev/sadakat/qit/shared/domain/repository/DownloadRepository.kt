@@ -14,10 +14,15 @@ interface DownloadRepository {
 
     /**
      * Downloads a song to watch storage
+     *
+     * @param sourceNodeId id of the requesting watch node, if known. Used to
+     * send a failure notification back to the watch when the download cannot
+     * even be started (song/file missing), so the watch is not stuck pending.
      */
     suspend fun downloadSong(
         songId: SongId,
-        quality: AudioQuality = AudioQuality.MEDIUM
+        quality: AudioQuality = AudioQuality.MEDIUM,
+        sourceNodeId: String? = null
     ): Result<Unit>
 
     /**

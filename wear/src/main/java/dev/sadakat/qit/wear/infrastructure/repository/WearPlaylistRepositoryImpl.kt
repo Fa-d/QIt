@@ -10,6 +10,7 @@ import dev.sadakat.qit.wear.data.local.dao.SongDao
 import dev.sadakat.qit.wear.infrastructure.mapper.PlaylistMapper
 import dev.sadakat.qit.wear.infrastructure.mapper.SongMapper
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
@@ -79,8 +80,11 @@ class WearPlaylistRepositoryImpl @Inject constructor(
                 return Result.success(emptyList())
             }
 
+            // Re-establish playlist order: SQL `IN (:ids)` returns rows in DB
+            // order, not the order of the ids in the playlist.
             val songEntities = songDao.getSongsByIds(songIds)
-            val songs = SongMapper.toDomainList(songEntities)
+            val entityById = songEntities.associateBy { it.id }
+            val songs = SongMapper.toDomainList(songIds.mapNotNull { entityById[it] })
             Result.success(songs)
         } catch (e: Exception) {
             Result.failure(e)
@@ -107,8 +111,9 @@ class WearPlaylistRepositoryImpl @Inject constructor(
                 if (songIds.isEmpty()) {
                     emptyList()
                 } else {
-                    val songEntities = songDao.getSongsByIds(songIds)
-                    SongMapper.toDomainList(songEntities)
+                    // Re-establish playlist order (SQL IN returns DB order).
+                    val entityById = songDao.getSongsByIds(songIds).associateBy { it.id }
+                    SongMapper.toDomainList(songIds.mapNotNull { entityById[it] })
                 }
             }
         }
@@ -126,11 +131,14 @@ class WearPlaylistRepositoryImpl @Inject constructor(
 
     override suspend fun getPlaylistsContainingSong(songId: SongId): Result<List<Playlist>> {
         return try {
-            val allPlaylists = playlistDao.getAllPlaylists()
-            // Since getAllPlaylists returns a Flow, we need to collect it first
-            // For now, we'll return an empty list as this requires Flow collection
-            // This method is likely not critical for wear functionality
-            Result.success(emptyList())
+            // Take a single emission from the Flow (collecting would suspend forever)
+            val allPlaylists = PlaylistMapper.toDomainList(playlistDao.getAllPlaylists().first())
+
+            val filtered = allPlaylists.filter { playlist ->
+                playlist.containsSong(songId)
+            }
+
+            Result.success(filtered)
         } catch (e: Exception) {
             Result.failure(e)
         }

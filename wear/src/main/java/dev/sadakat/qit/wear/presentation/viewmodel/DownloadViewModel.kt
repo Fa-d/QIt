@@ -10,6 +10,7 @@ import dev.sadakat.qit.wear.application.usecase.download.CancelDownloadUseCase
 import dev.sadakat.qit.wear.application.usecase.download.ClearAllDownloadsUseCase
 import dev.sadakat.qit.wear.application.usecase.download.DownloadSongUseCase
 import dev.sadakat.qit.wear.application.usecase.download.GetDownloadedSongsUseCase
+import dev.sadakat.qit.wear.application.usecase.download.GetDownloadingQueueUseCase
 import dev.sadakat.qit.wear.application.usecase.storage.GetStorageInfoUseCase
 import dev.sadakat.qit.wear.application.usecase.storage.StorageInfo
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,12 +28,16 @@ class DownloadViewModel @Inject constructor(
     private val downloadSongUseCase: DownloadSongUseCase,
     private val cancelDownloadUseCase: CancelDownloadUseCase,
     private val getDownloadedSongsUseCase: GetDownloadedSongsUseCase,
+    private val getDownloadingQueueUseCase: GetDownloadingQueueUseCase,
     private val getStorageInfoUseCase: GetStorageInfoUseCase,
     private val clearAllDownloadsUseCase: ClearAllDownloadsUseCase
 ) : ViewModel() {
 
     private val _downloadedSongs = MutableStateFlow<List<Song>>(emptyList())
     val downloadedSongs: StateFlow<List<Song>> = _downloadedSongs.asStateFlow()
+
+    private val _downloadingSongs = MutableStateFlow<List<Song>>(emptyList())
+    val downloadingSongs: StateFlow<List<Song>> = _downloadingSongs.asStateFlow()
 
     private val _activeDownloads = MutableStateFlow<Map<SongId, Float>>(emptyMap())
     val activeDownloads: StateFlow<Map<SongId, Float>> = _activeDownloads.asStateFlow()
@@ -48,6 +53,7 @@ class DownloadViewModel @Inject constructor(
 
     init {
         loadDownloadedSongs()
+        observeDownloadingQueue()
         loadStorageInfo()
     }
 
@@ -58,6 +64,22 @@ class DownloadViewModel @Inject constructor(
         viewModelScope.launch {
             getDownloadedSongsUseCase().collect { songs ->
                 _downloadedSongs.value = songs
+            }
+        }
+    }
+
+    /**
+     * Observes the repository's downloading queue so the UI reflects real,
+     * live download state (including completion and cancellation).
+     */
+    private fun observeDownloadingQueue() {
+        viewModelScope.launch {
+            getDownloadingQueueUseCase().collect { downloadingSongs ->
+                _downloadingSongs.value = downloadingSongs
+                _activeDownloads.value = downloadingSongs.associate { song ->
+                    val progress = (song.downloadStatus as? DownloadStatus.Downloading)?.progress ?: 0f
+                    song.id to progress
+                }
             }
         }
     }
@@ -87,16 +109,7 @@ class DownloadViewModel @Inject constructor(
             _isLoading.value = true
             _downloadError.value = null
 
-            // Add to active downloads with 0 progress
-            _activeDownloads.update { current ->
-                current + (songId to 0f)
-            }
-
             downloadSongUseCase(songId)
-                .onSuccess {
-                    // Download started successfully
-                    // Progress will be updated via observeDownloadProgress
-                }
                 .onFailure { error ->
                     _downloadError.value = error.message ?: "Failed to start download"
                     // Remove from active downloads on failure

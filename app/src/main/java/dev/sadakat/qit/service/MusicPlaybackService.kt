@@ -6,13 +6,16 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import dagger.hilt.android.AndroidEntryPoint
 import dev.sadakat.qit.playback.PlaybackManager
-import dev.sadakat.qit.player.MediaNotificationManager
-import dev.sadakat.qit.player.MusicSessionCallback
 import javax.inject.Inject
 
 /**
  * Music playback service for the phone app.
- * Handles MediaSession integration and background playback.
+ *
+ * The MediaSession and its player are app-scoped singletons shared with
+ * [PlaybackManager]. Media3's default media notification provider posts a
+ * fully functional media notification automatically whenever the session is
+ * active, so no manual notification is posted here (a manual notification
+ * built without session action pending intents would have dead buttons).
  */
 @UnstableApi
 @AndroidEntryPoint
@@ -22,20 +25,7 @@ class MusicPlaybackService : MediaSessionService() {
     lateinit var playbackManager: PlaybackManager
 
     @Inject
-    lateinit var mediaSessionCallback: MusicSessionCallback
-
-    @Inject
-    lateinit var mediaNotificationManager: MediaNotificationManager
-
-    @Inject
     lateinit var mediaSession: MediaSession
-
-    override fun onCreate() {
-        super.onCreate()
-
-        // Start foreground service with notification
-        mediaNotificationManager.updateNotification()
-    }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
         return mediaSession
@@ -49,12 +39,9 @@ class MusicPlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
-        mediaNotificationManager.clearNotification()
-        mediaSession.release()
-        playbackManager.release()
+        // The MediaSession and ExoPlayer are app-scoped singletons shared with
+        // PlaybackManager; releasing them here would break playback for the
+        // remainder of the process lifetime.
         super.onDestroy()
     }
-
-    // Note: onMediaNotificationClicked is removed in Media3
-    // Media clicks are handled through MediaSession callbacks
 }

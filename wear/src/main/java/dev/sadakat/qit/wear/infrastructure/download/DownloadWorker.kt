@@ -19,7 +19,7 @@ import dev.sadakat.qit.shared.domain.entity.SongId
 import dev.sadakat.qit.shared.domain.repository.DownloadRepository
 import dev.sadakat.qit.shared.domain.valueobject.AudioQuality
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.TimeUnit
 
 /**
@@ -74,36 +74,20 @@ class DownloadWorker @AssistedInject constructor(
                 )
             }
 
-            // Monitor download progress
-            var lastProgress = 0
-            downloadRepository.observeDownloadProgress(songIdObj)
-                .collect { progress ->
-                    val progressPercent = (progress * 100).toInt()
+            // Wait for the download to reach 100% (or time out).
+            // Note: observing a StateFlow with collect{} would never return,
+            // leaving the worker running forever - use first{} with a predicate
+            // and an overall timeout instead.
+            val finalProgress = withTimeoutOrNull(DOWNLOAD_TIMEOUT_MS) {
+                downloadRepository.observeDownloadProgress(songIdObj)
+                    .first { it >= 1.0f }
+            }
 
-                    // Update notification every 10%
-                    if (progressPercent - lastProgress >= 10 || progressPercent >= 100) {
-                        showNotification(
-                            songId,
-                            progressPercent,
-                            if (progressPercent >= 100) "Download complete" else "Downloading..."
-                        )
-                        lastProgress = progressPercent
-
-                        // Update work progress
-                        setProgress(
-                            workDataOf(
-                                KEY_PROGRESS to progressPercent,
-                                KEY_SONG_ID to songId
-                            )
-                        )
-                    }
-
-                    // Complete when progress reaches 100%
-                    if (progress >= 1.0f) {
-                        Log.d(TAG, "Download completed for song: $songId")
-                        return@collect
-                    }
-                }
+            if (finalProgress == null) {
+                Log.w(TAG, "Timed out waiting for download of song: $songId")
+                showNotification(songId, 0, "Download timed out", isError = true)
+                return Result.failure(workDataOf(KEY_ERROR to "Download timed out"))
+            }
 
             // Show completion notification
             showNotification(songId, 100, "Download complete", isComplete = true)
@@ -226,7 +210,8 @@ class DownloadWorker @AssistedInject constructor(
         private const val KEY_ERROR = "error"
 
         private const val MAX_RETRY_ATTEMPTS = 3
-        private const val UNIQUE_WORK_PREFIX = "download_"
+        const val UNIQUE_WORK_PREFIX = "download_"
+        private const val DOWNLOAD_TIMEOUT_MS = 30L * 60 * 1000 // 30 minutes
 
         /**
          * Create a OneTimeWorkRequest for downloading a song
@@ -331,8 +316,10 @@ fun WorkManager.enqueueDownloadWithConstraints(
 
     val workRequest = DownloadWorker.createWorkRequest(songId, quality, constraints)
 
+    // Use the SAME unique-name scheme as enqueueDownload/cancelDownload,
+    // otherwise cancelling would not find work enqueued through this method.
     return enqueueUniqueWork(
-        "${DownloadWorker.Companion::class.java.simpleName}_${songId.value}",
+        "${DownloadWorker.UNIQUE_WORK_PREFIX}${songId.value}",
         ExistingWorkPolicy.KEEP,
         workRequest
     )

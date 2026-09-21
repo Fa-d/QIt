@@ -108,9 +108,10 @@ object MediaModule {
         audioFocusManager: AudioFocusManager,
         settingsRepository: SettingsRepository,
         syncRepository: SyncRepository,
+        exoPlayer: ExoPlayer,
         @PlaybackScope coroutineScope: CoroutineScope
     ): PlaybackManager {
-        return PlaybackManager(context, audioFocusManager, settingsRepository, syncRepository, coroutineScope)
+        return PlaybackManager(context, audioFocusManager, settingsRepository, syncRepository, exoPlayer, coroutineScope)
     }
 
     @Provides

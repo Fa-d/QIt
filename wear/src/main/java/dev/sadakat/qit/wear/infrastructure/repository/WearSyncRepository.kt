@@ -14,13 +14,17 @@ import dev.sadakat.qit.shared.domain.valueobject.AudioQuality
 import dev.sadakat.qit.shared.domain.valueobject.ChangeRecord
 import dev.sadakat.qit.shared.domain.valueobject.SyncMetadata
 import dev.sadakat.qit.shared.domain.valueobject.WatchAppStatus
+import dev.sadakat.qit.shared.dto.PlaybackCommandMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -38,6 +42,8 @@ class WearSyncRepository @Inject constructor(
 ) : SyncRepository {
 
     private var lastSyncTimestamp: Long = 0L
+
+    private val json = Json { ignoreUnknownKeys = true }
 
     // In-memory storage for sync metadata (in production, this should be persisted)
     private var syncMetadata: SyncMetadata = SyncMetadata.initial()
@@ -58,7 +64,10 @@ class WearSyncRepository @Inject constructor(
     /**
      * Watch doesn't push playlists to phone - not applicable
      */
-    override suspend fun syncPlaylistsToWatch(playlists: List<Playlist>): Result<Unit> {
+    override suspend fun syncPlaylistsToWatch(
+        playlists: List<Playlist>,
+        fullSync: Boolean
+    ): Result<Unit> {
         Log.d(TAG, "syncPlaylistsToWatch not applicable on watch")
         return Result.success(Unit)
     }
@@ -74,7 +83,7 @@ class WearSyncRepository @Inject constructor(
     /**
      * Watch doesn't push songs to phone - not applicable
      */
-    override suspend fun syncSongsToWatch(songs: List<Song>): Result<Unit> {
+    override suspend fun syncSongsToWatch(songs: List<Song>, fullSync: Boolean): Result<Unit> {
         Log.d(TAG, "syncSongsToWatch not applicable on watch")
         return Result.success(Unit)
     }
@@ -108,11 +117,12 @@ class WearSyncRepository @Inject constructor(
     }
 
     /**
-     * Request songs for a playlist from phone
+     * Request songs for a playlist from phone.
+     * A null playlistId requests all songs.
      */
-    override suspend fun requestSongSyncFromPhone(playlistId: PlaylistId): Result<Unit> = withContext(Dispatchers.IO) {
+    override suspend fun requestSongSyncFromPhone(playlistId: PlaylistId?): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Requesting song sync for playlist: ${playlistId.value}")
+            Log.d(TAG, "Requesting song sync from phone (playlistId=${playlistId?.value ?: "all"})")
 
             val nodes = nodeClient.connectedNodes.await()
             if (nodes.isEmpty()) {
@@ -124,7 +134,7 @@ class WearSyncRepository @Inject constructor(
             messageClient.sendMessage(
                 node.id,
                 WearPaths.REQUEST_SONG_SYNC,
-                playlistId.value.toByteArray()
+                playlistId?.value?.toByteArray() ?: byteArrayOf()
             ).await()
 
             Log.d(TAG, "Song sync request sent to phone")
@@ -157,22 +167,28 @@ class WearSyncRepository @Inject constructor(
             trySend(hasPhone)
         }
 
-        // Check initial state
-        try {
-            val capabilityInfo = capabilityClient.getCapability(
-                PHONE_CAPABILITY,
-                CapabilityClient.FILTER_REACHABLE
-            ).await()
-            send(capabilityInfo.nodes.isNotEmpty())
-        } catch (e: Exception) {
-            send(false)
-        }
-
-        // Listen for changes
+        // Register the listener FIRST so no event is missed.
         capabilityClient.addListener(listener, PHONE_CAPABILITY)
 
+        // Check initial state from a CHILD coroutine: if the collector is
+        // cancelled while the producer is parked on getCapability().await(),
+        // awaitClose would never run and the listener would leak on every
+        // screen visit. Suspending in awaitClose (below) instead guarantees
+        // the cleanup runs on cancellation.
+        launch {
+            try {
+                val capabilityInfo = capabilityClient.getCapability(
+                    PHONE_CAPABILITY,
+                    CapabilityClient.FILTER_REACHABLE
+                ).await()
+                trySend(capabilityInfo.nodes.isNotEmpty())
+            } catch (e: Exception) {
+                trySend(false)
+            }
+        }
+
         awaitClose {
-            capabilityClient.removeListener(listener)
+            capabilityClient.removeListener(listener, PHONE_CAPABILITY)
         }
     }
 
@@ -193,7 +209,10 @@ class WearSyncRepository @Inject constructor(
     }
 
     /**
-     * Send playback command to phone
+     * Send playback command to phone.
+     *
+     * The payload must be a JSON [PlaybackCommandMessage] - the phone's
+     * WatchDataService parses it as JSON.
      */
     override suspend fun sendPlaybackCommand(
         command: String,
@@ -207,17 +226,17 @@ class WearSyncRepository @Inject constructor(
                 return@withContext Result.failure(Exception("No phone connected"))
             }
 
-            val commandData = if (songId != null) {
-                "$command::${songId.value}"
-            } else {
-                command
-            }
+            val message = PlaybackCommandMessage(
+                command = command,
+                songId = songId?.value
+            )
+            val commandData = json.encodeToString(message).toByteArray()
 
             val node = nodes.first()
             messageClient.sendMessage(
                 node.id,
                 WearPaths.PLAYBACK_COMMAND,
-                commandData.toByteArray()
+                commandData
             ).await()
 
             Log.d(TAG, "Playback command sent")

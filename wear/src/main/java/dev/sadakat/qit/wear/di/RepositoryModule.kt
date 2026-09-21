@@ -17,11 +17,33 @@ import dev.sadakat.qit.wear.data.local.dao.SongDao
 import dev.sadakat.qit.wear.data.repository.PhoneSyncRepository
 import dev.sadakat.qit.wear.data.repository.PlaylistRepository
 import dev.sadakat.qit.wear.infrastructure.storage.StorageManager
+import javax.inject.Qualifier
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+
+/**
+ * Scope for application-lifetime background work (syncs, nack handling).
+ *
+ * The WearableListenerService's own scope is cancelled in onDestroy, and GMS
+ * unbinds and destroys listener services as soon as callbacks return - work
+ * whose message was already consumed must therefore NOT run there (mirror of
+ * the app's dev.sadakat.qit.di.ApplicationScope).
+ */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class ApplicationScope
 
 @Module
 @InstallIn(SingletonComponent::class)
 object RepositoryModule {
+
+    @Provides
+    @Singleton
+    @ApplicationScope
+    fun provideApplicationScope(): CoroutineScope =
+        CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     @Provides
     @Singleton

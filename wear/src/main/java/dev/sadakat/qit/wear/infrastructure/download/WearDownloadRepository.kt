@@ -2,7 +2,9 @@ package dev.sadakat.qit.wear.infrastructure.download
 
 import android.content.Context
 import android.util.Log
-import com.google.android.gms.wearable.*
+import com.google.android.gms.wearable.ChannelClient
+import com.google.android.gms.wearable.MessageClient
+import com.google.android.gms.wearable.NodeClient
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.sadakat.qit.shared.constants.WearPaths
 import dev.sadakat.qit.shared.domain.entity.PlaylistId
@@ -11,21 +13,46 @@ import dev.sadakat.qit.shared.domain.entity.SongId
 import dev.sadakat.qit.shared.domain.repository.DownloadRepository
 import dev.sadakat.qit.shared.domain.valueobject.AudioQuality
 import dev.sadakat.qit.shared.domain.valueobject.FileSize
+import dev.sadakat.qit.shared.dto.DownloadRequestMessage
 import dev.sadakat.qit.wear.data.local.dao.PlaylistDao
 import dev.sadakat.qit.wear.data.local.dao.SongDao
-import dev.sadakat.qit.wear.data.local.entity.SongEntity
 import dev.sadakat.qit.wear.infrastructure.storage.StorageManager
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.tasks.await
 import java.io.File
 import java.io.FileOutputStream
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlin.coroutines.coroutineContext
 
 /**
  * Watch-side implementation of DownloadRepository
  * Handles receiving downloaded files from phone via Wearable Channel API
+ *
+ * Concurrency model (P11): all mutable maps/sets below are guarded by
+ * [stateMutex]. Entry points invoked from binder threads
+ * (handleDownloadStart/Progress/Complete) hop into [scope] and take the lock.
+ * Deduplication (already-downloading check + registration) is a single
+ * critical section, so a double-tap can never produce two channels writing
+ * two FileOutputStreams to the same path.
  */
 @Singleton
 class WearDownloadRepository @Inject constructor(
@@ -40,16 +67,41 @@ class WearDownloadRepository @Inject constructor(
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    // Track download progress for each song
-    private val downloadProgressMap = mutableMapOf<SongId, MutableStateFlow<Float>>()
+    private val json = Json { ignoreUnknownKeys = true }
 
-    // Track active downloads
+    // All guarded by stateMutex:
+    private val stateMutex = Mutex()
+
+    /**
+     * Download progress per song. Instance-stable: collectors hold it.
+     * ConcurrentHashMap: observeDownloadProgress() creates entries from the
+     * caller's thread (not suspend, cannot take the mutex); Kotlin's
+     * ConcurrentMap.getOrPut is atomic (putIfAbsent).
+     */
+    private val downloadProgressMap = ConcurrentHashMap<SongId, MutableStateFlow<Float>>()
+
+    /** Active (running) transfer jobs, keyed by song. */
     private val activeDownloads = mutableMapOf<SongId, Job>()
 
-    // Track paused downloads
+    /**
+     * Channel of the most recent (re)registration per song. The channel path
+     * only carries the song id, so a late close of a STALE channel must be
+     * filtered by IDENTITY (same model as WearStreamingRepository) or it
+     * would strip a newer retry's registration.
+     */
+    private val activeChannels = mutableMapOf<SongId, ChannelClient.Channel>()
+
+    /** Songs whose request was sent but whose channel has not opened yet. */
+    private val pendingRequests = mutableSetOf<SongId>()
+
+    /** File sizes announced by the phone (DownloadStartMessage). */
+    private val expectedFileSizes = mutableMapOf<SongId, Long>()
+
     private val pausedDownloads = mutableSetOf<SongId>()
 
-    // Track downloading queue
+    /** Watchdogs clearing pending state when the phone never opens a channel (P10). */
+    private val requestWatchdogs = mutableMapOf<SongId, Job>()
+
     private val _downloadingQueue = MutableStateFlow<List<Song>>(emptyList())
 
     // Listener for incoming download channels
@@ -60,8 +112,10 @@ class WearDownloadRepository @Inject constructor(
             // Check if this is a download channel
             if (channel.path.startsWith(WearPaths.DOWNLOAD_CHANNEL)) {
                 val songId = channel.path.removePrefix(WearPaths.DOWNLOAD_CHANNEL)
-                scope.launch {
-                    handleIncomingDownload(channel, SongId.from(songId))
+                if (songId.isNotBlank()) {
+                    scope.launch {
+                        handleIncomingDownload(channel, SongId.from(songId))
+                    }
                 }
             }
         }
@@ -81,8 +135,24 @@ class WearDownloadRepository @Inject constructor(
                     // Download failed
                     scope.launch {
                         Log.e(TAG, "Download failed for song: $songId, reason: $closeReason")
-                        activeDownloads.remove(songId)
-                        updateDownloadingQueue()
+                        val wasTracked = stateMutex.withLock {
+                            // Identity check: an abnormal close of a channel we
+                            // are no longer tracking belongs to a superseded
+                            // attempt - the newer download's state must survive.
+                            if (activeChannels[songId] !== channel) {
+                                false
+                            } else {
+                                activeChannels.remove(songId)
+                                activeDownloads.remove(songId)?.cancel()
+                                pendingRequests.remove(songId)
+                                requestWatchdogs.remove(songId)?.cancel()
+                                downloadProgressMap.remove(songId)
+                                true
+                            }
+                        }
+                        if (wasTracked) {
+                            updateDownloadingQueue()
+                        }
                     }
                 }
             }
@@ -96,7 +166,8 @@ class WearDownloadRepository @Inject constructor(
 
     override suspend fun downloadSong(
         songId: SongId,
-        quality: AudioQuality
+        quality: AudioQuality,
+        sourceNodeId: String?
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Requesting download from phone: songId=$songId, quality=$quality")
@@ -105,12 +176,6 @@ class WearDownloadRepository @Inject constructor(
             val existingSong = songDao.getSongById(songId.value)
             if (existingSong?.isDownloaded == true) {
                 Log.d(TAG, "Song already downloaded: $songId")
-                return@withContext Result.success(Unit)
-            }
-
-            // Check if already downloading
-            if (activeDownloads.containsKey(songId)) {
-                Log.d(TAG, "Song already downloading: $songId")
                 return@withContext Result.success(Unit)
             }
 
@@ -136,30 +201,101 @@ class WearDownloadRepository @Inject constructor(
                 return@withContext Result.failure(Exception("No phone connected"))
             }
 
-            // Initialize progress tracking
-            downloadProgressMap[songId] = MutableStateFlow(0f)
+            // Dedupe + register as ONE critical section (P11): a concurrent
+            // second tap must see the pending request and back off BEFORE a
+            // second message/channel is created.
+            val registered = stateMutex.withLock {
+                if (activeDownloads.containsKey(songId) || pendingRequests.contains(songId)) {
+                    false
+                } else {
+                    // Never REPLACE the progress flow instance - collectors
+                    // hold a reference and would be orphaned.
+                    downloadProgressMap.getOrPut(songId) { MutableStateFlow(0f) }.value = 0f
+                    pendingRequests.add(songId)
+                    true
+                }
+            }
+            if (!registered) {
+                Log.d(TAG, "Song already downloading: $songId")
+                return@withContext Result.success(Unit)
+            }
 
-            // Update song status to downloading
-            songDao.updateDownloadProgress(songId.value, 0f)
-            updateDownloadingQueue()
+            try {
+                // Update song status to downloading
+                songDao.updateDownloadProgress(songId.value, 0f)
+                updateDownloadingQueue()
 
-            // Send download request to phone
-            val requestData = "${songId.value}:${quality.name}".toByteArray()
-            val node = nodes.first()
-            messageClient.sendMessage(
-                node.id,
-                WearPaths.DOWNLOAD_REQUEST,
-                requestData
-            ).await()
+                // Send download request to phone (must be JSON - the phone parses
+                // it as a DownloadRequestMessage)
+                val request = DownloadRequestMessage(
+                    songId = songId.value,
+                    quality = quality.name
+                )
+                val requestData = json.encodeToString(request).toByteArray()
+                val node = nodes.first()
+                messageClient.sendMessage(
+                    node.id,
+                    WearPaths.DOWNLOAD_REQUEST,
+                    requestData
+                ).await()
 
-            Log.d(TAG, "Download request sent to phone for song: $songId")
+                // P10: if the phone silently fails (song/file missing, node
+                // dropped), no channel ever opens. The watchdog clears the
+                // pending state so the UI is not stuck forever.
+                startRequestWatchdog(songId)
 
-            Result.success(Unit)
+                Log.d(TAG, "Download request sent to phone for song: $songId")
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send download request for song: $songId", e)
+                stateMutex.withLock {
+                    pendingRequests.remove(songId)
+                    requestWatchdogs.remove(songId)?.cancel()
+                    downloadProgressMap.remove(songId)
+                }
+                Result.failure(e)
+            }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Failed to request download from phone", e)
-            downloadProgressMap.remove(songId)
-            updateDownloadingQueue()
             Result.failure(e)
+        }
+    }
+
+    /**
+     * Starts (or replaces) the request watchdog for [songId]: after
+     * [DOWNLOAD_REQUEST_TIMEOUT_MS] without a channel being opened, the
+     * pending state is cleared so the song can be re-requested.
+     */
+    private suspend fun startRequestWatchdog(songId: SongId) {
+        val watchdog = scope.launch {
+            delay(DOWNLOAD_REQUEST_TIMEOUT_MS)
+            val timedOut = stateMutex.withLock {
+                requestWatchdogs.remove(songId)
+                if (!pendingRequests.contains(songId)) {
+                    false
+                } else {
+                    Log.w(TAG, "Download request timed out for song: $songId (no channel opened)")
+                    pendingRequests.remove(songId)
+                    activeDownloads.remove(songId)
+                    activeChannels.remove(songId)
+                    downloadProgressMap.remove(songId)
+                    true
+                }
+            }
+            if (timedOut) {
+                try {
+                    songDao.updateDownloadProgress(songId.value, 0f)
+                    updateDownloadingQueue()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to reset progress after watchdog timeout", e)
+                }
+            }
+        }
+        stateMutex.withLock {
+            requestWatchdogs[songId]?.cancel()
+            requestWatchdogs[songId] = watchdog
         }
     }
 
@@ -198,6 +334,8 @@ class WearDownloadRepository @Inject constructor(
             } else {
                 Result.success(Unit)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Failed to download playlist", e)
             Result.failure(e)
@@ -208,19 +346,27 @@ class WearDownloadRepository @Inject constructor(
         try {
             Log.d(TAG, "Canceling download: $songId")
 
-            // Cancel active job
-            activeDownloads[songId]?.cancel()
-            activeDownloads.remove(songId)
+            stateMutex.withLock {
+                // Cancel active job
+                activeDownloads.remove(songId)?.cancel()
+                activeChannels.remove(songId)
+                pendingRequests.remove(songId)
+                requestWatchdogs.remove(songId)?.cancel()
+                pausedDownloads.remove(songId)
 
-            // Remove from paused downloads
-            pausedDownloads.remove(songId)
-
-            // Clear progress
-            downloadProgressMap.remove(songId)
+                // Clear progress
+                downloadProgressMap.remove(songId)
+            }
 
             // Reset download status in database
             songDao.updateDownloadProgress(songId.value, 0f)
             updateDownloadingQueue()
+
+            // Delete partial file if any
+            val partialFile = File(File(context.filesDir, DOWNLOAD_DIR), "${songId.value}.mp3")
+            if (partialFile.exists()) {
+                partialFile.delete()
+            }
 
             // Send cancellation message to phone
             try {
@@ -229,7 +375,7 @@ class WearDownloadRepository @Inject constructor(
                     val cancelData = songId.value.toByteArray()
                     messageClient.sendMessage(
                         nodes.first().id,
-                        "${WearPaths.DOWNLOAD_REQUEST}/cancel",
+                        WearPaths.DOWNLOAD_CANCEL,
                         cancelData
                     ).await()
                 }
@@ -248,12 +394,13 @@ class WearDownloadRepository @Inject constructor(
         try {
             Log.d(TAG, "Pausing download: $songId")
 
-            // Mark as paused
-            pausedDownloads.add(songId)
+            stateMutex.withLock {
+                // Mark as paused
+                pausedDownloads.add(songId)
 
-            // Cancel active job (will be resumed later)
-            activeDownloads[songId]?.cancel()
-            activeDownloads.remove(songId)
+                // Cancel active job (will be resumed later)
+                activeDownloads.remove(songId)?.cancel()
+            }
 
             updateDownloadingQueue()
 
@@ -268,11 +415,15 @@ class WearDownloadRepository @Inject constructor(
         try {
             Log.d(TAG, "Resuming download: $songId")
 
-            if (!pausedDownloads.contains(songId)) {
+            val wasPaused = stateMutex.withLock {
+                if (pausedDownloads.contains(songId)) {
+                    pausedDownloads.remove(songId)
+                    true
+                } else false
+            }
+            if (!wasPaused) {
                 return@withContext Result.failure(Exception("Download is not paused"))
             }
-
-            pausedDownloads.remove(songId)
 
             // Request download again (phone will resume if supported)
             downloadSong(songId, AudioQuality.MEDIUM)
@@ -287,7 +438,8 @@ class WearDownloadRepository @Inject constructor(
             Log.d(TAG, "Deleting download: $songId")
 
             // Cancel if downloading
-            if (activeDownloads.containsKey(songId)) {
+            val wasActive = stateMutex.withLock { activeDownloads.containsKey(songId) }
+            if (wasActive) {
                 cancelDownload(songId)
             }
 
@@ -306,6 +458,8 @@ class WearDownloadRepository @Inject constructor(
     }
 
     override fun observeDownloadProgress(songId: SongId): Flow<Float> {
+        // getOrPut on a ConcurrentMap is atomic - safe without stateMutex
+        // (this accessor is not suspend and runs on the caller's thread).
         return downloadProgressMap.getOrPut(songId) {
             MutableStateFlow(0f)
         }.asStateFlow()
@@ -334,118 +488,169 @@ class WearDownloadRepository @Inject constructor(
     }
 
     /**
-     * Handle incoming download from phone via channel
+     * Handle incoming download from phone via channel.
+     *
+     * Registers the transfer job in [activeDownloads] BEFORE its body can run
+     * (LAZY start): a job that completes before its assignment would leave a
+     * completed Job in the map, permanently blocking re-downloads.
      */
     private suspend fun handleIncomingDownload(
         channel: ChannelClient.Channel,
         songId: SongId
     ) {
-        val downloadJob = scope.launch {
-            try {
-                Log.d(TAG, "Handling incoming download for song: $songId")
+        val job = scope.launch(start = CoroutineStart.LAZY) {
+            receiveDownload(channel, songId)
+        }
+        stateMutex.withLock {
+            requestWatchdogs.remove(songId)?.cancel()
+            pendingRequests.remove(songId)
+            activeDownloads[songId] = job
+            activeChannels[songId] = channel
+        }
+        updateDownloadingQueue()
+        job.start()
+    }
 
-                // Check if paused
-                if (pausedDownloads.contains(songId)) {
-                    Log.d(TAG, "Download is paused, closing channel: $songId")
-                    channelClient.close(channel).await()
-                    return@launch
-                }
+    /**
+     * Reads the channel input stream into the song's download file.
+     */
+    private suspend fun receiveDownload(
+        channel: ChannelClient.Channel,
+        songId: SongId
+    ) {
+        val selfJob = coroutineContext[Job]
+        val file = File(File(context.filesDir, DOWNLOAD_DIR), "${songId.value}.mp3")
+        try {
+            Log.d(TAG, "Handling incoming download for song: $songId")
 
-                // Get input stream from channel
-                val inputStream = channelClient.getInputStream(channel).await()
+            // Check if paused
+            if (stateMutex.withLock { pausedDownloads.contains(songId) }) {
+                Log.d(TAG, "Download is paused, closing channel: $songId")
+                channelClient.close(channel).await()
+                return
+            }
 
-                // Create download directory if not exists
-                val downloadDir = File(context.filesDir, DOWNLOAD_DIR)
-                if (!downloadDir.exists()) {
-                    downloadDir.mkdirs()
-                }
+            // Get input stream from channel
+            val inputStream = channelClient.getInputStream(channel).await()
 
-                // Create file for downloaded song
-                val file = File(downloadDir, "${songId.value}.mp3")
+            // Create download directory if not exists
+            val downloadDir = File(context.filesDir, DOWNLOAD_DIR)
+            if (!downloadDir.exists()) {
+                downloadDir.mkdirs()
+            }
 
-                // Read from channel and write to file
-                val buffer = ByteArray(8192)
-                var totalBytesRead = 0L
-                var lastProgressUpdate = 0L
+            // Read from channel and write to file
+            val buffer = ByteArray(8192)
+            var totalBytesRead = 0L
+            var lastProgressUpdate = 0L
+            val expectedSize = stateMutex.withLock {
+                expectedFileSizes[songId] ?: ESTIMATED_SONG_SIZE_BYTES
+            }
 
-                FileOutputStream(file).use { output ->
-                    inputStream.use { input ->
-                        while (isActive && !pausedDownloads.contains(songId)) {
-                            val bytesRead = input.read(buffer)
-                            if (bytesRead == -1) {
-                                Log.d(TAG, "Reached end of download stream")
-                                break
-                            }
+            FileOutputStream(file).use { output ->
+                inputStream.use { input ->
+                    while (isJobActive(selfJob) && !stateMutex.withLock { pausedDownloads.contains(songId) }) {
+                        val bytesRead = input.read(buffer)
+                        if (bytesRead == -1) {
+                            Log.d(TAG, "Reached end of download stream")
+                            break
+                        }
 
-                            output.write(buffer, 0, bytesRead)
-                            totalBytesRead += bytesRead
+                        output.write(buffer, 0, bytesRead)
+                        totalBytesRead += bytesRead
 
-                            // Update progress (estimate based on average song size)
-                            // We'll get more accurate progress via message updates
-                            val progress = (totalBytesRead.toFloat() / ESTIMATED_SONG_SIZE_BYTES)
-                                .coerceIn(0f, 0.99f)
+                        // Update progress based on the file size reported by
+                        // the phone (falls back to an estimate)
+                        val progress = (totalBytesRead.toFloat() / expectedSize)
+                            .coerceIn(0f, 0.99f)
 
-                            // Only update every 100KB to avoid too many updates
-                            if (totalBytesRead - lastProgressUpdate > 100_000) {
+                        // Only update every 100KB to avoid too many updates
+                        if (totalBytesRead - lastProgressUpdate > 100_000) {
+                            stateMutex.withLock {
                                 downloadProgressMap[songId]?.value = progress
-                                songDao.updateDownloadProgress(songId.value, progress)
-                                lastProgressUpdate = totalBytesRead
-                                Log.d(TAG, "Download progress: ${(progress * 100).toInt()}% ($totalBytesRead bytes)")
                             }
+                            songDao.updateDownloadProgress(songId.value, progress)
+                            // Re-emit the queue so the UI shows live progress (P22)
+                            updateDownloadingQueue()
+                            lastProgressUpdate = totalBytesRead
+                            Log.d(TAG, "Download progress: ${(progress * 100).toInt()}% ($totalBytesRead bytes)")
                         }
                     }
                 }
+            }
 
-                // Check if download was completed (not paused or cancelled)
-                if (isActive && !pausedDownloads.contains(songId)) {
-                    Log.d(TAG, "Download completed: $songId, size: $totalBytesRead bytes")
+            // Check if download was completed (not paused or cancelled)
+            if (isJobActive(selfJob) && !stateMutex.withLock { pausedDownloads.contains(songId) }) {
+                Log.d(TAG, "Download completed: $songId, size: $totalBytesRead bytes")
 
-                    // Update database - mark as downloaded
-                    songDao.updateDownloadStatus(songId.value, true, file.absolutePath)
-                    songDao.updateDownloadProgress(songId.value, 1f)
+                // Update database - mark as downloaded
+                songDao.updateDownloadStatus(songId.value, true, file.absolutePath)
+                songDao.updateDownloadProgress(songId.value, 1f)
 
-                    // Update progress to 100%
+                // Update progress to 100%
+                stateMutex.withLock {
                     downloadProgressMap[songId]?.value = 1f
-
-                    // Remove from active downloads
-                    activeDownloads.remove(songId)
+                    // Remove by identity: a newer job for the same song may
+                    // already be registered.
+                    if (activeDownloads[songId] === selfJob) {
+                        activeDownloads.remove(songId)
+                    }
                     downloadProgressMap.remove(songId)
-                    updateDownloadingQueue()
-
-                    Log.d(TAG, "Song successfully downloaded to: ${file.absolutePath}")
-                } else {
-                    // Download was cancelled or paused, delete partial file
-                    Log.d(TAG, "Download cancelled or paused, deleting partial file")
-                    file.delete()
                 }
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Error handling incoming download", e)
-
-                // Clean up on error
-                activeDownloads.remove(songId)
-                downloadProgressMap.remove(songId)
                 updateDownloadingQueue()
 
-                // Delete partial file
-                val downloadDir = File(context.filesDir, DOWNLOAD_DIR)
-                val file = File(downloadDir, "${songId.value}.mp3")
-                if (file.exists()) {
-                    file.delete()
+                Log.d(TAG, "Song successfully downloaded to: ${file.absolutePath}")
+            } else {
+                // Download was cancelled or paused, delete partial file
+                Log.d(TAG, "Download cancelled or paused, deleting partial file")
+                file.delete()
+            }
+        } catch (e: CancellationException) {
+            // Job cancelled (pause/cancel/delete/superseded): rethrow so the
+            // coroutine machinery completes as cancelled. State cleanup is
+            // done by the caller that cancelled us or the finally block.
+            Log.d(TAG, "Download job cancelled for song: $songId")
+            if (file.exists()) file.delete()
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling incoming download", e)
+
+            // Clean up on error
+            stateMutex.withLock {
+                if (activeDownloads[songId] === selfJob) {
+                    activeDownloads.remove(songId)
+                }
+                pendingRequests.remove(songId)
+                downloadProgressMap.remove(songId)
+            }
+            updateDownloadingQueue()
+
+            // Delete partial file
+            if (file.exists()) {
+                file.delete()
+            }
+        } finally {
+            // Belt & braces: make sure this job is never stuck in the map.
+            stateMutex.withLock {
+                if (activeDownloads[songId] === selfJob) {
+                    activeDownloads.remove(songId)
+                    downloadProgressMap.remove(songId)
+                }
+                if (activeChannels[songId] === channel) {
+                    activeChannels.remove(songId)
                 }
             }
         }
-
-        activeDownloads[songId] = downloadJob
-        updateDownloadingQueue()
     }
+
+    private fun isJobActive(job: Job?): Boolean = job?.isActive != false
 
     /**
      * Update the downloading queue state
      */
     private suspend fun updateDownloadingQueue() {
         try {
-            val downloadingSongIds = activeDownloads.keys.map { it.value }
+            val downloadingSongIds = stateMutex.withLock { activeDownloads.keys.map { it.value } }
             if (downloadingSongIds.isEmpty()) {
                 _downloadingQueue.value = emptyList()
                 return
@@ -461,13 +666,89 @@ class WearDownloadRepository @Inject constructor(
     }
 
     /**
+     * Handle a progress update pushed from the phone (DownloadProgressMessage JSON).
+     * Invoked on a binder thread: hops into [scope] and takes [stateMutex].
+     */
+    fun handleDownloadProgress(songId: SongId, progress: Float) {
+        scope.launch {
+            val clamped = progress.coerceIn(0f, 1f)
+            stateMutex.withLock {
+                downloadProgressMap[songId]?.value = clamped
+            }
+            try {
+                songDao.updateDownloadProgress(songId.value, clamped)
+                // Re-emit the queue so the UI shows live progress (P22)
+                updateDownloadingQueue()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to persist download progress", e)
+            }
+        }
+    }
+
+    /**
+     * Handle the download start notification from the phone, which carries the
+     * real file size so progress can be computed accurately.
+     * Invoked on a binder thread: hops into [scope] and takes [stateMutex].
+     */
+    fun handleDownloadStart(songId: SongId, fileSize: Long) {
+        scope.launch {
+            if (fileSize > 0) {
+                stateMutex.withLock {
+                    expectedFileSizes[songId] = fileSize
+                }
+            }
+        }
+    }
+
+    /**
+     * Handle the download completion notification from the phone.
+     * A failure notification aborts the active transfer and cleans up state.
+     * Invoked on a binder thread: hops into [scope] and takes [stateMutex].
+     */
+    fun handleDownloadComplete(songId: SongId, success: Boolean) {
+        if (!success) {
+            Log.w(TAG, "Phone reported download failure for song: $songId")
+            scope.launch {
+                stateMutex.withLock {
+                    activeChannels.remove(songId)
+                    activeDownloads.remove(songId)?.cancel()
+                    pendingRequests.remove(songId)
+                    requestWatchdogs.remove(songId)?.cancel()
+                    downloadProgressMap.remove(songId)
+                }
+                try {
+                    songDao.updateDownloadProgress(songId.value, 0f)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to reset progress after failure", e)
+                }
+                updateDownloadingQueue()
+
+                // Delete partial file
+                val partialFile = File(File(context.filesDir, DOWNLOAD_DIR), "${songId.value}.mp3")
+                if (partialFile.exists()) {
+                    partialFile.delete()
+                }
+            }
+        }
+        // On success, receiveDownload finalizes the download when the
+        // channel input stream reaches its end.
+    }
+
+    /**
      * Clean up resources
      */
     fun cleanup() {
         channelClient.unregisterChannelCallback(channelCallback)
-        activeDownloads.values.forEach { it.cancel() }
-        activeDownloads.clear()
-        downloadProgressMap.clear()
+        runBlocking {
+            stateMutex.withLock {
+                activeDownloads.values.forEach { it.cancel() }
+                activeDownloads.clear()
+                activeChannels.clear()
+                pendingRequests.clear()
+                requestWatchdogs.clear()
+                downloadProgressMap.clear()
+            }
+        }
         scope.cancel()
     }
 
@@ -476,5 +757,11 @@ class WearDownloadRepository @Inject constructor(
         private const val DOWNLOAD_DIR = "downloads"
         private const val MIN_REQUIRED_STORAGE_BYTES = 10 * 1024 * 1024L // 10 MB
         private const val ESTIMATED_SONG_SIZE_BYTES = 5 * 1024 * 1024L // 5 MB average
+
+        /**
+         * How long to wait for the phone to open a download channel after the
+         * request was sent before giving up (P10).
+         */
+        private const val DOWNLOAD_REQUEST_TIMEOUT_MS = 60_000L
     }
 }

@@ -1,10 +1,12 @@
 package dev.sadakat.qit.playback
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import dev.sadakat.qit.service.MusicPlaybackService
 import dev.sadakat.qit.shared.domain.valueobject.ShuffleMode
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.util.Log
@@ -20,13 +22,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * Manages audio playback on the phone using Media3 ExoPlayer.
  * Handles queue management, repeat/shuffle modes, and playback state.
+ *
+ * The ExoPlayer is injected (app-wide singleton, the same instance that is
+ * attached to the MediaSession) so UI controls and the media notification
+ * always act on the same player.
  */
 @Singleton
 class PlaybackManager @Inject constructor(
@@ -34,6 +39,7 @@ class PlaybackManager @Inject constructor(
     private val audioFocusManager: AudioFocusManager,
     private val settingsRepository: SettingsRepository,
     private val syncRepository: SyncRepository,
+    private val exoPlayer: ExoPlayer,
     private val coroutineScope: CoroutineScope
 ) {
     companion object {
@@ -49,13 +55,7 @@ class PlaybackManager @Inject constructor(
         observePlaybackDestination()
     }
 
-    private val _player: ExoPlayer by lazy {
-        ExoPlayer.Builder(context).build().apply {
-            addListener(playerListener)
-        }
-    }
-
-    val player: Player get() = _player
+    val player: Player get() = exoPlayer
 
     private val _currentSong = MutableStateFlow<Song?>(null)
     val currentSong: StateFlow<Song?> = _currentSong.asStateFlow()
@@ -87,7 +87,7 @@ class PlaybackManager @Inject constructor(
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             mediaItem?.let { item ->
-                val index = _player.currentMediaItemIndex
+                val index = exoPlayer.currentMediaItemIndex
                 _currentQueueIndex.value = index
                 // Update current song from queue if available
                 val queue = _playbackQueue.value
@@ -106,6 +106,12 @@ class PlaybackManager @Inject constructor(
                 else -> {}
             }
         }
+    }
+
+    // Attach the listener after it is initialized (init blocks and property
+    // initializers run in declaration order).
+    init {
+        exoPlayer.addListener(playerListener)
     }
 
     /**
@@ -128,8 +134,8 @@ class PlaybackManager @Inject constructor(
                     PlaybackDestination.WATCH -> {
                         // Stop local playback on phone first
                         Log.d(TAG, "Stopping phone playback, sending to watch: ${song.title}")
-                        _player.stop()
-                        _player.clearMediaItems()
+                        exoPlayer.stop()
+                        exoPlayer.clearMediaItems()
                         _isPlaying.value = false
                         _currentSong.value = null
 
@@ -162,10 +168,24 @@ class PlaybackManager @Inject constructor(
     }
 
     /**
+     * Ensures the MediaSessionService is running so background playback and
+     * the media notification work.
+     */
+    private fun ensurePlaybackServiceStarted() {
+        try {
+            context.startService(Intent(context, MusicPlaybackService::class.java))
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to start MusicPlaybackService", e)
+        }
+    }
+
+    /**
      * Set the playback queue and optionally start playing at specific index
      */
     fun setPlaybackQueue(songs: List<Song>, startIndex: Int = 0) {
         if (songs.isEmpty()) return
+
+        ensurePlaybackServiceStarted()
 
         _playbackQueue.value = songs
         _currentQueueIndex.value = startIndex.coerceIn(0, songs.size - 1)
@@ -186,9 +206,9 @@ class PlaybackManager @Inject constructor(
                 .build()
         }
 
-        _player.setMediaItems(mediaItems, startIndex, 0)
-        _player.prepare()
-        _player.play()
+        exoPlayer.setMediaItems(mediaItems, startIndex, 0)
+        exoPlayer.prepare()
+        exoPlayer.play()
     }
 
     /**
@@ -213,7 +233,7 @@ class PlaybackManager @Inject constructor(
                 .build()
         }
 
-        _player.addMediaItems(mediaItems)
+        exoPlayer.addMediaItems(mediaItems)
     }
 
     /**
@@ -226,7 +246,7 @@ class PlaybackManager @Inject constructor(
         queue.removeAt(index)
         _playbackQueue.value = queue
 
-        _player.removeMediaItem(index)
+        exoPlayer.removeMediaItem(index)
 
         // Adjust current index if needed
         val currentIndex = _currentQueueIndex.value
@@ -248,7 +268,7 @@ class PlaybackManager @Inject constructor(
         queue.add(toIndex, song)
         _playbackQueue.value = queue
 
-        _player.moveMediaItem(fromIndex, toIndex)
+        exoPlayer.moveMediaItem(fromIndex, toIndex)
 
         // Adjust current index if needed
         val currentIndex = _currentQueueIndex.value
@@ -265,7 +285,7 @@ class PlaybackManager @Inject constructor(
     fun togglePlayPause() {
         when (_playbackDestination.value) {
             PlaybackDestination.PHONE -> {
-                if (_player.isPlaying) {
+                if (exoPlayer.isPlaying) {
                     pause()
                 } else {
                     play()
@@ -288,7 +308,7 @@ class PlaybackManager @Inject constructor(
     fun play() {
         when (_playbackDestination.value) {
             PlaybackDestination.PHONE -> {
-                _player.play()
+                exoPlayer.play()
             }
             PlaybackDestination.WATCH -> {
                 // Send play command to watch
@@ -306,7 +326,7 @@ class PlaybackManager @Inject constructor(
     fun pause() {
         when (_playbackDestination.value) {
             PlaybackDestination.PHONE -> {
-                _player.pause()
+                exoPlayer.pause()
             }
             PlaybackDestination.WATCH -> {
                 // Send pause command to watch
@@ -324,10 +344,10 @@ class PlaybackManager @Inject constructor(
     fun skipToNext() {
         when (_playbackDestination.value) {
             PlaybackDestination.PHONE -> {
-                if (_player.hasNextMediaItem()) {
-                    _player.seekToNextMediaItem()
+                if (exoPlayer.hasNextMediaItem()) {
+                    exoPlayer.seekToNextMediaItem()
                 } else if (_repeatMode.value == RepeatMode.ALL) {
-                    _player.seekTo(0, 0)
+                    exoPlayer.seekTo(0, 0)
                 }
             }
             PlaybackDestination.WATCH -> {
@@ -345,12 +365,12 @@ class PlaybackManager @Inject constructor(
     fun skipToPrevious() {
         when (_playbackDestination.value) {
             PlaybackDestination.PHONE -> {
-                if (_player.currentPosition > 3000) {
-                    _player.seekTo(0)
-                } else if (_player.hasPreviousMediaItem()) {
-                    _player.seekToPreviousMediaItem()
+                if (exoPlayer.currentPosition > 3000) {
+                    exoPlayer.seekTo(0)
+                } else if (exoPlayer.hasPreviousMediaItem()) {
+                    exoPlayer.seekToPreviousMediaItem()
                 } else if (_repeatMode.value == RepeatMode.ALL) {
-                    _player.seekTo(_player.mediaItemCount - 1, 0)
+                    exoPlayer.seekTo(exoPlayer.mediaItemCount - 1, 0)
                 }
             }
             PlaybackDestination.WATCH -> {
@@ -366,7 +386,7 @@ class PlaybackManager @Inject constructor(
      * Seek to specific position
      */
     fun seekTo(positionMs: Long) {
-        _player.seekTo(positionMs)
+        exoPlayer.seekTo(positionMs)
     }
 
     /**
@@ -375,9 +395,9 @@ class PlaybackManager @Inject constructor(
     fun setRepeatMode(mode: RepeatMode) {
         _repeatMode.value = mode
         when (mode) {
-            RepeatMode.NONE -> _player.repeatMode = Player.REPEAT_MODE_OFF
-            RepeatMode.ONE -> _player.repeatMode = Player.REPEAT_MODE_ONE
-            RepeatMode.ALL -> _player.repeatMode = Player.REPEAT_MODE_ALL
+            RepeatMode.NONE -> exoPlayer.repeatMode = Player.REPEAT_MODE_OFF
+            RepeatMode.ONE -> exoPlayer.repeatMode = Player.REPEAT_MODE_ONE
+            RepeatMode.ALL -> exoPlayer.repeatMode = Player.REPEAT_MODE_ALL
         }
     }
 
@@ -391,7 +411,7 @@ class PlaybackManager @Inject constructor(
             else -> ShuffleMode.OFF
         }
         _shuffleMode.value = newMode
-        _player.shuffleModeEnabled = newMode == ShuffleMode.ALL
+        exoPlayer.shuffleModeEnabled = newMode == ShuffleMode.ALL
     }
 
     /**
@@ -400,35 +420,95 @@ class PlaybackManager @Inject constructor(
     fun clearQueue() {
         _playbackQueue.value = emptyList()
         _currentQueueIndex.value = 0
-        _player.clearMediaItems()
+        exoPlayer.clearMediaItems()
         _currentSong.value = null
     }
 
     /**
      * Get current playback position
      */
-    fun getCurrentPosition(): Long = _player.currentPosition
+    fun getCurrentPosition(): Long = exoPlayer.currentPosition
 
     /**
      * Get total duration of current track
      */
-    fun getDuration(): Long = _player.duration
+    fun getDuration(): Long = exoPlayer.duration
 
     /**
      * Release player resources
      */
     fun release() {
         audioFocusManager.abandonAudioFocus()
-        _player.release()
+        exoPlayer.release()
     }
 
     /**
-     * Get URI for a song based on its storage location
+     * Get URI for a song based on its storage location.
+     * Prefer the MediaStore content URI - raw file paths are unreliable
+     * (or inaccessible) under scoped storage on Android 10+.
      */
     private fun getSongUri(song: Song): Uri {
-        // For now, assume songs are in external storage
-        // This can be enhanced based on how songs are stored
-        return Uri.parse(song.filePath ?: "")
+        val contentUri = song.uri?.takeIf { it.isNotBlank() }
+        val filePath = song.filePath?.takeIf { it.isNotBlank() }
+        return when {
+            contentUri != null -> Uri.parse(contentUri)
+            filePath != null -> Uri.parse(filePath)
+            else -> Uri.EMPTY
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // Local playback primitives used for remote control from the watch.
+    // These ALWAYS act on the local player and ignore the playback
+    // destination setting, so a command relayed from the watch can never be
+    // bounced back to the watch (which would create a command loop).
+    // ---------------------------------------------------------------------
+
+    /**
+     * Plays a single song on the phone immediately (ignores playback destination).
+     */
+    fun playSongOnPhone(song: Song) {
+        setPlaybackQueue(listOf(song), 0)
+    }
+
+    /** Resumes/starts local playback. */
+    fun playLocal() {
+        exoPlayer.play()
+    }
+
+    /** Pauses local playback. */
+    fun pauseLocal() {
+        exoPlayer.pause()
+    }
+
+    /** Stops local playback and clears the queue. */
+    fun stopLocal() {
+        exoPlayer.stop()
+        exoPlayer.clearMediaItems()
+        _isPlaying.value = false
+        _currentSong.value = null
+        _playbackQueue.value = emptyList()
+        _currentQueueIndex.value = 0
+    }
+
+    /** Skips to the next item in the local queue (if any). */
+    fun skipToNextLocal() {
+        if (exoPlayer.hasNextMediaItem()) {
+            exoPlayer.seekToNextMediaItem()
+        } else if (_repeatMode.value == RepeatMode.ALL && exoPlayer.mediaItemCount > 0) {
+            exoPlayer.seekTo(0, 0)
+        }
+    }
+
+    /** Skips to the previous item in the local queue (if any). */
+    fun skipToPreviousLocal() {
+        if (exoPlayer.currentPosition > 3000) {
+            exoPlayer.seekTo(0)
+        } else if (exoPlayer.hasPreviousMediaItem()) {
+            exoPlayer.seekToPreviousMediaItem()
+        } else if (_repeatMode.value == RepeatMode.ALL && exoPlayer.mediaItemCount > 0) {
+            exoPlayer.seekTo(exoPlayer.mediaItemCount - 1, 0)
+        }
     }
 
     /**
@@ -437,23 +517,23 @@ class PlaybackManager @Inject constructor(
     private fun handleSongEnded() {
         when (_repeatMode.value) {
             RepeatMode.ONE -> {
-                _player.seekTo(0)
-                _player.play()
+                exoPlayer.seekTo(0)
+                exoPlayer.play()
             }
             RepeatMode.NONE -> {
-                if (_player.hasNextMediaItem()) {
-                    _player.seekToNextMediaItem()
+                if (exoPlayer.hasNextMediaItem()) {
+                    exoPlayer.seekToNextMediaItem()
                 } else {
                     // End of queue
                     pause()
                 }
             }
             RepeatMode.ALL -> {
-                if (_player.hasNextMediaItem()) {
-                    _player.seekToNextMediaItem()
+                if (exoPlayer.hasNextMediaItem()) {
+                    exoPlayer.seekToNextMediaItem()
                 } else {
-                    _player.seekTo(0, 0)
-                    _player.play()
+                    exoPlayer.seekTo(0, 0)
+                    exoPlayer.play()
                 }
             }
         }
@@ -475,7 +555,7 @@ class PlaybackManager @Inject constructor(
         coroutineScope.launch {
             audioFocusManager.isDucked.collect { isDucked ->
                 // Adjust volume based on ducking state
-                _player.volume = if (isDucked) 0.3f else 1.0f
+                exoPlayer.volume = if (isDucked) 0.3f else 1.0f
             }
         }
     }

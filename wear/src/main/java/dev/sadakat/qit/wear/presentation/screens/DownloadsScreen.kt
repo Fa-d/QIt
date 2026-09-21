@@ -40,6 +40,7 @@ fun DownloadsScreen(
     downloadViewModel: DownloadViewModel = hiltViewModel()
 ) {
     val downloadedSongs by downloadViewModel.downloadedSongs.collectAsState()
+    val downloadingSongs by downloadViewModel.downloadingSongs.collectAsState()
     val activeDownloads by downloadViewModel.activeDownloads.collectAsState()
     val storageInfo by downloadViewModel.storageInfo.collectAsState()
     val isLoading by downloadViewModel.isLoading.collectAsState()
@@ -145,10 +146,11 @@ fun DownloadsScreen(
                     )
                 }
 
-                // Show songs currently downloading
-                items(downloadedSongs.filter { song ->
-                    activeDownloads.containsKey(song.id)
-                }) { song ->
+                // Show songs currently downloading.
+                // (Note: these songs are NOT in `downloadedSongs` - that list
+                // only contains fully downloaded songs - so we must use the
+                // dedicated downloadingSongs list.)
+                items(downloadingSongs) { song ->
                     val progress = activeDownloads[song.id] ?: 0f
                     DownloadItem(
                         songTitle = song.title,
