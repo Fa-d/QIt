@@ -47,10 +47,12 @@ object QuranModule {
     @Provides
     @Singleton
     fun provideQuranPlayer(
+        @ApplicationContext context: Context,
         exoPlayer: ExoPlayer,
         quranText: QuranText,
         settings: QuranSettings
     ): QuranPlayer = ExoQuranPlayer(
+        context,
         exoPlayer,
         quranText,
         settings,

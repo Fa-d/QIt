@@ -1,5 +1,6 @@
 package dev.sadakat.qit.shared.quran.player
 
+import android.content.Context
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import dev.sadakat.qit.shared.quran.model.RecitationMode
@@ -10,9 +11,12 @@ import kotlinx.coroutines.flow.StateFlow
 
 /**
  * [QuranPlayer] on the app-wide [ExoPlayer] (built with [dev.sadakat.qit.shared.quran.audio.QuranCache.playbackDataSourceFactory]).
- * [scope] runs on the main thread.
+ * [scope] runs on the main thread. When playback starts it starts the app's MediaSessionService
+ * (resolved through its `androidx.media3.session.MediaSessionService` intent filter), so playback
+ * survives the app going to the background.
  */
 class ExoQuranPlayer(
+    private val context: Context,
     private val exoPlayer: ExoPlayer,
     private val quranText: QuranText,
     private val settings: QuranSettings,
