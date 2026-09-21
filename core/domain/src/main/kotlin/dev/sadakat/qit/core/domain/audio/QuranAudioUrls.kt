@@ -7,12 +7,14 @@ import java.util.Locale
 /**
  * Where each verse's audio lives.
  * - Arabic (Alafasy) and English (Saheeh Intl, Ibrahim Walk): the islamic.network CDN.
- * - Bangla: our GitHub Releases (`scripts/upload_bangla_github.sh`). A release holds at most 1000
- *   assets, so ayah n lives in release `bn-((n-1)/1000+1)`; surah intros live in `bn-intro`.
+ * - Bangla: the Hugging Face dataset [HF_DATASET], which mirrors the local `quran_audio/` folder
+ *   (`bangla/bangla-translation-verses/00001.mp3`, `…/intro/002.mp3`). The dataset also mirrors the
+ *   Arabic and English sets, so moving those off islamic.network is a URL change here.
  */
 object QuranAudioUrls {
     private const val ISLAMIC_NETWORK = "https://cdn.islamic.network/quran/audio"
-    const val BANGLA_RELEASES = "https://github.com/Fa-d/qit-quran-audio/releases/download"
+    const val HF_DATASET = "https://huggingface.co/datasets/Fa-d/qit-quran-audio/resolve/main"
+    private const val BANGLA_VERSES = "$HF_DATASET/bangla/bangla-translation-verses"
 
     /** [id] is the download id and is unique per file, e.g. "ar/255", "bn/intro/2". */
     data class AudioFile(val id: String, val url: String)
@@ -23,8 +25,7 @@ object QuranAudioUrls {
             Track.ARABIC -> "$ISLAMIC_NETWORK/128/ar.alafasy/$globalAyah.mp3"
             Track.ENGLISH -> "$ISLAMIC_NETWORK/192/en.walk/$globalAyah.mp3"
             // Locale.ROOT: a Bangla-locale device would otherwise format Bengali digits.
-            Track.BANGLA -> "$BANGLA_RELEASES/bn-${(globalAyah - 1) / 1000 + 1}/" +
-                String.format(Locale.ROOT, "%05d", globalAyah) + ".mp3"
+            Track.BANGLA -> "$BANGLA_VERSES/" + String.format(Locale.ROOT, "%05d", globalAyah) + ".mp3"
         }
         return AudioFile("${track.code}/$globalAyah", url)
     }
@@ -40,7 +41,7 @@ object QuranAudioUrls {
             Track.ARABIC, Track.ENGLISH -> verse(track, 1)
             Track.BANGLA -> AudioFile(
                 "bn/intro/$surah",
-                "$BANGLA_RELEASES/bn-intro/" + String.format(Locale.ROOT, "%03d", surah) + ".mp3"
+                "$BANGLA_VERSES/intro/" + String.format(Locale.ROOT, "%03d", surah) + ".mp3"
             )
         }
     }
