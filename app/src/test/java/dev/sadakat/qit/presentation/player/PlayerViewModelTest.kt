@@ -78,6 +78,25 @@ class PlayerViewModelTest {
     }
 
     @Test
+    fun `the same error shows again when it happens again after being dismissed`() = runTest {
+        // Found on a Pixel 7: the player's messages are fixed strings, so remembering the dismissed
+        // text hid every later occurrence of the same failure.
+        val viewModel = viewModel()
+        viewModel.uiState.test {
+            player.error.value = "Network gone"
+            awaitWhere { it.error == "Network gone" }
+            viewModel.consumeError()
+            awaitWhere { it.error == null }
+
+            player.error.value = null // the player clears its error when playback is retried
+            player.error.value = "Network gone"
+            assertEquals("Network gone", awaitWhere { it.error == "Network gone" }.error)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `falls back when surah names are unavailable`() = runTest {
         quranText.failure = IllegalStateException("disk on fire")
         val viewModel = viewModel()

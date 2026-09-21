@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class PlayerBarUiState(
@@ -25,10 +26,16 @@ data class PlayerBarUiState(
 @HiltViewModel
 class PlayerViewModel @Inject constructor(private val player: QuranPlayer, quranText: QuranText) : ViewModel() {
 
+    // The error the user dismissed; hidden until the player clears it (a retry) or reports another.
+    private val dismissedError = MutableStateFlow<String?>(null)
+
     init {
         // Rebuild the queue from the last session, paused, so the player bar reappears where
         // playback left off (a no-op when something is already queued).
         player.restoreLast(playWhenReady = false)
+        // The player clears its error when playback is retried; forget the dismissal then, so the
+        // same failure happening again is shown again (the messages are fixed strings).
+        viewModelScope.launch { player.error.collect { if (it == null) dismissedError.value = null } }
     }
 
     private val surahNames = flow {
@@ -37,9 +44,6 @@ class PlayerViewModel @Inject constructor(private val player: QuranPlayer, quran
         // Names are cosmetic; the bar falls back to "Surah N".
         emit(emptyMap())
     }
-
-    // The last error the user dismissed; suppresses it until a new one arrives.
-    private val dismissedError = MutableStateFlow<String?>(null)
 
     val uiState: StateFlow<PlayerBarUiState> = combine(
         player.nowPlaying,

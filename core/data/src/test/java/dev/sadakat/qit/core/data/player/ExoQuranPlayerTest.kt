@@ -300,6 +300,18 @@ class ExoQuranPlayerTest {
     }
 
     @Test
+    fun `retrying with play-pause after an error clears it so a repeat failure is reported again`() {
+        val failing = newPlayer(FailingOnceMediaSourceFactory())
+        val failingPlayer = ExoQuranPlayer(context, failing, text, settings, CoroutineScope(Dispatchers.Main))
+        failingPlayer.play(2, fromAyah = 1, mode = RecitationMode.ARABIC_ONLY)
+        runUntil(failing) { failingPlayer.error.value != null }
+
+        failingPlayer.togglePlayPause()
+
+        assertNull(failingPlayer.error.value)
+    }
+
+    @Test
     fun `network io errors ask to check the connection or download the surah`() {
         val expected = "Can't reach the audio. Check your connection or download this surah."
         assertEquals(expected, ExoQuranPlayer.errorMessage(PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED))

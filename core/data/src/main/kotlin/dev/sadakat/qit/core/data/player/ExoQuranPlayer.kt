@@ -99,7 +99,9 @@ class ExoQuranPlayer(
         val idleWithQueue = exoPlayer.playbackState == Player.STATE_IDLE && exoPlayer.mediaItemCount > 0
         val endedWithQueue = exoPlayer.playbackState == Player.STATE_ENDED && exoPlayer.mediaItemCount > 0
         if (idleWithQueue) {
-            // After an error the player sits idle with the queue intact; prepare() re-arms it.
+            // After an error the player sits idle with the queue intact; prepare() re-arms it. This is
+            // a retry, so the old error goes: a repeat failure must be reported as a new one.
+            _error.value = null
             exoPlayer.prepare()
         } else if (endedWithQueue) {
             // play() alone never leaves STATE_ENDED, so a finished surah would not replay;
