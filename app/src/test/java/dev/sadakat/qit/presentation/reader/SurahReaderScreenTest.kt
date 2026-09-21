@@ -10,7 +10,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.sadakat.qit.core.testing.TestQuran
-import dev.sadakat.qit.ui.theme.QItTheme
+import dev.sadakat.qit.ui.theme.QItAppTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -36,7 +36,7 @@ class SurahReaderScreenTest {
 
     private fun setContent(state: SurahReaderUiState) {
         composeRule.setContent {
-            QItTheme {
+            QItAppTheme {
                 SurahReaderScreen(
                     state = state,
                     onBack = {},

@@ -11,7 +11,7 @@ import dev.sadakat.qit.R
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.player.NowPlaying
-import dev.sadakat.qit.ui.theme.QItTheme
+import dev.sadakat.qit.ui.theme.QItAppTheme
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -34,7 +34,7 @@ class PlayerBarTest {
 
     private fun setContent(state: PlayerBarUiState) {
         composeRule.setContent {
-            QItTheme {
+            QItAppTheme {
                 PlayerBar(
                     state = state,
                     onOpenReader = { surah, ayah -> opened = surah to ayah },

@@ -1,5 +1,7 @@
 package dev.sadakat.qit.presentation.reader
 
+// qit:legacy-ui — predates the design tokens; its UX slice replaces it.
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -63,6 +65,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sadakat.qit.R
+import dev.sadakat.qit.core.designsystem.type.QItFonts
 import dev.sadakat.qit.core.domain.model.Ayah
 import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.RecitationMode
@@ -70,7 +73,6 @@ import dev.sadakat.qit.core.domain.model.Surah
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState
 import dev.sadakat.qit.presentation.components.NumberBadge
-import dev.sadakat.qit.ui.theme.AmiriQuran
 
 /** Semantics flag marking the ayah that is currently playing. */
 val AyahIsPlaying = SemanticsPropertyKey<Boolean>("AyahIsPlaying")
@@ -78,9 +80,11 @@ val AyahIsPlaying = SemanticsPropertyKey<Boolean>("AyahIsPlaying")
 var SemanticsPropertyReceiver.ayahIsPlaying by AyahIsPlaying
 
 /** Connects [SurahReaderScreen] to its [SurahReaderViewModel]. */
+@Suppress("UnusedParameter") // onOpenReadingSettings: the contract the reader slice wires to its "Aa" action.
 @Composable
 fun SurahReaderRoute(
     onBack: () -> Unit,
+    onOpenReadingSettings: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SurahReaderViewModel = hiltViewModel(),
 ) {
@@ -345,7 +349,7 @@ private fun ReaderHeader(surah: Surah, onPlaySurah: () -> Unit) {
         if (QuranMeta.hasBasmalaPrefix(surah.number)) {
             Text(
                 text = stringResource(R.string.basmala),
-                fontFamily = AmiriQuran,
+                fontFamily = QItFonts.AmiriQuran,
                 fontSize = 22.sp,
                 lineHeight = 36.sp,
                 modifier = Modifier
@@ -379,7 +383,7 @@ private fun AyahRow(ayah: Ayah, translationTrack: Track?, isPlaying: Boolean, on
         }
         Text(
             text = ayah.arabic,
-            fontFamily = AmiriQuran,
+            fontFamily = QItFonts.AmiriQuran,
             fontSize = 26.sp,
             lineHeight = 46.sp,
             textAlign = TextAlign.End,

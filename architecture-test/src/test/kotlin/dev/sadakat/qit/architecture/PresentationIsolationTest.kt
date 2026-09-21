@@ -27,4 +27,24 @@ class PresentationIsolationTest {
                 violations.joinToString("\n")
         }
     }
+
+    @Test
+    fun `presentation files never talk to Media3 directly`() {
+        // Media3's own UI state holders bind to its Player and would bypass QuranPlayer: no ayah-wise
+        // next/previous, no repeat, and nothing a fake can drive in tests.
+        val violations = Konsist
+            .scopeFromProject()
+            .files
+            .filter { "/build/" !in it.path }
+            .filter { it.packagee?.name?.contains(".presentation") == true }
+            .flatMap { file ->
+                file.imports
+                    .filter { it.name.startsWith("androidx.media3.") }
+                    .map { "${file.path}: forbidden import ${it.name}" }
+            }
+
+        assert(violations.isEmpty()) {
+            "Presentation code must drive playback through QuranPlayer, not Media3:\n" + violations.joinToString("\n")
+        }
+    }
 }

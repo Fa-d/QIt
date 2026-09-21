@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shared by several screens -->
+    <string name="app_name">QIt</string>
+    <plurals name="ayah_count">
+        <item quantity="one">%d ayah</item>
+        <item quantity="other">%d ayahs</item>
+    </plurals>
+    <string name="revelation_meccan">Meccan</string>
+    <string name="revelation_medinan">Medinan</string>
+    <string name="ayah_title">%1$s %2$d:%3$d</string>
+    <string name="bismillah_title">%1$s · Bismillah</string>
+    <string name="surah_fallback_name">Surah %1$d</string>
+    <string name="load_error">Couldn\'t load the Quran text.</string>
+    <string name="basmala">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</string>
+    <string name="cd_back">Back</string>
+    <string name="cd_download">Download</string>
+    <string name="cd_downloading">Downloading</string>
+    <string name="cd_downloaded">Downloaded</string>
+    <string name="cd_download_failed">Download failed</string>
+    <string name="cd_play">Play</string>
+    <string name="cd_pause">Pause</string>
+    <string name="cd_previous_ayah">Previous ayah</string>
+    <string name="cd_next_ayah">Next ayah</string>
+    <string name="cd_buffering">Buffering</string>
+    <string name="remove">Remove</string>
+    <string name="cancel">Cancel</string>
+</resources>

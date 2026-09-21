@@ -16,7 +16,11 @@ import dev.sadakat.qit.core.domain.audio.QueuePlan
 import dev.sadakat.qit.core.domain.model.AyahRef
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.player.NowPlaying
+import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.player.QuranPlayer
+import dev.sadakat.qit.core.domain.player.RepeatSetting
+import dev.sadakat.qit.core.domain.player.SleepOption
+import dev.sadakat.qit.core.domain.player.SleepTimerStatus
 import dev.sadakat.qit.core.domain.repository.LastPosition
 import dev.sadakat.qit.core.domain.repository.QuranSettings
 import dev.sadakat.qit.core.domain.repository.QuranText
@@ -48,6 +52,12 @@ class ExoQuranPlayer(
 
     private val _error = MutableStateFlow<String?>(null)
     override val error: StateFlow<String?> = _error.asStateFlow()
+
+    private val _sleepTimer = MutableStateFlow<SleepTimerStatus>(SleepTimerStatus.Off)
+    override val sleepTimer: StateFlow<SleepTimerStatus> = _sleepTimer.asStateFlow()
+
+    private var speed: PlaybackSpeed = PlaybackSpeed.X1
+    private var repeat: RepeatSetting = RepeatSetting.Off
 
     /** Mode of the queued surah; the mode in [NowPlaying] comes from here, not from the items. */
     private var mode: RecitationMode = RecitationMode.ARABIC_BANGLA
@@ -84,9 +94,11 @@ class ExoQuranPlayer(
     /** Replaces the queue with [surah] in [mode] and starts at [fromAyah] (0 = basmala). */
     override fun play(surah: Int, fromAyah: Int, mode: RecitationMode) {
         _error.value = null
+        repeat = RepeatSetting.Off
         scope.launch {
             this@ExoQuranPlayer.mode = mode
             savedPosition = null
+            applySpeed(settings.playbackSpeed.first())
             val items = QuranMediaItems.build(quranText.surah(surah), mode)
             exoPlayer.setMediaItems(items, QueuePlan.indexOfAyah(ids(items), fromAyah), 0)
             exoPlayer.prepare()
@@ -141,6 +153,7 @@ class ExoQuranPlayer(
             if (exoPlayer.mediaItemCount > 0) return@launch
             mode = last.mode
             savedPosition = AyahRef(last.ref.surah, max(last.ref.ayah, 1))
+            applySpeed(settings.playbackSpeed.first())
             val items = QuranMediaItems.build(quranText.surah(last.ref.surah), last.mode)
             exoPlayer.setMediaItems(items, QueuePlan.indexOfAyah(ids(items), last.ref.ayah), 0)
             exoPlayer.prepare()
@@ -150,6 +163,34 @@ class ExoQuranPlayer(
                 startPlaybackService()
             }
         }
+    }
+
+    override fun setRepeat(repeat: RepeatSetting) {
+        this.repeat = repeat
+        publish()
+    }
+
+    override fun setSpeed(speed: PlaybackSpeed) {
+        applySpeed(speed)
+        scope.launch { settings.setPlaybackSpeed(speed) }
+    }
+
+    override fun startSleepTimer(option: SleepOption) {
+        _sleepTimer.value = when (option) {
+            is SleepOption.Minutes -> SleepTimerStatus.Counting(option.minutes * MS_PER_MINUTE)
+            SleepOption.EndOfSurah -> SleepTimerStatus.EndOfSurah
+        }
+    }
+
+    override fun cancelSleepTimer() {
+        _sleepTimer.value = SleepTimerStatus.Off
+    }
+
+    /** Sets the playback speed; ExoPlayer keeps the pitch natural. */
+    private fun applySpeed(speed: PlaybackSpeed) {
+        this.speed = speed
+        exoPlayer.setPlaybackSpeed(speed.factor)
+        publish()
     }
 
     /** Updates [nowPlaying] (and the saved position) from the player's current item and state. */
@@ -166,6 +207,8 @@ class ExoQuranPlayer(
             mode = mode,
             isPlaying = exoPlayer.isPlaying,
             isBuffering = exoPlayer.playbackState == Player.STATE_BUFFERING,
+            speed = speed,
+            repeat = repeat,
         )
         savePosition(id)
     }
@@ -221,6 +264,7 @@ class ExoQuranPlayer(
     companion object {
         private const val TAG = "ExoQuranPlayer"
         private const val ACTION_MEDIA_SESSION_SERVICE = "androidx.media3.session.MediaSessionService"
+        private const val MS_PER_MINUTE = 60_000L
 
         /** What to tell the user about [errorCode]; internal so the mapping can be tested. */
         internal fun errorMessage(errorCode: Int): String = when (errorCode) {

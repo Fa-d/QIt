@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kover)
+    alias(libs.plugins.roborazzi)
 }
 
 android {
@@ -50,38 +51,13 @@ hilt {
     enableAggregatingTask = false
 }
 
-kover {
-    currentProject {
-        instrumentation {
-            // Coverage is measured on the debug variant only; release unit tests stay uninstrumented
-            // so the aggregated root report never needs them.
-            disabledForTestTasks.addAll("testReleaseUnitTest")
-        }
-    }
-    reports {
-        filters {
-            excludes {
-                androidGeneratedClasses()
-                classes(
-                    "*_Factory*",
-                    "*_MembersInjector",
-                    "Hilt_*",
-                    "*_HiltModules*",
-                    "*.di.*",
-                    "*.BuildConfig",
-                    "*.R",
-                    "*.R$*",
-                    "*ComposableSingletons*",
-                )
-                packages("hilt_aggregated_deps", "dagger")
-                annotatedBy("androidx.compose.ui.tooling.preview.Preview")
-            }
-        }
-    }
+roborazzi {
+    outputDir.set(file("src/test/screenshots"))
 }
 
 dependencies {
     implementation(project(":core:data"))
+    implementation(project(":core:designsystem"))
 
     // Kotlin Serialization
     implementation(libs.kotlinx.serialization.json)
@@ -91,15 +67,24 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 
-    // Wear Compose
+    // Wear Compose (Material 3; the legacy Material library goes once every screen has moved)
+    implementation(libs.wear.compose.material3)
     implementation(libs.wear.compose.material)
     implementation(libs.wear.compose.foundation)
     implementation(libs.wear.compose.navigation)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
-    implementation("androidx.compose.material:material-icons-core")
-    implementation("androidx.compose.material:material-icons-extended")
+    implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+
+    // Tile (protolayout, Material 3 tile layouts)
+    implementation(libs.wear.tiles)
+    implementation(libs.wear.protolayout)
+    implementation(libs.wear.protolayout.expression)
+    implementation(libs.wear.protolayout.material3)
+    debugImplementation(libs.wear.tiles.renderer)
+    debugImplementation(libs.wear.tiles.tooling.preview)
 
     // Wearable Data Layer
     implementation(libs.play.services.wearable)
@@ -132,6 +117,11 @@ dependencies {
     testImplementation(libs.media3.test.utils.robolectric)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.wear.tiles.testing)
+    // Screenshot tests (goldens in src/test/screenshots) with accessibility checks
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.accessibility.check)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)

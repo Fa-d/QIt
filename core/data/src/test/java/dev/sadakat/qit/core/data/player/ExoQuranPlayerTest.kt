@@ -23,6 +23,8 @@ import dev.sadakat.qit.core.domain.model.AyahRef
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.player.NowPlaying
+import dev.sadakat.qit.core.domain.player.PlaybackSpeed
+import dev.sadakat.qit.core.domain.player.RepeatSetting
 import dev.sadakat.qit.core.domain.repository.LastPosition
 import dev.sadakat.qit.core.testing.FakeQuranSettings
 import dev.sadakat.qit.core.testing.FakeQuranText
@@ -95,6 +97,43 @@ class ExoQuranPlayerTest {
         )
         assertEquals(255, exoPlayer.currentMediaItemIndex)
         assertEquals("2:255:ar", exoPlayer.currentMediaItem?.mediaId)
+    }
+
+    @Test
+    fun `play applies the remembered speed`() {
+        settings.playbackSpeed.value = PlaybackSpeed.X1_25
+
+        player.play(2, fromAyah = 1, mode = RecitationMode.ARABIC_ONLY)
+        runMainLooperUntil { player.nowPlaying.value?.isPlaying == true }
+
+        assertEquals(1.25f, exoPlayer.playbackParameters.speed)
+        assertEquals(PlaybackSpeed.X1_25, nowPlaying().speed)
+    }
+
+    @Test
+    fun `setSpeed changes the speed now and remembers it`() {
+        player.play(2, fromAyah = 1, mode = RecitationMode.ARABIC_ONLY)
+        runMainLooperUntil { player.nowPlaying.value?.isPlaying == true }
+
+        player.setSpeed(PlaybackSpeed.X1_5)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(1.5f, exoPlayer.playbackParameters.speed)
+        assertEquals(PlaybackSpeed.X1_5, nowPlaying().speed)
+        assertEquals(PlaybackSpeed.X1_5, settings.playbackSpeed.value)
+    }
+
+    @Test
+    fun `a repeat is published and a new surah starts without it`() {
+        player.play(2, fromAyah = 1, mode = RecitationMode.ARABIC_ONLY)
+        runMainLooperUntil { player.nowPlaying.value?.isPlaying == true }
+
+        player.setRepeat(RepeatSetting.Ayah(times = 3))
+        assertEquals(RepeatSetting.Ayah(times = 3), nowPlaying().repeat)
+
+        player.play(3, fromAyah = 1, mode = RecitationMode.ARABIC_ONLY)
+        runMainLooperUntil { player.nowPlaying.value?.surah == 3 }
+        assertEquals(RepeatSetting.Off, nowPlaying().repeat)
     }
 
     @Test

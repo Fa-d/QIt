@@ -1,5 +1,7 @@
 package dev.sadakat.qit.wear.presentation
 
+// qit:legacy-ui — predates the design tokens; its UX slice replaces it.
+
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType

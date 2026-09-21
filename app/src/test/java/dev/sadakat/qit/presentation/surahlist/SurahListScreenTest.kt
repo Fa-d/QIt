@@ -12,7 +12,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.sadakat.qit.core.testing.TestQuran
-import dev.sadakat.qit.ui.theme.QItTheme
+import dev.sadakat.qit.ui.theme.QItAppTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -31,7 +31,7 @@ class SurahListScreenTest {
     @Test
     fun `shows the surah rows`() {
         composeRule.setContent {
-            QItTheme {
+            QItAppTheme {
                 SurahListScreen(
                     state = SurahListUiState(surahs = surahs),
                     onSearchQueryChange = {},
@@ -49,7 +49,7 @@ class SurahListScreenTest {
     fun `typing in the search field reports the query and the rows follow the state`() {
         var query = ""
         composeRule.setContent {
-            QItTheme {
+            QItAppTheme {
                 // Hoisted query, like the route does through the ViewModel.
                 var shownQuery by remember { mutableStateOf("") }
                 SurahListScreen(
@@ -76,7 +76,7 @@ class SurahListScreenTest {
     fun `tapping a row opens that surah`() {
         var opened = 0
         composeRule.setContent {
-            QItTheme {
+            QItAppTheme {
                 SurahListScreen(
                     state = SurahListUiState(surahs = surahs),
                     onSearchQueryChange = {},
@@ -93,7 +93,7 @@ class SurahListScreenTest {
     fun `tapping the continue listening card resumes that ayah`() {
         var resumed: Pair<Int, Int>? = null
         composeRule.setContent {
-            QItTheme {
+            QItAppTheme {
                 SurahListScreen(
                     state = SurahListUiState(
                         surahs = surahs,
@@ -113,7 +113,7 @@ class SurahListScreenTest {
     @Test
     fun `shows the error state when the text failed to load`() {
         composeRule.setContent {
-            QItTheme {
+            QItAppTheme {
                 SurahListScreen(
                     state = SurahListUiState(loadFailed = true),
                     onSearchQueryChange = {},

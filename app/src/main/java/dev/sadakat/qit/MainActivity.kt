@@ -11,7 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
 import dev.sadakat.qit.presentation.QuranApp
-import dev.sadakat.qit.ui.theme.QItTheme
+import dev.sadakat.qit.ui.theme.QItAppTheme
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            QItTheme {
+            QItAppTheme {
                 QuranApp()
             }
         }

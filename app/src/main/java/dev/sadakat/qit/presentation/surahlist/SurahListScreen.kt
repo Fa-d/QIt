@@ -1,5 +1,7 @@
 package dev.sadakat.qit.presentation.surahlist
 
+// qit:legacy-ui — predates the design tokens; its UX slice replaces it.
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,12 +40,13 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sadakat.qit.R
+import dev.sadakat.qit.core.designsystem.type.QItFonts
 import dev.sadakat.qit.core.domain.model.Revelation
 import dev.sadakat.qit.core.domain.model.Surah
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState
+import dev.sadakat.qit.presentation.components.DownloadIndicator
 import dev.sadakat.qit.presentation.components.NumberBadge
 import dev.sadakat.qit.presentation.components.ayahTitleText
-import dev.sadakat.qit.ui.theme.AmiriQuran
 
 /** Connects [SurahListScreen] to its [SurahListViewModel]. */
 @Composable
@@ -193,42 +196,11 @@ private fun SurahRow(surah: Surah, downloadState: SurahDownloadState, onClick: (
         Spacer(Modifier.width(8.dp))
         Text(
             text = surah.nameArabic,
-            fontFamily = AmiriQuran,
+            fontFamily = QItFonts.AmiriQuran,
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.width(8.dp))
         DownloadIndicator(state = downloadState)
-    }
-}
-
-/** Compact download state indicator for surah rows. */
-@Composable
-fun DownloadIndicator(state: SurahDownloadState, modifier: Modifier = Modifier) {
-    val downloadingText = stringResource(R.string.cd_downloading)
-    when (state) {
-        is SurahDownloadState.Downloaded -> Icon(
-            imageVector = Icons.Rounded.CheckCircle,
-            contentDescription = stringResource(R.string.cd_downloaded),
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = modifier.size(20.dp),
-        )
-
-        is SurahDownloadState.Downloading -> CircularProgressIndicator(
-            progress = { state.progress },
-            strokeWidth = 2.dp,
-            modifier = modifier
-                .size(20.dp)
-                .semantics { contentDescription = downloadingText },
-        )
-
-        is SurahDownloadState.Failed -> Icon(
-            imageVector = Icons.Rounded.ErrorOutline,
-            contentDescription = stringResource(R.string.cd_download_failed),
-            tint = MaterialTheme.colorScheme.error,
-            modifier = modifier.size(20.dp),
-        )
-
-        is SurahDownloadState.NotDownloaded -> Unit
     }
 }

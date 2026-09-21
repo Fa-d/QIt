@@ -53,4 +53,43 @@ class QuranMetaTest {
             (1..QuranMeta.SURAH_COUNT).count { QuranMeta.hasBasmalaPrefix(it) },
         )
     }
+
+    @Test
+    fun `the thirty juz start where printed mushafs start them`() {
+        assertEquals(AyahRef(1, 1), QuranMeta.juzStart(1))
+        assertEquals(AyahRef(2, 142), QuranMeta.juzStart(2))
+        assertEquals(AyahRef(15, 1), QuranMeta.juzStart(14))
+        assertEquals(AyahRef(67, 1), QuranMeta.juzStart(29))
+        assertEquals(AyahRef(78, 1), QuranMeta.juzStart(30))
+    }
+
+    @Test
+    fun `juz starts run strictly forward through the Quran`() {
+        val globals = (1..QuranMeta.JUZ_COUNT).map {
+            QuranMeta.juzStart(it).let { ref -> QuranMeta.globalAyah(ref.surah, ref.ayah) }
+        }
+        assertEquals(globals.sorted().distinct(), globals)
+    }
+
+    @Test
+    fun `an ayah belongs to the last juz starting at or before it`() {
+        assertEquals(1, QuranMeta.juzOf(1, 1))
+        assertEquals(1, QuranMeta.juzOf(2, 141))
+        assertEquals(2, QuranMeta.juzOf(2, 142))
+        assertEquals(3, QuranMeta.juzOf(2, 255))
+        assertEquals(30, QuranMeta.juzOf(114, 6))
+        assertEquals(30, QuranMeta.juzOf(78, 1))
+        assertEquals(29, QuranMeta.juzOf(77, 50))
+    }
+
+    @Test
+    fun `a surah's basmala belongs to the juz of its first ayah`() {
+        assertEquals(QuranMeta.juzOf(18, 1), QuranMeta.juzOf(18, 0))
+    }
+
+    @Test
+    fun `an invalid juz throws`() {
+        assertThrows(IllegalArgumentException::class.java) { QuranMeta.juzStart(0) }
+        assertThrows(IllegalArgumentException::class.java) { QuranMeta.juzStart(31) }
+    }
 }

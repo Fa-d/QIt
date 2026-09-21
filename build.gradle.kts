@@ -1,6 +1,9 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 import com.diffplug.gradle.spotless.SpotlessExtension
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
+import kotlinx.kover.gradle.plugin.dsl.CoverageUnit
+import kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension
+import kotlinx.kover.gradle.plugin.dsl.KoverReportFiltersConfig
 
 plugins {
     alias(libs.plugins.android.application) apply false
@@ -11,6 +14,7 @@ plugins {
     alias(libs.plugins.spotless) apply false
     alias(libs.plugins.detekt) apply false
     alias(libs.plugins.kover)
+    alias(libs.plugins.roborazzi) apply false
 }
 
 subprojects {
@@ -57,6 +61,73 @@ subprojects {
     tasks.withType<Test>().configureEach {
         jvmArgs("--add-opens=java.base/jdk.internal.access=ALL-UNNAMED")
     }
+
+    // One coverage setup for every module that measures coverage: the same exclusions everywhere
+    // (so a module's own report and the aggregate agree), debug variant only, and the module's floors.
+    plugins.withId("org.jetbrains.kotlinx.kover") {
+        configure<KoverProjectExtension> {
+            currentProject {
+                instrumentation {
+                    // Release unit tests stay uninstrumented, so no report ever needs them.
+                    disabledForTestTasks.add("testReleaseUnitTest")
+                }
+            }
+            reports {
+                filters { excludeGeneratedAndGlue() }
+                verify {
+                    coverageFloors[path]?.let { floor ->
+                        rule("$path line coverage") { minBound(floor.lines, CoverageUnit.LINE) }
+                        rule("$path branch coverage") { minBound(floor.branches, CoverageUnit.BRANCH) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Minimum coverage (%) a module must keep; checked by `qualityGate`. Floors sit a little under the
+ * measured values so a change can't quietly drop coverage; raise them as tests grow. The UI modules'
+ * branch numbers include the Compose compiler's generated recomposition branches, hence lower floors.
+ */
+data class CoverageFloor(val lines: Int, val branches: Int)
+
+val coverageFloors = mapOf(
+    ":core:domain" to CoverageFloor(lines = 94, branches = 90),
+    ":core:data" to CoverageFloor(lines = 89, branches = 75),
+    ":core:designsystem" to CoverageFloor(lines = 94, branches = 45),
+    ":app" to CoverageFloor(lines = 71, branches = 44),
+    ":wear" to CoverageFloor(lines = 78, branches = 45),
+)
+
+/** Generated code, DI wiring and Android entry points: nothing of ours to unit-test. */
+fun KoverReportFiltersConfig.excludeGeneratedAndGlue() {
+    excludes {
+        androidGeneratedClasses()
+        classes(
+            "*_Factory*",
+            "*_MembersInjector",
+            "*.Hilt_*",
+            "Hilt_*",
+            "*.Dagger*",
+            "*_HiltModules*",
+            "*_ComponentTreeDeps*",
+            "*_GeneratedInjector",
+            "*.di.*",
+            "*.BuildConfig",
+            "*.R",
+            "*.R$*",
+            "*ComposableSingletons*",
+        )
+        packages("hilt_aggregated_deps", "dagger")
+        annotatedBy("androidx.compose.ui.tooling.preview.Preview")
+        // Thin system glue, exercised on devices rather than by unit tests.
+        inheritedFrom(
+            "android.app.Activity",
+            "android.app.Service",
+            "android.app.Application",
+        )
+    }
 }
 
 // Aggregated coverage across the code-carrying modules. The Android modules disable Kover
@@ -65,46 +136,19 @@ subprojects {
 dependencies {
     kover(project(":core:domain"))
     kover(project(":core:data"))
+    kover(project(":core:designsystem"))
     kover(project(":app"))
     kover(project(":wear"))
 }
 
 kover {
     reports {
-        // The aggregated report doesn't inherit the modules' filters, so the gate's exclusions live here.
-        filters {
-            excludes {
-                androidGeneratedClasses()
-                // Generated code (Hilt/Dagger/Compose) and DI wiring: nothing of ours to test.
-                classes(
-                    "*_Factory*",
-                    "*_MembersInjector",
-                    "*.Hilt_*",
-                    "*.Dagger*",
-                    "*_HiltModules*",
-                    "*_ComponentTreeDeps*",
-                    "*_GeneratedInjector",
-                    "*.di.*",
-                    "*.BuildConfig",
-                    "*.R",
-                    "*.R$*",
-                    "*ComposableSingletons*",
-                )
-                packages("hilt_aggregated_deps", "dagger")
-                annotatedBy("androidx.compose.ui.tooling.preview.Preview")
-                // Android entry points are thin system glue, exercised on devices rather than by unit tests.
-                inheritedFrom(
-                    "android.app.Activity",
-                    "android.app.Service",
-                    "android.app.Application",
-                )
-            }
-        }
+        // The aggregated report doesn't inherit the modules' filters.
+        filters { excludeGeneratedAndGlue() }
         total {
             verify {
-                rule("aggregate line coverage") {
-                    bound { minValue = 70 }
-                }
+                rule("aggregate line coverage") { minBound(83, CoverageUnit.LINE) }
+                rule("aggregate branch coverage") { minBound(58, CoverageUnit.BRANCH) }
             }
         }
     }
@@ -125,13 +169,20 @@ tasks.register("qualityGate") {
         ":app:lintDebug",
         ":wear:lintDebug",
         ":core:data:lintDebug",
-        // Unit tests (debug variant only for the Android modules).
+        ":core:designsystem:lintDebug",
+        // Unit tests, including screenshot verification (debug variant only for the Android modules).
         ":core:domain:test",
         ":core:data:testDebugUnitTest",
+        ":core:designsystem:testDebugUnitTest",
         ":app:testDebugUnitTest",
         ":wear:testDebugUnitTest",
         ":architecture-test:test",
-        // Root Kover verification (aggregated 70% + rules configured above).
+        // Coverage: every module's own floors, then the aggregate.
+        ":core:domain:koverVerify",
+        ":core:data:koverVerifyDebug",
+        ":core:designsystem:koverVerifyDebug",
+        ":app:koverVerifyDebug",
+        ":wear:koverVerifyDebug",
         ":koverVerify",
     )
 }

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Reader -->
+    <string name="cd_remove_download">Remove download</string>
+    <string name="cd_send_to_watch">Send to watch</string>
+    <string name="cd_recitation_mode">Recitation mode</string>
+    <string name="play_surah">Play surah</string>
+    <string name="remove_download_title">Remove download?</string>
+    <string name="remove_download_text">Remove the downloaded audio of %1$s from this phone.</string>
+    <plurals name="sent_to_watch">
+        <item quantity="one">Sent to %d watch</item>
+        <item quantity="other">Sent to %d watches</item>
+    </plurals>
+    <string name="no_watch_found">No watch with QIt found</string>
+</resources>

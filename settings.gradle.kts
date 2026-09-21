@@ -20,6 +20,7 @@ rootProject.name = "QIt"
 include(":app")
 include(":wear")
 include(":core:domain")
+include(":core:designsystem")
 include(":core:data")
 include(":core:testing")
 include(":architecture-test")

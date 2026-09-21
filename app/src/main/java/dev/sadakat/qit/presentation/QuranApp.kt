@@ -79,7 +79,7 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
                 route = QuranDestinations.SURAH_READER_PATTERN,
                 arguments = QuranDestinations.surahReaderArguments,
             ) {
-                SurahReaderRoute(onBack = { navController.popBackStack() })
+                SurahReaderRoute(onBack = { navController.popBackStack() }, onOpenReadingSettings = {})
             }
         }
     }

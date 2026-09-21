@@ -1,5 +1,7 @@
 package dev.sadakat.qit.wear.presentation.surah
 
+// qit:legacy-ui — predates the design tokens; its UX slice replaces it.
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize

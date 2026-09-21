@@ -17,17 +17,6 @@ kotlin {
     }
 }
 
-kover {
-    reports {
-        // The domain is pure logic with fast JVM tests: it must stay almost fully covered.
-        verify {
-            rule("domain line coverage") {
-                minBound(90)
-            }
-        }
-    }
-}
-
 dependencies {
     api(libs.kotlinx.coroutines.core)
 

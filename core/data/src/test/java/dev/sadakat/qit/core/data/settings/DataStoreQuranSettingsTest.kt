@@ -3,8 +3,12 @@ package dev.sadakat.qit.core.data.settings
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import dev.sadakat.qit.core.domain.model.ArabicTextSize
 import dev.sadakat.qit.core.domain.model.AyahRef
+import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.RecitationMode
+import dev.sadakat.qit.core.domain.model.ThemeMode
+import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.repository.LastPosition
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -55,5 +59,37 @@ class DataStoreQuranSettingsTest {
         settings.setMode(RecitationMode.ARABIC_ONLY)
 
         assertEquals(RecitationMode.ARABIC_ONLY, settings.mode.first())
+    }
+
+    @Test
+    fun `playbackSpeed defaults to normal speed`() = runTest {
+        assertEquals(PlaybackSpeed.X1, settings.playbackSpeed.first())
+    }
+
+    @Test
+    fun `readingPrefs default to the comfortable middle`() = runTest {
+        assertEquals(ReadingPrefs(), settings.readingPrefs.first())
+    }
+
+    @Test
+    fun `setPlaybackSpeed round trips the chosen speed`() = runTest {
+        settings.setPlaybackSpeed(PlaybackSpeed.X1_25)
+
+        assertEquals(PlaybackSpeed.X1_25, settings.playbackSpeed.first())
+    }
+
+    @Test
+    fun `updateReadingPrefs round trips every field and builds on the stored prefs`() = runTest {
+        val changed = ReadingPrefs(
+            arabicTextSize = ArabicTextSize.XLARGE,
+            showTranslation = false,
+            followAlong = false,
+            themeMode = ThemeMode.DARK,
+            dynamicColor = true,
+        )
+        settings.updateReadingPrefs { changed }
+        settings.updateReadingPrefs { it.copy(showTranslation = true) }
+
+        assertEquals(changed.copy(showTranslation = true), settings.readingPrefs.first())
     }
 }

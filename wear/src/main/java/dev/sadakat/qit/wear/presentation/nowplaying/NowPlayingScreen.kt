@@ -1,5 +1,7 @@
 package dev.sadakat.qit.wear.presentation.nowplaying
 
+// qit:legacy-ui — predates the design tokens; its UX slice replaces it.
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,14 +19,11 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -36,6 +35,7 @@ import androidx.wear.compose.material.Icon
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.TimeText
+import dev.sadakat.qit.core.designsystem.type.QItFonts
 import dev.sadakat.qit.wear.R
 
 @Composable
@@ -59,7 +59,7 @@ fun NowPlayingScreen(
     modifier: Modifier = Modifier,
 ) {
     // Amiri carries the vowel marks of the Uthmani script properly.
-    val arabicFont = remember { FontFamily(Font(R.font.amiri_quran)) }
+    val arabicFont = QItFonts.AmiriQuran
     val previousDescription = stringResource(R.string.previous_ayah)
     val playPauseDescription = stringResource(R.string.play_pause)
     val pauseDescription = stringResource(R.string.pause)

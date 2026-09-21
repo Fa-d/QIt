@@ -27,10 +27,13 @@ naming:
 style:
   MagicNumber:
     ignorePropertyDeclaration: true
+    ignoreEnums: true
     ignoreAnnotated: ['Composable', 'Preview']
     excludes:
       - '**/test/**'
       - '**/androidTest/**'
+      # Design tokens are the named numbers everything else refers to.
+      - '**/core/designsystem/src/main/**'
   ForbiddenComment:
     # Leftover TODO:/FIXME:/STOPSHIP: comments must not ship.
     active: true

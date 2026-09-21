@@ -7,6 +7,7 @@ package dev.sadakat.qit.core.domain.model
 object QuranMeta {
     const val SURAH_COUNT = 114
     const val TOTAL_AYAHS = 6236
+    const val JUZ_COUNT = 30
     private const val AL_FATIHA = 1
     private const val AT_TAWBAH = 9
 
@@ -39,4 +40,28 @@ object QuranMeta {
 
     /** Every surah except Al-Fatiha (whose verse 1 is the basmala) and At-Tawbah opens with a basmala. */
     fun hasBasmalaPrefix(surah: Int): Boolean = surah != AL_FATIHA && surah != AT_TAWBAH
+
+    /** Where each of the 30 juz (the Quran's thirty equal-length parts) begins, as `surah, ayah` pairs. */
+    private val JUZ_STARTS = intArrayOf(
+        1, 1, 2, 142, 2, 253, 3, 93, 4, 24, 4, 148, 5, 82, 6, 111, 7, 88, 8, 41,
+        9, 93, 11, 6, 12, 53, 15, 1, 17, 1, 18, 75, 21, 1, 23, 1, 25, 21, 27, 56,
+        29, 46, 33, 31, 36, 28, 39, 32, 41, 47, 46, 1, 51, 31, 58, 1, 67, 1, 78, 1,
+    )
+
+    /** Global ayah number of each juz's first ayah, indexed by juz - 1. */
+    private val JUZ_FIRST_GLOBAL = IntArray(JUZ_COUNT) { globalAyah(JUZ_STARTS[it * 2], JUZ_STARTS[it * 2 + 1]) }
+
+    /** The first ayah of [juz] (1..30). */
+    fun juzStart(juz: Int): AyahRef {
+        require(juz in 1..JUZ_COUNT) { "Invalid juz $juz" }
+        return AyahRef(JUZ_STARTS[(juz - 1) * 2], JUZ_STARTS[(juz - 1) * 2 + 1])
+    }
+
+    /** The juz [surah]:[ayah] belongs to; ayah 0 (a surah's basmala) counts as the surah's first ayah. */
+    fun juzOf(surah: Int, ayah: Int): Int {
+        val global = globalAyah(surah, ayah.coerceAtLeast(1))
+        // Index of the last juz starting at or before the ayah.
+        val found = JUZ_FIRST_GLOBAL.binarySearch(global)
+        return if (found >= 0) found + 1 else -(found + 1)
+    }
 }

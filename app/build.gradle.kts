@@ -1,9 +1,11 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kover)
+    alias(libs.plugins.roborazzi)
 }
 
 android {
@@ -52,38 +54,13 @@ hilt {
     enableAggregatingTask = false
 }
 
-kover {
-    currentProject {
-        instrumentation {
-            // Coverage is measured on the debug variant only; release unit tests stay uninstrumented
-            // so the aggregated root report never needs them.
-            disabledForTestTasks.addAll("testReleaseUnitTest")
-        }
-    }
-    reports {
-        filters {
-            excludes {
-                androidGeneratedClasses()
-                classes(
-                    "*_Factory*",
-                    "*_MembersInjector",
-                    "Hilt_*",
-                    "*_HiltModules*",
-                    "*.di.*",
-                    "*.BuildConfig",
-                    "*.R",
-                    "*.R$*",
-                    "*ComposableSingletons*",
-                )
-                packages("hilt_aggregated_deps", "dagger")
-                annotatedBy("androidx.compose.ui.tooling.preview.Preview")
-            }
-        }
-    }
+roborazzi {
+    outputDir.set(file("src/test/screenshots"))
 }
 
 dependencies {
     implementation(project(":core:data"))
+    implementation(project(":core:designsystem"))
 
     // Core Android
     implementation(libs.androidx.core.ktx)
@@ -96,7 +73,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation("androidx.compose.material:material-icons-extended")
+    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
 
     // Wearable Data Layer
@@ -134,6 +111,10 @@ dependencies {
     testImplementation(libs.androidx.test.ext.junit)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)
+    // Screenshot tests (goldens in src/test/screenshots) with accessibility checks
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.accessibility.check)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)

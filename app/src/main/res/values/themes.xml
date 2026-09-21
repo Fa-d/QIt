@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.QIt" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.QIt" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- The page color shows until the first frame, so launch never flashes white at night. -->
+        <item name="android:windowBackground">@color/qit_window_background</item>
+    </style>
 </resources>

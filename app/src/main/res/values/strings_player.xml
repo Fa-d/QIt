@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mini player and full player -->
+    <string name="cd_close_player">Close player</string>
+</resources>

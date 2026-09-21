@@ -30,36 +30,6 @@ android {
     }
 }
 
-kover {
-    currentProject {
-        instrumentation {
-            // Coverage is measured on the debug variant only; release unit tests stay uninstrumented
-            // so the aggregated root report never needs them.
-            disabledForTestTasks.addAll("testReleaseUnitTest")
-        }
-    }
-    reports {
-        filters {
-            excludes {
-                androidGeneratedClasses()
-                classes(
-                    "*_Factory*",
-                    "*_MembersInjector",
-                    "Hilt_*",
-                    "*_HiltModules*",
-                    "*.di.*",
-                    "*.BuildConfig",
-                    "*.R",
-                    "*.R$*",
-                    "*ComposableSingletons*",
-                )
-                packages("hilt_aggregated_deps", "dagger")
-                annotatedBy("androidx.compose.ui.tooling.preview.Preview")
-            }
-        }
-    }
-}
-
 dependencies {
     api(project(":core:domain"))
 

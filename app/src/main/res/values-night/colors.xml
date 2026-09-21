@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QItPalettes neutral 6 (night page). -->
+    <color name="qit_window_background">#FF16130D</color>
+</resources>
