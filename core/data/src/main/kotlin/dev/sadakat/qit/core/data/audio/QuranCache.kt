@@ -2,6 +2,7 @@ package dev.sadakat.qit.core.data.audio
 
 import android.content.Context
 import androidx.annotation.OptIn
+import androidx.annotation.VisibleForTesting
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.DataSource
@@ -25,6 +26,9 @@ import java.util.concurrent.Executors
 class QuranCache private constructor(context: Context) {
 
     private val databaseProvider = StandaloneDatabaseProvider(context)
+
+    /** Threads the manager runs its download tasks on. Lazy: never needed unless downloads run. */
+    private val downloadExecutor = Executors.newFixedThreadPool(MAX_PARALLEL_DOWNLOADS)
 
     /** Downloaded surah audio. Never evicts: files leave only through [MediaSurahDownloads.remove]. */
     val cache = SimpleCache(File(context.filesDir, "quran_audio"), NoOpCacheEvictor(), databaseProvider)
@@ -50,7 +54,7 @@ class QuranCache private constructor(context: Context) {
         databaseProvider,
         cache,
         httpDataSourceFactory,
-        Executors.newFixedThreadPool(MAX_PARALLEL_DOWNLOADS),
+        downloadExecutor,
     ).apply {
         maxParallelDownloads = MAX_PARALLEL_DOWNLOADS
         requirements = Requirements(Requirements.NETWORK)
@@ -64,6 +68,29 @@ class QuranCache private constructor(context: Context) {
 
         fun get(context: Context): QuranCache = instance ?: synchronized(this) {
             instance ?: QuranCache(context.applicationContext).also { instance = it }
+        }
+
+        /**
+         * Releases the singleton so the next test builds a fresh [QuranCache].
+         *
+         * Robolectric keeps one sandbox — one set of statics, hence one singleton — across test
+         * classes while giving each of them a fresh Application. A [DownloadManager] outliving
+         * its Application breaks the next class: the RequirementsWatcher receiver it registered
+         * with the old Application can no longer be unregistered. Tests must therefore release
+         * their instance before their class ends. Production never calls this — the singleton
+         * lives as long as the process.
+         */
+        @VisibleForTesting
+        internal fun resetForTests() {
+            synchronized(this) {
+                instance?.let { quranCache ->
+                    quranCache.downloadManager.release()
+                    quranCache.cache.release()
+                    quranCache.databaseProvider.close()
+                    quranCache.downloadExecutor.shutdownNow()
+                }
+                instance = null
+            }
         }
     }
 }
