@@ -27,8 +27,10 @@ import javax.inject.Inject
  * Resuming goes through the app instead — it's in the foreground then, so it may start the playback
  * service; a tile running in the background can't.
  */
+// All three arguments, positionally: leaving one to its default compiles to Kotlin's synthetic
+// default-arguments constructor, which bypasses Hilt's generated base class (and crashed onCreate).
 @AndroidEntryPoint
-class QuranTileService : Material3TileService(allowDynamicTheme = false, defaultColorScheme = QuranTileColorScheme) {
+class QuranTileService : Material3TileService(false, QuranTileColorScheme, null) {
 
     @Inject
     lateinit var player: QuranPlayer
