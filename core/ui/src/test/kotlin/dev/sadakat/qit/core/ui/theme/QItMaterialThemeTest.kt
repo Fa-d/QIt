@@ -3,8 +3,12 @@ package dev.sadakat.qit.core.ui.theme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import dev.sadakat.qit.core.designsystem.color.lightQItColors
 import dev.sadakat.qit.core.designsystem.scale.QItRadius
+import dev.sadakat.qit.core.designsystem.skin.QItSkins
+import dev.sadakat.qit.core.designsystem.skin.QItStyle
+import dev.sadakat.qit.core.designsystem.skin.QItTone
 import dev.sadakat.qit.core.designsystem.type.QItUiType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -57,5 +61,19 @@ class QItMaterialThemeTest {
         assertEquals(brand.surface, colors.surface)
         assertEquals(brand.arabicText, colors.arabicText)
         assertNotEquals(lightColorScheme().surface, colors.surface)
+    }
+
+    @Test
+    fun `the material style is Material 3's baseline`() {
+        val light = QItSkins.of(QItStyle.MATERIAL, QItTone.LIGHT).colors.toColorScheme()
+        val dark = QItSkins.of(QItStyle.MATERIAL, QItTone.DARK).colors.toColorScheme()
+
+        assertEquals(lightColorScheme().primary, light.primary)
+        assertEquals(lightColorScheme().onPrimary, light.onPrimary)
+        assertEquals(darkColorScheme().onPrimary.toArgb() and RGB, dark.onPrimary.toArgb() and RGB)
+    }
+
+    private companion object {
+        const val RGB = 0xFFFFFF
     }
 }

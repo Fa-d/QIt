@@ -2,12 +2,8 @@ package dev.sadakat.qit.core.ui.kit
 
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
-import androidx.compose.ui.unit.dp
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RoborazziOptions
 import com.github.takahirom.roborazzi.captureRoboImage
-import dev.sadakat.qit.core.designsystem.scale.QItSurfaces
-import dev.sadakat.qit.core.designsystem.skin.QItSkin
 import dev.sadakat.qit.core.designsystem.skin.QItSkins
 import dev.sadakat.qit.core.designsystem.skin.QItStyle
 import dev.sadakat.qit.core.designsystem.skin.QItTone
@@ -16,46 +12,49 @@ import dev.sadakat.qit.core.ui.theme.QItMaterialTheme
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.ParameterizedRobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-@RunWith(AndroidJUnit4::class)
+/**
+ * The kit specimen in every look: each style on each tone, and glass also as it falls back (tinted
+ * where blur is unavailable, solid under battery saver or more contrast). Rendered through the
+ * hardware renderer (see this module's build file), so frosted glass is really blurred.
+ */
+@RunWith(ParameterizedRobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(qualifiers = "w393dp-h851dp-xxhdpi")
-class KitScreenshotTest {
+class KitScreenshotTest(private val style: QItStyle, private val tone: QItTone, private val mode: QItSurfaceMode?) {
 
     @get:Rule
     val rule = createComposeRule()
 
-    @Test
-    fun mushaf() = snapshot("kit_mushaf_light", QItSkins.of(QItStyle.MUSHAF, QItTone.LIGHT))
+    // Built inside the sandbox: Roborazzi reads Robolectric's configuration when it's created.
+    private val options = RoborazziOptions(compareOptions = RoborazziOptions.CompareOptions(changeThreshold = 0.01f))
 
     @Test
-    fun glassFrosted() = snapshot("kit_glass_frosted", glass, QItSurfaceMode.FROSTED)
-
-    @Test
-    fun glassTinted() = snapshot("kit_glass_tinted", glass, QItSurfaceMode.TINTED)
-
-    private fun snapshot(name: String, skin: QItSkin, mode: QItSurfaceMode? = null) {
-        rule.setContent { QItMaterialTheme(skin = skin, surfaceMode = mode) { KitSpecimen() } }
-        rule.onRoot().captureRoboImage("src/test/screenshots/$name.png", roborazziOptions = Options)
+    fun specimen() {
+        val skin = QItSkins.of(style, tone)
+        rule.setContent {
+            QItMaterialTheme(skin = skin, surfaceMode = mode ?: defaultMode(skin.surfaces.isTranslucent)) {
+                KitSpecimen()
+            }
+        }
+        val suffix = mode?.let { "_${it.name.lowercase()}" }.orEmpty()
+        val name = "kit_${style.name.lowercase()}_${tone.name.lowercase()}$suffix"
+        rule.onRoot().captureRoboImage("src/test/screenshots/$name.png", roborazziOptions = options)
     }
 
-    private companion object {
-        val glass = QItSkins.of(QItStyle.GLASS, QItTone.LIGHT).copy(
-            surfaces = QItSurfaces(
-                chromeAlpha = 0.72f,
-                chromeFallbackAlpha = 0.9f,
-                sheetAlpha = 0.9f,
-                cardAlpha = 0.85f,
-                blurRadius = 24.dp,
-                noise = 0.05f,
-                hairline = 1.dp,
-                hairlineAlpha = 0.35f,
-                floatingInset = 12.dp,
-                backdropWash = 0.35f,
-            ),
+    private fun defaultMode(translucent: Boolean) = if (translucent) QItSurfaceMode.FROSTED else QItSurfaceMode.OPAQUE
+
+    companion object {
+        @JvmStatic
+        @ParameterizedRobolectricTestRunner.Parameters(name = "{0} {1} {2}")
+        fun looks(): List<Array<Any?>> = QItStyle.entries.flatMap { style ->
+            QItTone.entries.map { tone -> arrayOf<Any?>(style, tone, null) }
+        } + listOf(
+            arrayOf(QItStyle.GLASS, QItTone.LIGHT, QItSurfaceMode.TINTED),
+            arrayOf(QItStyle.GLASS, QItTone.LIGHT, QItSurfaceMode.OPAQUE),
         )
-        val Options = RoborazziOptions(compareOptions = RoborazziOptions.CompareOptions(changeThreshold = 0.01f))
     }
 }
