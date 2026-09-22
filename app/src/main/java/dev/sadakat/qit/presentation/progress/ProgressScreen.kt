@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -60,6 +61,7 @@ fun ProgressRoute(
     onBack: () -> Unit,
     onOpenReader: (surah: Int, ayah: Int) -> Unit,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(),
     viewModel: ProgressViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -69,7 +71,8 @@ fun ProgressRoute(
         onOrderChange = viewModel::setOrder,
         onReset = viewModel::reset,
         onOpenReader = onOpenReader,
-        modifier = modifier,
+        // Until this screen moves onto the kit: keep clear of the mini player and the status bar.
+        modifier = modifier.padding(contentPadding).statusBarsPadding(),
     )
 }
 

@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.HazeInputScale
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
@@ -110,6 +111,7 @@ enum class QItGlassEdge { ALL, TOP, BOTTOM }
  * Draws [look] as this element's surface, clipped to [shape]: the blurred [backdrop] under the tint
  * when the look blurs and a backdrop exists, the tint over the page otherwise, and the light [edge].
  */
+@OptIn(ExperimentalHazeApi::class)
 fun Modifier.qitGlass(
     look: QItGlassLook,
     shape: Shape,

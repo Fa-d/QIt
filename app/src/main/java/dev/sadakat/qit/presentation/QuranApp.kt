@@ -1,11 +1,8 @@
-// kit-migration: pending (still builds Material containers itself; move it onto the :core:ui kit)
 package dev.sadakat.qit.presentation
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -27,6 +24,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import dev.sadakat.qit.R
 import dev.sadakat.qit.core.designsystem.QItTheme
+import dev.sadakat.qit.core.ui.kit.QItAppShell
 import dev.sadakat.qit.presentation.home.HomeRoute
 import dev.sadakat.qit.presentation.navigation.HomeDestination
 import dev.sadakat.qit.presentation.navigation.ProgressDestination
@@ -74,7 +72,7 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
         }
     }
 
-    Scaffold(
+    QItAppShell(
         // Test tags double as resource ids, so the baseline profile journey can find the screens.
         modifier = modifier.semantics { testTagsAsResourceId = true },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -93,12 +91,9 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
                 )
             }
         },
-    ) { padding ->
-        NavHost(
-            navController = navController,
-            startDestination = HomeDestination,
-            modifier = Modifier.padding(padding),
-        ) {
+    ) { contentPadding ->
+        // Screens draw behind the mini player and keep their content clear of it with this padding.
+        NavHost(navController = navController, startDestination = HomeDestination) {
             composable<HomeDestination> {
                 HomeRoute(
                     onOpenReader = openReader,
@@ -106,18 +101,21 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
                         navController.navigate(ProgressDestination) { launchSingleTop = true }
                     },
                     onOpenReadingSettings = { showReadingSettings = true },
+                    contentPadding = contentPadding,
                 )
             }
             composable<ReaderDestination> {
                 SurahReaderRoute(
                     onBack = { navController.popBackStack() },
                     onOpenReadingSettings = { showReadingSettings = true },
+                    contentPadding = contentPadding,
                 )
             }
             composable<ProgressDestination> {
                 ProgressRoute(
                     onBack = { navController.popBackStack() },
                     onOpenReader = openReader,
+                    contentPadding = contentPadding,
                 )
             }
         }

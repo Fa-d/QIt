@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -44,6 +45,7 @@ fun HomeRoute(
     onOpenProgress: () -> Unit,
     onOpenReadingSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(),
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -55,7 +57,8 @@ fun HomeRoute(
         onOpenProgress = onOpenProgress,
         onContinuePlayPause = viewModel::onContinuePlayPause,
         onOpenReadingSettings = onOpenReadingSettings,
-        modifier = modifier,
+        // Until this screen moves onto the kit: keep clear of the mini player and the status bar.
+        modifier = modifier.padding(contentPadding).statusBarsPadding(),
     )
 }
 
