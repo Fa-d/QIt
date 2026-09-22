@@ -24,8 +24,9 @@ import dev.sadakat.qit.core.designsystem.QItTheme
 import dev.sadakat.qit.presentation.components.NumberBadge
 
 /**
- * One heard surah: its number in the octagram, names, what's been heard and how far the round in
- * progress has come. Tapping it opens the surah in the reader.
+ * One heard surah: its number in the octagram, its names, what's been heard ("1 full round · 43%
+ * into round 2 · 10 listens") and a bar of the round in progress, as wide as the text so the bars
+ * line up down the list. Tapping it opens the surah in the reader.
  */
 @Composable
 internal fun ProgressRow(row: ProgressRowUi, onClick: () -> Unit, modifier: Modifier = Modifier) {
@@ -42,67 +43,63 @@ internal fun ProgressRow(row: ProgressRowUi, onClick: () -> Unit, modifier: Modi
         NumberBadge(row.surah)
         Spacer(Modifier.width(QItTheme.spacing.md))
         Column(Modifier.weight(1f)) {
-            Text(
-                text = row.nameEnglish ?: stringResource(R.string.surah_fallback_name, row.surah),
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = row.nameEnglish ?: stringResource(R.string.surah_fallback_name, row.surah),
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                row.nameArabicShort?.let { arabic ->
+                    Spacer(Modifier.width(QItTheme.spacing.sm))
+                    Text(
+                        text = arabic,
+                        style = QItTheme.arabic.label,
+                        color = QItTheme.colors.arabicText,
+                        maxLines = 1,
+                    )
+                }
+            }
             Text(
                 text = subtitle(row),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
-            Spacer(Modifier.height(QItTheme.spacing.xs))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                LinearProgressIndicator(
-                    progress = { row.nextRoundProgress },
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = QItTheme.colors.progressTrack,
-                    gapSize = QItTheme.spacing.none,
-                    drawStopIndicator = {},
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(QItTheme.sizes.strokeThin),
-                )
-                Spacer(Modifier.width(QItTheme.spacing.sm))
-                Text(
-                    text = roundLabel(row),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        row.nameArabicShort?.let { arabic ->
-            Spacer(Modifier.width(QItTheme.spacing.sm))
-            Text(
-                text = arabic,
-                style = QItTheme.arabic.label,
-                color = QItTheme.colors.arabicText,
-                maxLines = 1,
+            LinearProgressIndicator(
+                progress = { row.nextRoundProgress },
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = QItTheme.colors.progressTrack,
+                gapSize = QItTheme.spacing.none,
+                drawStopIndicator = {},
+                modifier = Modifier
+                    .padding(top = QItTheme.spacing.sm)
+                    .fillMaxWidth()
+                    .height(QItTheme.sizes.strokeThin),
             )
         }
     }
 }
 
-/** Completed rounds and listens, or — before the first full round — how many ayahs were heard. */
+/**
+ * What has been heard: the full rounds and how far the next one has come (or, before the first
+ * round, how many ayahs), then the listens.
+ */
 @Composable
-private fun subtitle(row: ProgressRowUi): String = if (row.rounds >= 1) {
-    val rounds = pluralStringResource(R.plurals.progress_full_rounds, row.rounds, row.rounds)
+private fun subtitle(row: ProgressRowUi): String {
     val listens = pluralStringResource(R.plurals.progress_listens, row.totalListens, row.totalListens)
-    stringResource(R.string.progress_rounds_listens, rounds, listens)
-} else {
-    stringResource(R.string.progress_ayahs_heard, row.ayahsHeard, row.ayahCount)
-}
+    val heard = when {
+        row.rounds == 0 -> stringResource(R.string.progress_ayahs_heard, row.ayahsHeard, row.ayahCount)
 
-/** How far the round in progress has come: "64% heard" in round 1, "64% into round 3" after. */
-@Composable
-private fun roundLabel(row: ProgressRowUi): String = if (row.rounds >= 1) {
-    stringResource(R.string.progress_into_round, percent(row.nextRoundProgress), row.rounds + ROUND_AHEAD)
-} else {
-    stringResource(R.string.progress_percent_heard, percent(row.nextRoundProgress))
+        row.ayahsIntoNextRound == 0 -> pluralStringResource(R.plurals.progress_full_rounds, row.rounds, row.rounds)
+
+        else -> stringResource(
+            R.string.progress_rounds_listens,
+            pluralStringResource(R.plurals.progress_full_rounds, row.rounds, row.rounds),
+            stringResource(R.string.progress_into_round, percent(row.nextRoundProgress), row.rounds + ROUND_AHEAD),
+        )
+    }
+    return stringResource(R.string.progress_rounds_listens, heard, listens)
 }
 
 private const val ROUND_AHEAD = 1

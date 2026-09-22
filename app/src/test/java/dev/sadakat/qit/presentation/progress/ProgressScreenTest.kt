@@ -86,7 +86,8 @@ class ProgressScreenTest {
         composeRule.onNodeWithText(context.getString(R.string.progress_coverage_line, 19, "14 h 5 min"))
             .assertIsDisplayed()
         composeRule.onNodeWithTag("progress_surah_1").assertIsDisplayed()
-        composeRule.onNodeWithText("1 full round · 10 listens").assertIsDisplayed()
+        composeRule.onNodeWithText("1 full round · 43% into round 2 · 10 listens").assertIsDisplayed()
+        composeRule.onNodeWithText("3 of 4 ayahs heard · 3 listens").assertIsDisplayed()
 
         composeRule.onNodeWithTag("progress_surah_112").performClick()
 

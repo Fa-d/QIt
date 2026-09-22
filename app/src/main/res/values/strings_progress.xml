@@ -22,7 +22,6 @@
         <item quantity="other">%d listens</item>
     </plurals>
     <string name="progress_into_round">%1$d%% into round %2$d</string>
-    <string name="progress_percent_heard">%1$d%% heard</string>
     <string name="progress_time_hours_minutes">%1$d h %2$d min</string>
     <string name="progress_time_minutes">%1$d min</string>
     <string name="progress_time_under_minute">Under a minute</string>
