@@ -24,8 +24,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.dp
 import dev.sadakat.qit.core.designsystem.QItTheme
+import dev.sadakat.qit.core.designsystem.component.ReaderTokens
 import dev.sadakat.qit.core.domain.model.ArabicWords
 import dev.sadakat.qit.core.domain.player.WordPointer
 
@@ -117,13 +117,10 @@ private fun WordCell(
                 color = ink.meaning,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
-                    .widthIn(max = MeaningMaxWidth)
+                    .widthIn(max = ReaderTokens.WordMeaningMaxWidth)
                     // Clear of the marks some words carry low under their letters.
                     .padding(top = QItTheme.spacing.xs, bottom = QItTheme.spacing.xxs),
             )
         }
     }
 }
-
-/** A long meaning wraps under its word rather than pushing the row apart. */
-private val MeaningMaxWidth = 112.dp
