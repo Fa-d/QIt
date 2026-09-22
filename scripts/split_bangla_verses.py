@@ -33,9 +33,10 @@ VOICES = {
                out="bangla/bangla-translation-verses", work="bangla/.work", name="bangla", grouped=False),
     "toha": dict(src="bangla/toha-src", pattern="{:03d}.mp3", arabic="arabic/abdul-basit-mujawwad-128k",
                  out="bangla/toha-verses", work="bangla/.work-toha", name="toha", grouped=True, track="BANGLA_TOHA"),
+    # Baezeed's Sudais is another recording than everyayah's: his Arabic is found by voice, not waveform.
     "baezeed": dict(src="bangla/baezeed-src", pattern="{:03d}.mp3", arabic="arabic/sudais-192k",
                     out="bangla/baezeed-verses", work="bangla/.work-baezeed", name="baezeed", grouped=True,
-                    track="BANGLA_BAEZEED"),
+                    track="BANGLA_BAEZEED", by_voice=True),
 }
 # The voice comes from the environment so that Pool workers (spawned, not forked, on macOS) see it too.
 if __name__ == "__main__" and "--voice" in sys.argv[:-1]:
@@ -307,6 +308,8 @@ def encode(pcm, s, e, out_path):
 
 def process(surah):
     try:
+        if _CFG.get("by_voice"):
+            return split_surah_by_voice(surah)
         return split_surah_grouped(surah) if GROUPED else split_surah(surah)
     except Exception:
         import traceback
@@ -549,6 +552,236 @@ def split_surah_grouped(surah):
     os.replace(tsv + ".part", tsv)
     with open(f"{WORK}/{surah:03d}.words.json", "w", encoding="utf-8") as fh:
         json.dump({str(k): [[w, round(a, 2), round(b, 2)] for w, a, b in c[2]] for k, c in chunks.items()},
+                  fh, ensure_ascii=False)
+    return surah, tsv, None
+
+
+# ---- a voice whose Arabic is another recording than the verse-by-verse set -------------------------
+
+BLOCK_MIN = 2.0       # seconds: shortest run of Arabic that counts as a block of verses
+CHUNK_MIN = 1.5       # seconds: shortest run of Bangla that counts as a translation chunk
+BASELINE = 0.15       # coverage a verse's meaning needs in its chunk to be worth placing there
+TEMPO_WEIGHT = 1.0    # cost per unit of |log(block length / expected length)|
+
+
+def other_voice_model():
+    """LDA telling the reciter's Arabic (the verse-by-verse set: same reciter, other recording) from Bangla
+    narration (the Islamic Foundation and Toha verse files: other narrators). Cached in WORK."""
+    path = f"{WORK}/voice_lda.npz"
+    if os.path.exists(path):
+        m = np.load(path)
+        return m["mu"], m["sd"], m["w"], float(m["b0"])
+    import random
+    rng = random.Random(1)
+
+    def feats(f):
+        x = decode(f, SR, 1)
+        F = win_feats(raw_mfcc(x))
+        db = frame_db(x)[::2][:len(F)]
+        return F[db > np.percentile(db, 30)][::3] if len(F) else F
+
+    ar = rng.sample(sorted(glob.glob(f"{AR}/*.mp3")), 120)
+    bn = rng.sample(sorted(glob.glob(f"{ROOT}/bangla/bangla-translation-verses/0*.mp3")), 120)
+    XA, XB = np.vstack([feats(f) for f in ar]), np.vstack([feats(f) for f in bn])
+    X = np.vstack([XA, XB])
+    mu, sd = X.mean(axis=0), X.std(axis=0) + 1e-6
+    ZA, ZB = (XA - mu) / sd, (XB - mu) / sd
+    ma, mb = ZA.mean(axis=0), ZB.mean(axis=0)
+    w = np.linalg.solve(np.cov(ZA.T) + np.cov(ZB.T) + 1e-3 * np.eye(X.shape[1]), ma - mb)
+    b0 = float(-w @ (ma + mb) / 2)
+    os.makedirs(WORK, exist_ok=True)
+    np.savez(path, mu=mu, sd=sd, w=w, b0=b0)
+    return mu, sd, w, b0
+
+
+def voice_runs(x):
+    """[(start, end, is_arabic)] seconds: the file cut into runs of Arabic and of Bangla voice."""
+    mu, sd, w, b0 = other_voice_model()
+    p = 1 / (1 + np.exp(-np.clip(((win_feats(raw_mfcc(x)) - mu) / sd) @ w + b0, -30, 30)))
+    arabic = np.convolve(p, np.ones(25) / 25, mode="same") > 0.5  # 0.5 s smoothing, 20 ms frames
+    edges = np.flatnonzero(np.diff(np.r_[False, arabic, False].astype(np.int8)))
+    runs = [(a * HOP / SR, b * HOP / SR) for a, b in zip(edges[::2], edges[1::2])]
+    blocks = [(a, b) for a, b in runs if b - a >= BLOCK_MIN]
+    merged = []  # Arabic blocks closer than CHUNK_MIN hold no translation between them
+    for a, b in blocks:
+        if merged and a - merged[-1][1] < CHUNK_MIN:
+            merged[-1] = (merged[-1][0], b)
+        else:
+            merged.append((a, b))
+    return merged
+
+
+def assign_groups(n, first, chunk_words, block_lengths, verse_lengths):
+    """Consecutive verses for each (block, chunk): [(first_index, last_index)] per chunk, or None.
+    Scores how much of each verse's meaning its chunk holds, and how well the block's length matches
+    its verses in the verse-by-verse recording (at the surah's own tempo)."""
+    import bangla_asr_split as asr
+    m = len(chunk_words)
+    if m > n:
+        return None
+    toks = []
+    for words in chunk_words:
+        t = {u for w, _, _ in words for u in asr.norm_words(w)}
+        toks.append((t, {u[:4] for u in t if len(u) >= 5}))
+    tempo = sum(block_lengths) / max(sum(verse_lengths), 1e-6)
+    cum = np.concatenate([[0.0], np.cumsum(verse_lengths)])
+    cov = np.zeros((m, n))
+    expected = np.concatenate([[0.0], np.cumsum(block_lengths)]) / max(sum(block_lengths), 1e-6) * cum[-1]
+    for i in range(m):
+        for v in range(n):  # only verses near where the block's share of the recitation puts them
+            if expected[i] - 0.25 * cum[-1] - 60 <= cum[v] <= expected[i + 1] + 0.25 * cum[-1] + 60:
+                cov[i, v] = asr.coverage(first + v, *toks[i]) - BASELINE
+            else:
+                cov[i, v] = -1.0
+    cc = np.concatenate([np.zeros((m, 1)), np.cumsum(cov, axis=1)], axis=1)
+    neg = -1e18
+    best = np.full((m + 1, n + 1), neg)
+    back = np.zeros((m + 1, n + 1), dtype=int)
+    best[0, 0] = 0.0
+    for i in range(1, m + 1):
+        for b in range(i, n - (m - i) + 1):
+            for a in range(i - 1, b):
+                if best[i - 1, a] == neg:
+                    continue
+                length = tempo * (cum[b] - cum[a])
+                v = (best[i - 1, a] + cc[i - 1, b] - cc[i - 1, a]
+                     - TEMPO_WEIGHT * abs(np.log(max(block_lengths[i - 1], 0.1) / max(length, 0.1))))
+                if v > best[i, b]:
+                    best[i, b], back[i, b] = v, a
+    if best[m, n] == neg:
+        return None
+    out, b = [], n
+    for i in range(m, 0, -1):
+        a = back[i, b]
+        out.append((a, b - 1))
+        b = a
+    return out[::-1]
+
+
+BASMALA_WORDS = ("পরম", "করুণাময়", "দয়ালু", "আল্লাহর", "নামে", "শুরু", "করছি")
+
+
+def basmala_meaning(out_path, surah=112):
+    """Cuts the basmala's meaning from the head of [surah] (between the Arabic basmala and the first
+    verses) into out_path, from the first to the last of its words heard there. Returns the surah it
+    came from, or None if it isn't found there."""
+    import bangla_asr_split as asr
+    src = source_file(surah)
+    x = decode(src, SR, 1)
+    db = frame_db(x)
+    head_end = voice_runs(x)[0][0]
+    pcm16 = (decode(src, 16000, 1) * 32767).clip(-32768, 32767).astype(np.int16)
+    words = asr.words_in(pcm16, db, 0.0, head_end)
+    keys = [asr.norm_words(k)[0] for k in BASMALA_WORDS]
+    hits = [i for i, (w, _, _) in enumerate(words)
+            if any(t[:4] == k[:4] for t in asr.norm_words(w) for k in keys)]
+    if len(hits) < 2:
+        return None
+    s, e = words[hits[0]][1], words[hits[-1]][2]
+    s, e = max(0.0, s - 0.15), min(head_end, e + 0.25)
+    with tempfile.TemporaryDirectory() as td:
+        rawpcm = f"{td}/s.raw"
+        decode(src, OUT_SR, 2, fmt="s16le", out=rawpcm)
+        pcm = np.memmap(rawpcm, dtype="<i2", mode="r").reshape(-1, 2)
+        encode(pcm, s, e, out_path)
+        del pcm
+    return surah
+
+
+def split_surah_by_voice(surah):
+    import bangla_asr_split as asr
+
+    n, first = VERSES[surah - 1], FIRST_AYAH[surah - 1]
+    tsv = f"{WORK}/{surah:03d}.tsv"
+    src = source_file(surah)
+    if src is None:
+        return surah, None, "source file not found"
+    asr.start_server()
+    x = decode(src, SR, 1)
+    dur = len(x) / SR
+    db = frame_db(x)
+    pcm16 = (decode(src, 16000, 1) * 32767).clip(-32768, 32767).astype(np.int16)
+
+    blocks = voice_runs(x)
+    if not blocks:
+        return surah, None, "no Arabic found"
+    # a translation chunk follows each block, up to the next one; a chunk without the verses' meaning
+    # (recognition making things up over a pause in the Arabic) joins the blocks around it
+    chunks = []
+    for i, (a, b) in enumerate(blocks):
+        s, e = trim(db, b, blocks[i + 1][0] if i + 1 < len(blocks) else dur)
+        words = asr.words_in(pcm16, db, s, e) if e - s >= CHUNK_MIN else []
+        chunks.append([a, b, s, e, words])
+    everything = range(first, first + n)
+    kept = []
+    for c in chunks:
+        if kept and kept[-1][3] - kept[-1][2] < 8.0 and asr.matching_words(kept[-1][4], everything) < 2:
+            kept[-1] = [kept[-1][0], c[1], c[2], c[3], c[4]]  # that was a pause in the Arabic, not translation
+        else:
+            kept.append(c)
+    if kept and asr.matching_words(kept[-1][4], everything) < 1:
+        kept.pop()
+    if not kept:
+        return surah, None, "no translation found"
+
+    verse_lengths = [len(decode(f"{AR}/{first + k:05d}.mp3", SR, 1)) / SR for k in range(n)]
+    groups = assign_groups(n, first, [c[4] for c in kept], [c[1] - c[0] for c in kept], verse_lengths)
+    if groups is None:
+        return surah, None, f"could not assign {n} verses to {len(kept)} chunks"
+
+    pieces, margins, block_of = [], {}, {}
+    for (a, b, s, e, words), (v0, v1) in zip(kept, groups):
+        group = list(range(v0, v1 + 1))
+        parts, ms = asr.split_chunk(db, s, e, [first + j for j in group], words)
+        for j, mg in zip(group, ms):
+            margins[j] = mg
+        for j in group:
+            block_of[j] = (a, b)
+        for pa, pb, held in parts:
+            pieces.append((pa, pb, [first + group[h] for h in held]))
+
+    os.makedirs(OUT, exist_ok=True)
+    with tempfile.TemporaryDirectory() as td:
+        rawpcm = f"{td}/s.raw"
+        decode(src, OUT_SR, 2, fmt="s16le", out=rawpcm)
+        pcm = np.memmap(rawpcm, dtype="<i2", mode="r").reshape(-1, 2)
+        for pa, pb, held in pieces:
+            encode(pcm, pa, pb, f"{OUT}/{held[-1]:05d}.mp3")
+        del pcm
+    owner = {g: held[-1] for _, _, held in pieces for g in held}
+    basmala_from = None
+    if surah == 1 and owner[1] != 1:
+        # Al-Fatiha goes from the Arabic straight to the meaning of 1:2; the basmala's meaning is read at
+        # the head of the other surahs, after its Arabic: 1:1 (every surah's basmala) is cut from there.
+        basmala_from = basmala_meaning(f"{OUT}/00001.mp3")
+        if basmala_from is not None:
+            pieces = [(pa, pb, [g for g in held if g != 1]) for pa, pb, held in pieces]
+            owner[1] = 1
+    for g in owner:
+        if owner[g] != g and os.path.exists(f"{OUT}/{g:05d}.mp3"):
+            os.remove(f"{OUT}/{g:05d}.mp3")
+
+    span = {held[-1]: (pa, pb) for pa, pb, held in pieces if held}
+    rows = []
+    for k in range(n):
+        g = first + k
+        a0, a1 = block_of[k]
+        b0, b1 = span.get(g, (0.0, 0.0))
+        f = ["block"]
+        if g == 1 and basmala_from is not None:
+            f.append(f"basmala-from:{basmala_from}")
+        if owner[g] != g:
+            f.append(f"shared:{owner[g]}")
+        if margins.get(k) is not None:
+            f.append(f"margin:{margins[k]:.2f}")
+        rows.append(f"{g}\t{surah}\t{k + 1}\t{a0:.3f}\t{a1:.3f}\t{b0:.3f}\t{b1:.3f}\t0.000\t{','.join(f)}")
+    os.makedirs(WORK, exist_ok=True)
+    with open(tsv + ".part", "w") as fh:
+        fh.write(f"#surah\t{surah}\tduration\t{dur:.3f}\tintro\t-\n")
+        fh.write("\n".join(rows) + "\n")
+    os.replace(tsv + ".part", tsv)
+    with open(f"{WORK}/{surah:03d}.words.json", "w", encoding="utf-8") as fh:
+        json.dump({f"{c[2]:.2f}": [[w, round(a, 2), round(b, 2)] for w, a, b in c[4]] for c in kept},
                   fh, ensure_ascii=False)
     return surah, tsv, None
 

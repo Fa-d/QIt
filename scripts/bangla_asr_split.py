@@ -181,23 +181,115 @@ COMMON = set(norm_words("মধ্যে একটি এবং তারা ত
                         "ও যে যখন তখন যদি তবে কিন্তু সব সকল তোমার আমার"))
 
 
-def matching_words(words, ayahs, min_dice=0.6):
-    """How many different words (3+ letters, not among the most common) match a word of the verses'
-    reference translations, or 0 when the words mostly repeat themselves. Speech recognition makes
-    up Bangla over breaths and the crowd between Arabic verses, often a phrase over and over, and
-    rarely one that means what the verses do."""
+def matching_words(words, ayahs):
+    """How many different words (3+ letters, not among the most common) are words of the verses'
+    reference translations (exactly, or by their first four letters), or 0 when the words mostly repeat
+    themselves. Speech recognition makes up Bangla over breaths and the crowd between Arabic verses,
+    often a phrase over and over, and rarely one that means what the verses do."""
     tokens = [t for w, _, _ in words for t in norm_words(w)]
     if not tokens or len(set(tokens)) < 0.5 * len(tokens):
         return 0
-    vocab = [bigrams(u) for g in ayahs for text in refs()[g] for u in norm_words(text) if len(u) >= 3]
-    return sum(1 for t in set(tokens) if len(t) >= 3 and t not in COMMON
-               and any(dice(bigrams(t), v) >= min_dice for v in vocab))
+    vocab = set().union(*(c for g in ayahs for c in content_words(g))) if ayahs else set()
+    prefixes = {u[:4] for u in vocab if len(u) >= 5}
+    return sum(1 for t in set(tokens)
+               if len(t) >= 3 and t not in COMMON and (t in vocab or (len(t) >= 5 and t[:4] in prefixes)))
+
+
+def content_words(g):
+    """Per reference translation of global ayah g: its distinct content words (3+ letters, not common)."""
+    return [{u for u in norm_words(t) if len(u) >= 3 and u not in COMMON} for t in refs()[g]]
+
+
+def coverage(g, tokens, prefixes):
+    """How much of verse g's meaning a chunk's words hold: the best share, over the reference
+    translations, of a translation's content words found in the chunk (exactly or by their first four
+    letters, which absorbs inflection and recognition slips)."""
+    best = 0.0
+    for words in content_words(g):
+        if words:
+            hit = sum(1 for u in words if u in tokens or (len(u) >= 5 and u[:4] in prefixes))
+            best = max(best, hit / len(words))
+    return best
 
 
 def text_shares(ayahs):
     """Each verse's share of the group, by the mean length of its reference translations."""
     lengths = np.array([np.mean([len(norm_words(t)) for t in refs()[g]]) + 1.0 for g in ayahs])
     return lengths / lengths.sum()
+
+
+VERBATIM = 0.6       # share of a translation's words heard, in order, for it to be the text being read
+EDGE_WORDS = 2       # a boundary counts when a word within this many of it, on each side, is matched
+
+
+def _align_text(heard, ref):
+    """Monotonic alignment of heard words to reference words (Needleman-Wunsch, fuzzy matches):
+    [(heard index, ref index)] of the matched pairs."""
+    hb = [bigrams(w) for w in heard]
+    rb = [bigrams(w) for w in ref]
+    n, m = len(hb), len(rb)
+    score = np.zeros((n + 1, m + 1))
+    move = np.zeros((n + 1, m + 1), dtype=np.int8)  # 1 diagonal, 2 skip heard, 3 skip ref
+    score[1:, 0] = -0.2 * np.arange(1, n + 1)
+    score[0, 1:] = -0.2 * np.arange(1, m + 1)
+    move[1:, 0], move[0, 1:] = 2, 3
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            d = dice(hb[i - 1], rb[j - 1])
+            options = (score[i - 1, j - 1] + (d if d >= 0.6 else -0.3), score[i - 1, j] - 0.2, score[i, j - 1] - 0.2)
+            k = int(np.argmax(options))
+            score[i, j], move[i, j] = options[k], k + 1
+    pairs, i, j = [], n, m
+    while i > 0 or j > 0:
+        mv = move[i, j]
+        if mv == 1:
+            if dice(hb[i - 1], rb[j - 1]) >= 0.6:
+                pairs.append((i - 1, j - 1))
+            i, j = i - 1, j - 1
+        elif mv == 2:
+            i -= 1
+        else:
+            j -= 1
+    return pairs[::-1]
+
+
+def verbatim_cuts(words, ayahs):
+    """When the narrator reads one of the reference translations (nearly) word for word: for each verse
+    boundary, the index of the first heard word of the next verse, or None where the text doesn't
+    show it. None overall when no translation is read verbatim."""
+    heard = [norm_words(w)[0] if norm_words(w) else "" for w, _, _ in words]
+    best = None
+    for t in range(len(refs()[ayahs[0]])):
+        ref, verse = [], []
+        for k, g in enumerate(ayahs):
+            ws = norm_words(refs()[g][t])
+            ref += ws
+            verse += [k] * len(ws)
+        if not ref:
+            continue
+        pairs = _align_text(heard, ref)
+        ratio = len(pairs) / len(ref)
+        if ratio >= VERBATIM and (best is None or ratio > best[0]):
+            best = (ratio, pairs, verse)
+    if best is None:
+        return None
+    _, pairs, verse = best
+    cuts = []
+    for k in range(1, len(ayahs)):
+        last = [(h, r) for h, r in pairs if verse[r] == k - 1]
+        nxt = [(h, r) for h, r in pairs if verse[r] == k]
+        ref_end = max((r for r in range(len(verse)) if verse[r] == k - 1), default=None)
+        if not last or not nxt or ref_end is None:
+            cuts.append(None)
+            continue
+        h0, r0 = last[-1]
+        h1, r1 = nxt[0]
+        # both sides of the boundary are matched close to it, and nothing heard in between is unmatched
+        if ref_end - r0 < EDGE_WORDS and r1 - (ref_end + 1) < EDGE_WORDS and h1 == h0 + 1:
+            cuts.append(h1)
+        else:
+            cuts.append(None)
+    return cuts
 
 
 def _best(times, gaps, word_sum, shares, total, n, length_w, pause_w, allowed=None):
@@ -248,6 +340,19 @@ def split_chunk(db, s, e, ayahs, words, keep_apart=()):
     if n == 1:
         return [(s, e, [0])], []
     words = [w for w in words if s <= (w[1] + w[2]) / 2 < e]
+    verbatim = verbatim_cuts(words, ayahs) if len(words) > 1 else None
+    if verbatim is not None:
+        pieces, held, start = [], [], s
+        for k in range(n):
+            held.append(k)
+            if k == n - 1:
+                pieces.append((start, e, held))
+            elif verbatim[k] is not None:
+                h = verbatim[k]
+                cut = quietest(db, words[h - 1][2], words[h][1]) if words[h][1] > words[h - 1][2] else words[h][1]
+                pieces.append((start, cut, held))
+                held, start = [], cut
+        return pieces, [None if c is None else float("inf") for c in verbatim]
     # candidates: the chunk's ends and every gap between consecutive words
     times, gaps = [s], [0.0]
     for (_, _, end0), (_, start1, _) in zip(words, words[1:]):
