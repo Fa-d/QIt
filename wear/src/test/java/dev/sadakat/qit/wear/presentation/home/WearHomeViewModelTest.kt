@@ -12,12 +12,21 @@ import dev.sadakat.qit.core.testing.FakeQuranSettings
 import dev.sadakat.qit.core.testing.FakeQuranText
 import dev.sadakat.qit.core.testing.FakeSurahDownloads
 import dev.sadakat.qit.core.testing.MainDispatcherRule
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class WearHomeViewModelTest {
 
     @get:Rule
@@ -32,128 +41,77 @@ class WearHomeViewModelTest {
 
     /**
      * Waits for the first upstream result. Under the unconfined test dispatcher the initial
-     * [WearHomeViewModel.UiState] may already be conflated away with it, so skip it if seen.
+     * [WearHomeUiState] may already be conflated away with it, so skip it if seen.
      */
-    private suspend fun TurbineTestContext<WearHomeViewModel.UiState>.awaitLoaded() =
-        awaitItem().let { if (it.rows.isEmpty()) awaitItem() else it }
+    private suspend fun TurbineTestContext<WearHomeUiState>.awaitLoaded() =
+        awaitItem().let { if (!it.loaded) awaitItem() else it }
 
     @Test
-    fun `rows list every surah with the download state of the current mode tracks`() = runTest {
-        downloads.setState(2, Track.ARABIC, SurahDownloadState.Downloaded)
-        downloads.setState(2, Track.BANGLA, SurahDownloadState.Downloading(3, 286))
-        downloads.setState(112, Track.BANGLA, SurahDownloadState.Failed(1, 4))
+    fun `counts downloaded surahs of the current mode and hides the row at zero`() = runTest {
+        downloads.setState(112, Track.ARABIC, SurahDownloadState.Downloaded)
+        downloads.setState(114, Track.ARABIC, SurahDownloadState.Downloaded)
+        downloads.setState(114, Track.BANGLA, SurahDownloadState.Downloaded)
 
         viewModel().uiState.test {
             val state = awaitLoaded()
 
-            assertEquals(114, state.rows.size)
-            assertEquals(SurahDownloadState.NotDownloaded, state.rows.first { it.surah.number == 1 }.download)
-            // Arabic downloaded + Bangla downloading (mode ARABIC_BANGLA) => still downloading.
-            assertEquals(
-                SurahDownloadState.Downloading(3, 286),
-                state.rows.first { it.surah.number == 2 }.download,
-            )
-            // Arabic never requested + Bangla failed => failed.
-            assertEquals(
-                SurahDownloadState.Failed(1, 4),
-                state.rows.first { it.surah.number == 112 }.download,
-            )
+            // 112 needs Bangla too in ARABIC_BANGLA; only 114 is fully downloaded.
+            assertEquals(1, state.downloadedCount)
+            assertTrue(state.loaded)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `download state follows the selected mode`() = runTest {
+    fun `download count follows the selected mode`() = runTest {
         downloads.setState(2, Track.ARABIC, SurahDownloadState.Downloaded)
         settings.setMode(RecitationMode.ARABIC_ONLY)
 
         val viewModel = viewModel()
         viewModel.uiState.test {
-            assertEquals(SurahDownloadState.Downloaded, awaitLoaded().rows.first { it.surah.number == 2 }.download)
+            assertEquals(1, awaitLoaded().downloadedCount)
 
-            // Switching to Arabic + Bangla: the Bangla track was never requested, so 2 is not fully offline.
+            // Arabic + Bangla: the Bangla track was never requested, so 2 is not fully offline.
             settings.setMode(RecitationMode.ARABIC_BANGLA)
-            assertEquals(
-                SurahDownloadState.NotDownloaded,
-                awaitItem().rows.first { it.surah.number == 2 }.download,
-            )
+            assertEquals(0, awaitItem().downloadedCount)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `download progress updates the rows`() = runTest {
-        val viewModel = viewModel()
-        viewModel.uiState.test {
-            awaitLoaded()
-
-            downloads.setState(114, Track.ARABIC, SurahDownloadState.Downloading(1, 6))
-            assertEquals(
-                SurahDownloadState.Downloading(1, 6),
-                awaitItem().rows.single { it.surah.number == 114 }.download,
-            )
-
-            downloads.setState(114, Track.ARABIC, SurahDownloadState.Downloaded)
-            // Arabic downloaded but Bangla (of the current mode) not requested => not offline yet.
-            assertEquals(
-                SurahDownloadState.NotDownloaded,
-                awaitItem().rows.single { it.surah.number == 114 }.download,
-            )
-
-            downloads.setState(114, Track.BANGLA, SurahDownloadState.Downloaded)
-            assertEquals(
-                SurahDownloadState.Downloaded,
-                awaitItem().rows.single { it.surah.number == 114 }.download,
-            )
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `cycleMode steps through the three modes in order and persists`() = runTest {
-        val viewModel = viewModel()
-        viewModel.uiState.test {
-            assertEquals(RecitationMode.ARABIC_BANGLA, awaitLoaded().mode)
-
-            viewModel.cycleMode()
-            assertEquals(RecitationMode.ARABIC_ONLY, awaitItem().mode)
-            assertEquals(RecitationMode.ARABIC_ONLY, settings.mode.value)
-
-            viewModel.cycleMode()
-            assertEquals(RecitationMode.ARABIC_ENGLISH, awaitItem().mode)
-
-            viewModel.cycleMode()
-            assertEquals(RecitationMode.ARABIC_BANGLA, awaitItem().mode)
-
-            viewModel.cycleMode()
-            assertEquals(RecitationMode.ARABIC_ONLY, awaitItem().mode)
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `now playing chip shows the queued position and hides the continue chip`() = runTest {
+    fun `something queued means Now playing, and no continue position`() = runTest {
         settings.lastPosition.value = LastPosition(AyahRef(2, 255), RecitationMode.ARABIC_BANGLA)
         player.play(2, 255, RecitationMode.ARABIC_BANGLA)
 
         viewModel().uiState.test {
             val state = awaitLoaded()
 
-            assertEquals(WearHomeViewModel.NowPlayingChip("Al-Baqara", "2:255"), state.nowPlayingChip)
-            assertNull(state.continueChip)
+            assertTrue(state.isQueued)
+            assertNull(state.continuePosition)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `continue chip shows the last position when nothing is queued`() = runTest {
-        settings.lastPosition.value = LastPosition(AyahRef(112, 3), RecitationMode.ARABIC_ONLY)
+    fun `nothing queued shows the last saved position to continue from`() = runTest {
+        settings.lastPosition.value = LastPosition(AyahRef(18, 23), RecitationMode.ARABIC_ONLY)
 
         viewModel().uiState.test {
             val state = awaitLoaded()
 
-            assertNull(state.nowPlayingChip)
-            assertEquals(WearHomeViewModel.ContinueChip("Al-Ikhlaas", "112:3"), state.continueChip)
+            assertFalse(state.isQueued)
+            assertEquals("18:23", state.continuePosition)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `no saved position and nothing queued means no edge button`() = runTest {
+        viewModel().uiState.test {
+            val state = awaitLoaded()
+
+            assertFalse(state.isQueued)
+            assertNull(state.continuePosition)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -169,5 +127,34 @@ class WearHomeViewModelTest {
             assertEquals(1, player.restoreCalls)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `the hub exposes the current mode`() = runTest {
+        settings.setMode(RecitationMode.ARABIC_ENGLISH)
+
+        viewModel().uiState.test {
+            assertEquals(RecitationMode.ARABIC_ENGLISH, awaitLoaded().mode)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `a failing text source still loads an empty hub`() = runTest {
+        text.failure = IllegalStateException("no assets")
+
+        // The loaded state equals the initial one here, so read .value with an eager collector
+        // instead of waiting for a second stream item that will never come.
+        val viewModel = collected()
+
+        assertTrue(!viewModel.uiState.value.loaded)
+    }
+
+    /** A [WearHomeViewModel] whose state is being collected eagerly, so `.value` is current. */
+    private fun TestScope.collected(): WearHomeViewModel {
+        val viewModel = viewModel()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.toList(mutableListOf()) }
+        runCurrent()
+        return viewModel
     }
 }

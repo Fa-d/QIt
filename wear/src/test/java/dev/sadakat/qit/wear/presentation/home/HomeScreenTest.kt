@@ -1,16 +1,13 @@
 package dev.sadakat.qit.wear.presentation.home
 
 import android.app.Application
-import androidx.compose.ui.test.hasScrollToIndexAction
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollToIndex
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.wear.compose.material.MaterialTheme
+import androidx.wear.compose.material3.AppScaffold
 import dev.sadakat.qit.core.domain.model.RecitationMode
-import dev.sadakat.qit.core.domain.repository.SurahDownloadState
-import dev.sadakat.qit.core.testing.TestQuran
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -25,128 +22,116 @@ class HomeScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    private val uiState = WearHomeViewModel.UiState(
-        rows = listOf(
-            WearHomeViewModel.SurahRow(TestQuran.surah(2), SurahDownloadState.Downloading(123, 286)),
-            WearHomeViewModel.SurahRow(TestQuran.surah(112), SurahDownloadState.Downloaded),
-            WearHomeViewModel.SurahRow(TestQuran.surah(114), SurahDownloadState.Failed(1, 6)),
-        ),
-        mode = RecitationMode.ARABIC_BANGLA,
-        nowPlayingChip = WearHomeViewModel.NowPlayingChip("Al-Baqara", "2:255"),
-    )
-
     @Test
-    fun `renders the now playing chip, the mode chip and the surah rows`() {
-        composeRule.setContent {
-            MaterialTheme {
-                HomeScreen(
-                    uiState = uiState,
-                    onSurahClick = {},
-                    onNowPlayingClick = {},
-                    onContinueClick = {},
-                    onCycleMode = {},
-                )
-            }
-        }
+    fun `renders the hub rows`() {
+        composeRule.setContent { HomeContent(state()) }
 
-        composeRule.onNodeWithText("Now playing — Al-Baqara 2:255").assertExists()
-        composeRule.onNodeWithText("Arabic + Bangla").assertExists()
-        composeRule.onNodeWithText("2. Al-Baqara").assertExists()
-        composeRule.onNodeWithText("286 ayahs · 43%").assertExists()
-        composeRule.onNodeWithText("112. Al-Ikhlaas").assertExists()
-        composeRule.onNodeWithText("4 ayahs · Downloaded").assertExists()
+        composeRule.onNodeWithText("Surahs").assertExists()
+        composeRule.onNodeWithText("By juz").assertExists()
+        composeRule.onNodeWithText("Downloaded (3)").assertExists()
+        composeRule.onNodeWithText("Recitation · Arabic + Bangla").assertExists()
     }
 
     @Test
-    fun `a surah without downloads shows only its ayah count`() {
-        // Found on a Galaxy Watch: not-downloaded surahs were labelled "Offline", which reads as
-        // "available offline" — the opposite of the truth.
-        val empty = uiState.copy(
-            nowPlayingChip = null,
-            rows = listOf(WearHomeViewModel.SurahRow(TestQuran.surah(1), SurahDownloadState.NotDownloaded)),
-        )
-        composeRule.setContent {
-            MaterialTheme {
-                HomeScreen(
-                    uiState = empty,
-                    onSurahClick = {},
-                    onNowPlayingClick = {},
-                    onContinueClick = {},
-                    onCycleMode = {},
-                )
-            }
-        }
+    fun `the downloaded row hides at zero`() {
+        composeRule.setContent { HomeContent(state(downloadedCount = 0)) }
 
-        composeRule.onNodeWithText("1. Al-Faatiha").assertExists()
-        composeRule.onNodeWithText("7 ayahs").assertExists()
-        composeRule.onNodeWithText("Offline", substring = true).assertDoesNotExist()
+        composeRule.onNodeWithText("Surahs").assertExists()
+        composeRule.onNodeWithText("Downloaded (0)", substring = true).assertDoesNotExist()
     }
 
     @Test
     fun `row clicks invoke the callbacks`() {
-        var surahClicked = 0
-        var nowPlayingClicked = false
-        var modeCycles = 0
+        val clicks = mutableSetOf<String>()
         composeRule.setContent {
-            MaterialTheme {
-                HomeScreen(
-                    uiState = uiState,
-                    onSurahClick = { surahClicked = it },
-                    onNowPlayingClick = { nowPlayingClicked = true },
-                    onContinueClick = {},
-                    onCycleMode = { modeCycles++ },
-                )
-            }
+            HomeContent(
+                state(),
+                onSurahsClick = { clicks += "surahs" },
+                onJuzClick = { clicks += "juz" },
+                onDownloadedClick = { clicks += "downloaded" },
+                onModeClick = { clicks += "mode" },
+            )
         }
 
-        composeRule.onNodeWithText("2. Al-Baqara").performClick()
-        assertEquals(2, surahClicked)
-
-        composeRule.onNodeWithText("Now playing — Al-Baqara 2:255").performClick()
-        assertTrue(nowPlayingClicked)
-
-        composeRule.onNodeWithText("Arabic + Bangla").performClick()
-        assertEquals(1, modeCycles)
+        composeRule.onNodeWithText("Surahs").performClick()
+        composeRule.onNodeWithText("By juz").performClick()
+        composeRule.onNodeWithText("Downloaded (3)").performClick()
+        composeRule.onNodeWithText("Recitation · Arabic + Bangla").performClick()
+        assertEquals(setOf("surahs", "juz", "downloaded", "mode"), clicks)
     }
 
     @Test
-    fun `the continue chip appears when nothing is queued and invokes the callback`() {
-        var continueClicked = false
-        val continueState = uiState.copy(
-            nowPlayingChip = null,
-            continueChip = WearHomeViewModel.ContinueChip("Al-Ikhlaas", "112:3"),
-        )
-        composeRule.setContent {
-            MaterialTheme {
-                HomeScreen(
-                    uiState = continueState,
-                    onSurahClick = {},
-                    onNowPlayingClick = {},
-                    onContinueClick = { continueClicked = true },
-                    onCycleMode = {},
-                )
-            }
-        }
+    fun `an unloaded hub shows the loading row only`() {
+        composeRule.setContent { HomeContent(state(loaded = false, downloadedCount = 0)) }
 
-        composeRule.onNodeWithText("Continue 112:3").performClick()
-        assertTrue(continueClicked)
+        composeRule.onNodeWithText("Loading…").assertExists()
+        composeRule.onNodeWithText("Surahs").assertDoesNotExist()
     }
 
     @Test
-    fun `failed downloads are labelled on the row`() {
+    fun `the edge button offers Now playing while something is queued`() {
+        var nowPlaying = false
         composeRule.setContent {
-            MaterialTheme {
-                HomeScreen(
-                    uiState = uiState,
-                    onSurahClick = {},
-                    onNowPlayingClick = {},
-                    onContinueClick = {},
-                    onCycleMode = {},
-                )
-            }
+            HomeContent(state(isQueued = true, continuePosition = null), onNowPlayingClick = { nowPlaying = true })
         }
 
-        composeRule.onNode(hasScrollToIndexAction()).performScrollToIndex(4)
-        composeRule.onNodeWithText("6 ayahs · Failed").assertExists()
+        composeRule.onNodeWithText("Now playing").performClick()
+        assertTrue(nowPlaying)
+        composeRule.onNodeWithText("Continue 18:23", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `the edge button offers Continue with the last position when nothing is queued`() {
+        var continued = false
+        composeRule.setContent {
+            HomeContent(state(isQueued = false, continuePosition = "18:23"), onContinueClick = { continued = true })
+        }
+
+        composeRule.onNodeWithText("Continue 18:23").performClick()
+        assertTrue(continued)
+    }
+
+    @Test
+    fun `no queue and no saved position means no edge button`() {
+        composeRule.setContent { HomeContent(state(isQueued = false, continuePosition = null)) }
+
+        composeRule.onNodeWithText("Now playing").assertDoesNotExist()
+        composeRule.onNodeWithText("Continue", substring = true).assertDoesNotExist()
+    }
+
+    private fun state(
+        loaded: Boolean = true,
+        downloadedCount: Int = 3,
+        isQueued: Boolean = true,
+        continuePosition: String? = null,
+    ) = WearHomeUiState(
+        loaded = loaded,
+        mode = RecitationMode.ARABIC_BANGLA,
+        downloadedCount = downloadedCount,
+        isQueued = isQueued,
+        continuePosition = continuePosition,
+    )
+
+    @Composable
+    private fun HomeContent(
+        state: WearHomeUiState,
+        onSurahsClick: () -> Unit = {},
+        onJuzClick: () -> Unit = {},
+        onDownloadedClick: () -> Unit = {},
+        onModeClick: () -> Unit = {},
+        onNowPlayingClick: () -> Unit = {},
+        onContinueClick: () -> Unit = {},
+    ) {
+        AppScaffold {
+            HomeScreen(
+                uiState = state,
+                onSurahsClick = onSurahsClick,
+                onJuzClick = onJuzClick,
+                onDownloadedClick = onDownloadedClick,
+                onModeClick = onModeClick,
+                onNowPlayingClick = onNowPlayingClick,
+                onContinueClick = onContinueClick,
+            )
+        }
     }
 }

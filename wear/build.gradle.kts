@@ -67,9 +67,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 
-    // Wear Compose (Material 3; the legacy Material library goes once every screen has moved)
+    // Wear Compose (Material 3; lists from the foundation package)
     implementation(libs.wear.compose.material3)
-    implementation(libs.wear.compose.material)
     implementation(libs.wear.compose.foundation)
     implementation(libs.wear.compose.navigation)
     implementation(platform(libs.androidx.compose.bom))

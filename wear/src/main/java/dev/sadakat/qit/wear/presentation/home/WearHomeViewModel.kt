@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.core.domain.model.RecitationMode
-import dev.sadakat.qit.core.domain.model.Surah
 import dev.sadakat.qit.core.domain.player.QuranPlayer
 import dev.sadakat.qit.core.domain.repository.QuranSettings
 import dev.sadakat.qit.core.domain.repository.QuranText
@@ -16,72 +15,51 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** Home screen: surah list with offline state, plus the playback and mode chips. */
+/** The home hub: where the rest of the app hangs off, plus what the edge button should do. */
+data class WearHomeUiState(
+    val loaded: Boolean = false,
+    val mode: RecitationMode = RecitationMode.ARABIC_BANGLA,
+    /** Surahs fully downloaded for the current mode; the "Downloaded" row hides at zero. */
+    val downloadedCount: Int = 0,
+    /** True while anything is queued, playing or paused. */
+    val isQueued: Boolean = false,
+    /** "18:23" of the last saved position; null when nothing was saved or something is queued. */
+    val continuePosition: String? = null,
+)
+
+/** Home: a small hub (surahs, juz, downloads, recitation) over the shared player state. */
 @HiltViewModel
 class WearHomeViewModel @Inject constructor(
     quranText: QuranText,
-    private val settings: QuranSettings,
+    settings: QuranSettings,
     surahDownloads: SurahDownloads,
     private val player: QuranPlayer,
 ) : ViewModel() {
 
-    /** "Now playing" chip content, shown while something is queued. */
-    data class NowPlayingChip(val surahName: String, val position: String)
+    private val surahsFlow = flow { emit(runCatching { quranText.surahs() }.getOrDefault(emptyList())) }
 
-    /** "Continue" chip content, shown when nothing is queued but a position was saved. */
-    data class ContinueChip(val surahName: String, val position: String)
-
-    data class SurahRow(val surah: Surah, val download: SurahDownloadState)
-
-    data class UiState(
-        val rows: List<SurahRow> = emptyList(),
-        val mode: RecitationMode = RecitationMode.ARABIC_BANGLA,
-        val nowPlayingChip: NowPlayingChip? = null,
-        val continueChip: ContinueChip? = null,
-    )
-
-    private val surahsFlow = flow { emit(quranText.surahs()) }
-
-    val uiState: StateFlow<UiState> = combine(
+    val uiState: StateFlow<WearHomeUiState> = combine(
         surahsFlow,
-        surahDownloads.states,
         settings.mode,
+        surahDownloads.states,
         player.nowPlaying,
         settings.lastPosition,
-    ) { surahs, downloads, mode, nowPlaying, lastPosition ->
-        UiState(
-            rows = surahs.map { SurahRow(it, downloads.stateOf(it.number, mode.tracks)) },
+    ) { surahs, mode, downloads, nowPlaying, lastPosition ->
+        WearHomeUiState(
+            loaded = surahs.isNotEmpty(),
             mode = mode,
-            nowPlayingChip = nowPlaying?.let {
-                NowPlayingChip(surahs.nameOf(it.surah), positionOf(it.surah, it.ayah))
+            downloadedCount = surahs.count {
+                downloads.stateOf(it.number, mode.tracks) is SurahDownloadState.Downloaded
             },
-            continueChip = if (nowPlaying == null && lastPosition != null) {
-                val ref = lastPosition.ref
-                ContinueChip(surahs.nameOf(ref.surah), positionOf(ref.surah, ref.ayah))
-            } else {
-                null
-            },
+            isQueued = nowPlaying != null,
+            continuePosition = if (nowPlaying == null) lastPosition?.let { "${it.ref.surah}:${it.ref.ayah}" } else null,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UiState())
-
-    /** Steps Arabic-only → Arabic + English → Arabic + Bangla, persisting the choice. */
-    fun cycleMode() {
-        viewModelScope.launch {
-            val next = RecitationMode.entries[(uiState.value.mode.ordinal + 1) % RecitationMode.entries.size]
-            settings.setMode(next)
-        }
-    }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), WearHomeUiState())
 
     /** Queues the last saved position so Continue picks up where the user left off. */
     fun continuePlaying() {
         player.restoreLast(playWhenReady = true)
     }
 }
-
-private fun List<Surah>.nameOf(number: Int): String =
-    firstOrNull { it.number == number }?.nameEnglish ?: "Surah $number"
-
-private fun positionOf(surah: Int, ayah: Int): String = "$surah:$ayah"
