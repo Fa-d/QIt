@@ -28,7 +28,6 @@ class KitUsageTest {
     @Test
     fun `screens build their containers from the UI kit`() {
         val violations = phoneScreens()
-            .filterNot { MIGRATION_PENDING in it.text.lineSequence().first() }
             .flatMap { file ->
                 file.imports
                     .map { it.name }
@@ -94,8 +93,5 @@ class KitUsageTest {
 
     private companion object {
         const val MATERIAL3 = "androidx.compose.material3."
-
-        /** First-line marker of a screen not yet moved onto the kit; removed as each one moves. */
-        const val MIGRATION_PENDING = "// kit-migration: pending"
     }
 }

@@ -18,7 +18,7 @@ Run it locally before pushing; CI (`.github/workflows/ci.yml`) runs the same com
 | Static analysis | `detekt` (every subproject) | No code smells / leftover `TODO:`/`FIXME:` comments. Overrides in `config/detekt/detekt.yml`. | Read `<module>/build/reports/detekt/detekt.txt`, fix the code (never suppress wholesale). |
 | Android Lint | `lintDebug` on `:app`, `:wear`, `:core:data`, `:core:designsystem` | Lint errors (`abortOnError = true`; version-nag checks disabled). | `<module>/build/reports/lint-results-debug.html` |
 | Unit, UI and screenshot tests | `:core:domain:test`, `testDebugUnitTest` on `:core:data`, `:core:designsystem`, `:app`, `:wear` | All JVM/Robolectric tests pass, every screenshot matches its golden, and the screenshot tests' accessibility checks find no errors. | `<module>/build/reports/tests/...`; for screenshots see below. |
-| Architecture | `:architecture-test:test` | Konsist rules: domain purity, presentation isolation (no data layer, no Media3), ViewModel/UiState shape, `*Test` naming, design tokens only (no color or dp/sp literals in app code), reference palettes read by theme code only, one font source, one Material library per app. | `architecture-test/src/test/kotlin/...` states each rule. |
+| Architecture | `:architecture-test:test` | Konsist rules: domain purity, presentation isolation (no data layer, no Media3), ViewModel/UiState shape, `*Test` naming, design tokens only (no color or dp/sp literals in app or kit code), reference palettes read by theme code only, one font source, one Material library per app, screens build their containers from the `:core:ui` kit (`KitUsageTest`: only allowlisted Material names, Haze only in the kit's glass, no code that asks which style is on). | `architecture-test/src/test/kotlin/...` states each rule. |
 | Coverage | `koverVerify` per module + root `:koverVerify` | Line **and** branch floors for every module and for the aggregate (see below). | `./gradlew :koverHtmlReport` then open `build/reports/kover/html/index.html`. |
 
 ### Coverage floors
@@ -30,6 +30,7 @@ Set in `coverageFloors` in the root `build.gradle.kts` (lines / branches, %):
 | `:core:domain` | 96 / 92 |
 | `:core:data` | 91 / 76 |
 | `:core:designsystem` | 94 / 45 |
+| `:core:ui` | 80 / 45 |
 | `:app` | 85 / 60 |
 | `:wear` | 80 / 50 |
 | aggregate | 87 / 64 |
@@ -60,6 +61,10 @@ Roborazzi renders composables under Robolectric and compares them with the golde
   opens its own window, which the capture doesn't see.
 - The helpers also run the accessibility checks (touch targets, contrast, labels) and fail on
   errors.
+- `snapshot(…, style = QItStyle.GLASS, tone = QItTone.SEPIA)` renders a look other than the
+  default Mushaf light. App goldens pin glass to its unblurred tint, so they're the same on every
+  machine; `:core:ui` renders through the hardware renderer (`robolectric.pixelCopyRenderMode`),
+  so its kit goldens (every style × tone, and glass tinted and solid) show real blur.
 - After an intended UI change, re-record and review the PNGs before committing:
   `./gradlew recordRoborazziDebug` (or `:app:recordRoborazziDebug --tests '*HomeScreenshotTest*'`).
   A failed comparison leaves compare images under `<module>/build/outputs/roborazzi/`.
