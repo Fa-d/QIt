@@ -5,9 +5,12 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.sadakat.qit.core.data.text.AssetQuranText
 import dev.sadakat.qit.core.domain.audio.QueuePlan
+import dev.sadakat.qit.core.domain.audio.WordTimings
 import dev.sadakat.qit.core.domain.model.ArabicWords
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.RecitationMode
+import dev.sadakat.qit.core.domain.model.Track
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -27,7 +30,7 @@ class AssetAudioTimingsTest {
     @Test
     fun `every ayah has one timing per word of its text`() = runTest {
         for (surah in 1..QuranMeta.SURAH_COUNT) {
-            val words = timings.wordTimings(surah)
+            val words = timings.wordTimings(surah, Track.ARABIC)
             for (ayah in text.ayahs(surah)) {
                 assertEquals(
                     "${ayah.surah}:${ayah.number}",
@@ -40,16 +43,16 @@ class AssetAudioTimingsTest {
 
     @Test
     fun `the basmala before verse 1 has 1_1's timings`() = runTest {
-        val fatiha = timings.wordTimings(1)
-        assertEquals(fatiha[1], timings.wordTimings(2)[0])
+        val fatiha = timings.wordTimings(1, Track.ARABIC)
+        assertEquals(fatiha[1], timings.wordTimings(2, Track.ARABIC)[0])
         assertNull(fatiha[0]) // Al-Fatiha opens with verse 1 itself
-        assertNull(timings.wordTimings(9)[0]) // At-Tawbah has no basmala
+        assertNull(timings.wordTimings(9, Track.ARABIC)[0]) // At-Tawbah has no basmala
         assertEquals(4, fatiha.getValue(1).wordCount)
     }
 
     @Test
     fun `ayat al-kursi's words run in order within its file`() = runTest {
-        val kursi = timings.wordTimings(2).getValue(255)
+        val kursi = timings.wordTimings(2, Track.ARABIC).getValue(255)
         assertEquals(50, kursi.wordCount)
         assertEquals(0, kursi.wordAt(40))
         assertEquals(49, kursi.wordAt(51_000))
@@ -58,10 +61,17 @@ class AssetAudioTimingsTest {
     }
 
     @Test
-    fun `every file of every queue has a length`() = runTest {
+    fun `a reciter without bundled timings, or a translation, has none`() = runTest {
+        assertEquals(emptyMap<Int, WordTimings>(), timings.wordTimings(2, Track.ARABIC_BASIT_MUJAWWAD))
+        assertEquals(emptyMap<Int, WordTimings>(), timings.wordTimings(2, Track.ARABIC_SUDAIS))
+        assertEquals(emptyMap<Int, WordTimings>(), timings.wordTimings(2, Track.BANGLA_TOHA))
+    }
+
+    @Test
+    fun `every file of the default voice's queues has a length`() = runTest {
         for (surah in 1..QuranMeta.SURAH_COUNT) {
             for (mode in RecitationMode.entries) {
-                for (entry in QueuePlan.plan(surah, mode)) {
+                for (entry in QueuePlan.plan(surah, mode, BanglaVoice.DEFAULT)) {
                     assertNotNull("${entry.file.id} of $surah in $mode", timings.durationMs(entry.file.id))
                 }
             }

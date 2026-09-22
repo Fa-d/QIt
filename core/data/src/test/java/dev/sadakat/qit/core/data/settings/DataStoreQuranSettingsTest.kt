@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.sadakat.qit.core.domain.model.ArabicTextSize
 import dev.sadakat.qit.core.domain.model.AyahRef
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.ThemeMode
@@ -34,6 +35,11 @@ class DataStoreQuranSettingsTest {
     @Before
     fun setUp() {
         settings = DataStoreQuranSettings(ApplicationProvider.getApplicationContext<Context>())
+    }
+
+    @Test
+    fun `banglaVoice defaults to the islamic foundation`() = runTest {
+        assertEquals(BanglaVoice.ISLAMIC_FOUNDATION, settings.banglaVoice.first())
     }
 
     @Test
@@ -70,6 +76,13 @@ class DataStoreQuranSettingsTest {
     @Test
     fun `readingPrefs default to the comfortable middle`() = runTest {
         assertEquals(ReadingPrefs(), settings.readingPrefs.first())
+    }
+
+    @Test
+    fun `setBanglaVoice round trips the chosen voice`() = runTest {
+        settings.setBanglaVoice(BanglaVoice.SAYED_ISMAT_TOHA)
+
+        assertEquals(BanglaVoice.SAYED_ISMAT_TOHA, settings.banglaVoice.first())
     }
 
     @Test

@@ -19,12 +19,15 @@ import androidx.media3.test.utils.robolectric.RobolectricUtil.runMainLooperUntil
 import androidx.media3.test.utils.robolectric.TestPlayerRunHelper
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import dev.sadakat.qit.core.domain.audio.WordTimings
 import dev.sadakat.qit.core.domain.model.AyahRef
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.player.NowPlaying
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.player.RepeatSetting
+import dev.sadakat.qit.core.domain.player.WordPointer
 import dev.sadakat.qit.core.domain.repository.LastPosition
 import dev.sadakat.qit.core.testing.FakeAudioTimings
 import dev.sadakat.qit.core.testing.FakeListeningHistory
@@ -32,6 +35,7 @@ import dev.sadakat.qit.core.testing.FakeQuranSettings
 import dev.sadakat.qit.core.testing.FakeQuranText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -112,6 +116,40 @@ class ExoQuranPlayerTest {
 
         assertEquals(1.25f, exoPlayer.playbackParameters.speed)
         assertEquals(PlaybackSpeed.X1_25, nowPlaying().speed)
+    }
+
+    @Test
+    fun `play queues the stored voice's arabic and bangla`() {
+        settings.banglaVoice.value = BanglaVoice.SAYED_ISMAT_TOHA
+
+        player.play(2, fromAyah = 1, mode = RecitationMode.ARABIC_BANGLA)
+        runMainLooperUntil { player.nowPlaying.value?.isPlaying == true }
+
+        // Toha's basmala does not contain the Arabic, so Basit's plays before it; then 2:1 as the pair.
+        assertEquals("2:0:ar.basit", exoPlayer.getMediaItemAt(0).mediaId)
+        assertEquals("2:0:bn.toha", exoPlayer.getMediaItemAt(1).mediaId)
+        assertEquals("2:1:ar.basit", exoPlayer.getMediaItemAt(2).mediaId)
+        assertEquals("2:1:bn.toha", exoPlayer.getMediaItemAt(3).mediaId)
+        assertEquals(BanglaVoice.SAYED_ISMAT_TOHA, nowPlaying().voice)
+    }
+
+    @Test
+    fun `the word pointer follows the voice's reciter`() {
+        timings.wordsByReciter = mapOf(
+            Track.ARABIC_BASIT_MUJAWWAD to mapOf(
+                1 to mapOf(1 to WordTimings(intArrayOf(0, 1_000, 1_000, 2_000))),
+            ),
+        )
+        settings.banglaVoice.value = BanglaVoice.SAYED_ISMAT_TOHA
+        player.play(1, fromAyah = 1, mode = RecitationMode.ARABIC_BANGLA)
+        runMainLooperUntil { player.nowPlaying.value?.isPlaying == true }
+        val pointers = mutableListOf<WordPointer>()
+        val collector = CoroutineScope(Dispatchers.Main).launch { player.pointer.collect { pointers += it } }
+
+        // Past the first word's end in Basit's timings: the pointer moves to the second word.
+        exoPlayer.seekTo(exoPlayer.currentMediaItemIndex, 1_500)
+        runMainLooperUntil { WordPointer.Reciting(1) in pointers }
+        collector.cancel()
     }
 
     @Test

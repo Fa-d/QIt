@@ -8,36 +8,26 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 
-/** Lengths (ms) of every audio file, by track; verse files by global ayah - 1, Bangla intros by surah - 1. */
+/** Lengths (ms) of every audio file, by track code; verse files by global ayah - 1, intros by surah - 1. */
 @Serializable
-internal class AudioDurations(
-    private val ar: List<Int>,
-    private val en: List<Int>,
-    private val bn: List<Int>,
-    private val bnIntro: List<Int>,
-) {
-    /** The length of the file with download id [fileId] ("ar/255", "bn/intro/2", …), or null if unknown. */
+internal class AudioDurations(private val verses: Map<String, List<Int>>, private val intros: Map<String, List<Int>>) {
+    /** The length of the file with download id [fileId] ("ar/255", "bn.toha/262", "bn/intro/2"), or null if unknown. */
     fun durationMs(fileId: String): Long? {
         val intro = INTRO_ID.matchEntire(fileId)
         val verse = VERSE_ID.matchEntire(fileId)
-        val (list, number) = when {
-            intro != null -> bnIntro to intro.groupValues[1]
-            verse != null -> trackList(verse.groupValues[1]) to verse.groupValues[2]
+        val (durations, code, number) = when {
+            intro != null -> Triple(intros, intro.groupValues[1], intro.groupValues[2])
+            verse != null -> Triple(verses, verse.groupValues[1], verse.groupValues[2])
             else -> return null
         }
-        return list.getOrNull(number.toInt() - 1)?.takeIf { it > 0 }?.toLong()
-    }
-
-    private fun trackList(code: String) = when (code) {
-        "ar" -> ar
-        "en" -> en
-        else -> bn
+        return durations[code]?.getOrNull(number.toInt() - 1)?.takeIf { it > 0 }?.toLong()
     }
 }
 
 // Top level, not in a companion: the serialization plugin puts the class's serializer there.
-private val VERSE_ID = Regex("(ar|en|bn)/(\\d{1,5})")
-private val INTRO_ID = Regex("bn/intro/(\\d{1,3})")
+// A track code is letters and dots ("ar", "bn", "bn.toha").
+private val VERSE_ID = Regex("([a-z.]+)/(\\d{1,5})")
+private val INTRO_ID = Regex("([a-z.]+)/intro/(\\d{1,3})")
 
 /** Parses the timing assets (`scripts/build_audio_timing.py`). Pure Kotlin, so it is cheap to test on the JVM. */
 internal object AudioTimingParser {
