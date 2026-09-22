@@ -35,7 +35,17 @@ class ContrastTest {
     }
 
     @Test
-    fun `the word being recited reaches AAA too`() = assertEach(ARABIC) { c ->
+    fun `the word being recited reaches AAA on its pill`() = assertEach(ARABIC) { c ->
+        listOf(c.onCurrentWordHighlight to c.currentWordHighlight)
+    }
+
+    @Test
+    fun `the pill stands out from the page and from the playing highlight`() = assertEach(UI) { c ->
+        listOf(c.currentWordHighlight to c.surface, c.currentWordHighlight to c.playingAyahHighlight)
+    }
+
+    @Test
+    fun `the translation being read reaches AAA too`() = assertEach(ARABIC) { c ->
         listOf(c.currentWord to c.surface, c.currentWordOnHighlight to c.playingAyahHighlight)
     }
 
