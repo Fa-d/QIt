@@ -13,6 +13,9 @@ import androidx.compose.ui.unit.sp
  *
  * [display], [body] and [title] follow the reader's text-size setting ([scaled]); [label] and the
  * watch styles are fixed, because rows and a watch face have no room to grow.
+ *
+ * The styles set an RTL text direction (so numbers and punctuation order correctly), which makes
+ * `TextAlign.End` the *left* edge: align Arabic with `TextAlign.Right` or `Center`.
  */
 @Immutable
 data class QItArabicType(

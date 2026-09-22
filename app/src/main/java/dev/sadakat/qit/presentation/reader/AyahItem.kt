@@ -6,8 +6,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -89,28 +92,33 @@ fun AyahItem(
             .background(background)
             .background(colors.tertiaryContainer.copy(alpha = pulse.value))
             .clickable(onClick = onClick)
-            .padding(QItTheme.spacing.lg),
+            .padding(horizontal = QItTheme.spacing.md, vertical = QItTheme.spacing.lg),
     ) {
-        NumberBadge(number = ayah.number, size = QItTheme.sizes.numberBadgeSmall)
-        Text(
-            text = ayah.arabic,
-            style = QItTheme.arabic.body,
-            color = arabicColor,
-            textAlign = TextAlign.End,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = QItTheme.spacing.xs),
-        )
-        translationTrack?.let { track ->
-            ayah.translation(track)?.let { translation ->
+        // The number sits beside the ayah, not on a line of its own: more of the surah fits on screen.
+        Row {
+            NumberBadge(number = ayah.number, size = QItTheme.sizes.numberBadgeSmall)
+            Spacer(Modifier.width(QItTheme.spacing.md))
+            Column(Modifier.weight(1f)) {
                 Text(
-                    text = translation,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = translationColor,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = QItTheme.spacing.xs),
+                    text = ayah.arabic,
+                    style = QItTheme.arabic.body,
+                    color = arabicColor,
+                    // Right, not End: the Arabic styles set an RTL text direction, where End is the left edge.
+                    textAlign = TextAlign.Right,
+                    modifier = Modifier.fillMaxWidth(),
                 )
+                translationTrack?.let { track ->
+                    ayah.translation(track)?.let { translation ->
+                        Text(
+                            text = translation,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = translationColor,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = QItTheme.spacing.xs),
+                        )
+                    }
+                }
             }
         }
     }

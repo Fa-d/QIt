@@ -56,6 +56,12 @@ subprojects {
         }
     }
 
+    // Spotless rewrites its scratch copies under build/spotless-clean while it runs; lint's scan of
+    // the module must not race it (a vanishing file fails the lint run).
+    tasks.matching { it.name.startsWith("lintAnalyze") }.configureEach {
+        mustRunAfter(tasks.matching { it.name.startsWith("spotless") })
+    }
+
     // Robolectric's SDK 36 runtime (ApplicationSharedMemory) reaches into FileDescriptor internals
     // through jdk.internal.access, which java.base doesn't export to the classpath by default.
     tasks.withType<Test>().configureEach {

@@ -202,7 +202,13 @@ private fun ReaderContent(
                 }
             }
             items(state.ayahs, key = { it.number }) { ayah ->
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                // Inset so the reciting ayah's highlight sits on the page rather than touching its edges.
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = QItTheme.spacing.sm),
+                    contentAlignment = Alignment.Center,
+                ) {
                     AyahItem(
                         ayah = ayah,
                         translationTrack = state.mode.translation.takeIf { state.showTranslation },
