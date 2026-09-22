@@ -14,12 +14,14 @@ import dev.sadakat.qit.core.data.listening.RoomListeningHistory
 import dev.sadakat.qit.core.data.player.ExoQuranPlayer
 import dev.sadakat.qit.core.data.settings.DataStoreQuranSettings
 import dev.sadakat.qit.core.data.text.AssetQuranText
+import dev.sadakat.qit.core.data.text.AssetWordMeanings
 import dev.sadakat.qit.core.domain.player.QuranPlayer
 import dev.sadakat.qit.core.domain.repository.AudioTimings
 import dev.sadakat.qit.core.domain.repository.ListeningHistory
 import dev.sadakat.qit.core.domain.repository.QuranSettings
 import dev.sadakat.qit.core.domain.repository.QuranText
 import dev.sadakat.qit.core.domain.repository.SurahDownloads
+import dev.sadakat.qit.core.domain.repository.WordMeanings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -49,6 +51,10 @@ object QuranModule {
     @Provides
     @Singleton
     fun provideAudioTimings(@ApplicationContext context: Context): AudioTimings = AssetAudioTimings(context)
+
+    @Provides
+    @Singleton
+    fun provideWordMeanings(@ApplicationContext context: Context): WordMeanings = AssetWordMeanings(context)
 
     @Provides
     @Singleton
