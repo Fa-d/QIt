@@ -47,5 +47,6 @@ class ModelsTest {
         assertEquals(ArabicTextSize.MEDIUM, prefs.arabicTextSize)
         assertEquals(1f, prefs.arabicTextSize.scale)
         assertEquals(ThemeMode.SYSTEM, prefs.themeMode)
+        assertEquals(UiStyle.MUSHAF, prefs.uiStyle)
     }
 }

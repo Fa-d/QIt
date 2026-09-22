@@ -17,6 +17,7 @@
     <string name="theme">Theme</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
+    <string name="theme_sepia">Sepia</string>
     <string name="theme_dark">Dark</string>
     <string name="wallpaper_colors">Wallpaper colors</string>
     <string name="wallpaper_colors_supporting">Use your wallpaper\'s colors instead of QIt\'s</string>

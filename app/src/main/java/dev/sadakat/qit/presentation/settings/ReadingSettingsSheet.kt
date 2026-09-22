@@ -187,7 +187,7 @@ fun ReadingSettingsContent(
 
         SectionLabel(textRes = R.string.theme)
         ChoiceRow(
-            options = ThemeMode.entries,
+            options = SheetThemeModes,
             selected = prefs.themeMode,
             label = { it.labelRes() },
             onSelect = onThemeModeChange,
@@ -300,7 +300,11 @@ private fun WordByWord.labelRes(): Int = when (this) {
 private fun ThemeMode.labelRes(): Int = when (this) {
     ThemeMode.SYSTEM -> R.string.theme_system
     ThemeMode.LIGHT -> R.string.theme_light
+    ThemeMode.SEPIA -> R.string.theme_sepia
     ThemeMode.DARK -> R.string.theme_dark
 }
+
+// Sepia is picked from Appearance until this sheet gets its page-tone row.
+private val SheetThemeModes = listOf(ThemeMode.SYSTEM, ThemeMode.LIGHT, ThemeMode.DARK)
 
 private const val SLIDER_ENDS = 2

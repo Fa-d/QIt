@@ -46,7 +46,7 @@ class MainActivity : ComponentActivity() {
             val app by appViewModel.uiState.collectAsStateWithLifecycle()
             val darkTheme = when (app.themeMode) {
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
-                ThemeMode.LIGHT -> false
+                ThemeMode.LIGHT, ThemeMode.SEPIA -> false
                 ThemeMode.DARK -> true
             }
             // The in-app theme can differ from the system's, so the system bar icons follow it.
