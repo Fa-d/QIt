@@ -99,6 +99,33 @@ class ExoQuranPlayerRepeatAndSleepTest {
     }
 
     @Test
+    fun `repeatAyah on another surah starts it with the ayah repeating`() {
+        start(2, 5)
+
+        player.repeatAyah(3, ayah = 1, mode = RecitationMode.ARABIC_ONLY, times = null)
+
+        runMainLooperUntil { player.nowPlaying.value?.surah == 3 && exoPlayer.isPlaying }
+        assertEquals("3:1:ar", currentMediaId())
+        assertEquals(RepeatSetting.Range(1, 1, null), player.nowPlaying.value?.repeat)
+
+        finishCurrentItem()
+        runMainLooperUntil { exoPlayer.isPlaying }
+        assertEquals("3:1:ar", currentMediaId()) // it loops the ayah, not the surah's next one
+    }
+
+    @Test
+    fun `repeatAyah on the queued surah repeats the ayah it moves to`() {
+        start(2, 5)
+
+        player.repeatAyah(2, ayah = 7, mode = RecitationMode.ARABIC_ONLY, times = null)
+
+        runMainLooperUntil { currentMediaId() == "2:7:ar" && exoPlayer.isPlaying }
+        finishCurrentItem()
+        runMainLooperUntil { exoPlayer.isPlaying }
+        assertEquals("2:7:ar", currentMediaId())
+    }
+
+    @Test
     fun `with a translation the repeat waits for the translation to finish`() {
         start(2, 5, RecitationMode.ARABIC_ENGLISH)
         player.setRepeat(RepeatSetting.Ayah(times = null))

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.core.domain.player.NowPlaying
+import dev.sadakat.qit.core.domain.player.PlaybackError
 import dev.sadakat.qit.core.domain.player.QuranPlayer
 import dev.sadakat.qit.core.domain.repository.QuranText
 import dev.sadakat.qit.wear.audio.StreamVolume
@@ -25,7 +26,7 @@ data class WearNowPlayingUiState(
     val translation: String? = null,
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
-    val error: String? = null,
+    val error: PlaybackError? = null,
     /** How far through the surah playback is, 0..1 (by ayah; the basmala is 0). */
     val progress: Float = 0f,
     /** Media volume as a 0..1 fraction, turned by the crown. */

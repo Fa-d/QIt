@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Playback failures, shown as a snackbar with a Retry action -->
+    <string name="playback_error_network">Can\'t reach the recitation. Check your connection, or download this surah to listen offline.</string>
+    <string name="playback_error_failed">This recitation couldn\'t be played.</string>
+    <string name="playback_retry">Retry</string>
+</resources>

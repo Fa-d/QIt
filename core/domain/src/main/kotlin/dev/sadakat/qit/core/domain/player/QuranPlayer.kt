@@ -46,17 +46,45 @@ data class PlaybackProgress(val itemPositionMs: Long, val surahPositionMs: Long,
     }
 }
 
+/** Why playback stopped. */
+enum class PlaybackError {
+    /** Streaming failed: no connection, or the server couldn't be reached. Downloading the surah avoids it. */
+    NETWORK,
+
+    /** Anything else: a file that couldn't be read or decoded. */
+    FAILED,
+}
+
 /** Plays a surah ayah by ayah. Implemented in :core:data on the app-wide ExoPlayer. */
+@Suppress("TooManyFunctions") // The player's whole surface: queue, transport, seeks, repeat, speed, sleep and errors.
 interface QuranPlayer {
 
     /** Null when nothing is queued. */
     val nowPlaying: StateFlow<NowPlaying?>
 
-    /** Last playback error (no network for an undownloaded surah, ...). Cleared when playback resumes. */
-    val error: StateFlow<String?>
+    /** Last playback error; cleared when playback resumes. */
+    val error: StateFlow<PlaybackError?>
 
     /** Replaces the queue with [surah] in [mode] and starts at [fromAyah] (0 = basmala). */
     fun play(surah: Int, fromAyah: Int = 1, mode: RecitationMode)
+
+    /** After an [error], prepares the queue again and plays from where it stopped; a no-op otherwise. */
+    fun retry()
+
+    /**
+     * Plays from word [word] (0-based, as in `ArabicWords.ranges`) of [ayah] of [surah] in [mode].
+     * If that surah is already queued in that mode it seeks in place, without rebuilding the queue;
+     * otherwise it queues the surah from that ayah first. Falls back to the ayah's start when the
+     * word timings aren't known.
+     */
+    fun playFromWord(surah: Int, ayah: Int, word: Int, mode: RecitationMode)
+
+    /**
+     * Plays [ayah] of [surah] in [mode] on repeat, [times] times in all (null = until changed).
+     * Atomic: the queue and the repeat are set together, so the repeat can't be lost to the reset
+     * that [play] does for a new surah.
+     */
+    fun repeatAyah(surah: Int, ayah: Int, mode: RecitationMode, times: Int? = null)
 
     fun togglePlayPause()
 

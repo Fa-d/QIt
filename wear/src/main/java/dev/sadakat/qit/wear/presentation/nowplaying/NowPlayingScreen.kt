@@ -51,6 +51,7 @@ import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.touchTargetAwareSize
 import dev.sadakat.qit.core.designsystem.QItTheme
 import dev.sadakat.qit.core.designsystem.component.WearTokens
+import dev.sadakat.qit.core.domain.player.PlaybackError
 import dev.sadakat.qit.wear.R
 import kotlinx.coroutines.delay
 
@@ -204,7 +205,12 @@ private fun ControlsPage(
                     }
                     uiState.error?.let { error ->
                         Text(
-                            text = error,
+                            text = stringResource(
+                                when (error) {
+                                    PlaybackError.NETWORK -> R.string.playback_error_network
+                                    PlaybackError.FAILED -> R.string.playback_error_failed
+                                },
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                             textAlign = TextAlign.Center,

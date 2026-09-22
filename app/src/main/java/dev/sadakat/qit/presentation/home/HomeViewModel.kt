@@ -15,12 +15,14 @@ import dev.sadakat.qit.core.domain.repository.QuranText
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState
 import dev.sadakat.qit.core.domain.repository.SurahDownloads
 import dev.sadakat.qit.core.domain.repository.stateOf
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -65,6 +67,7 @@ data class HomeUiState(
     val isSearching: Boolean get() = query.isNotBlank()
 }
 
+@OptIn(ExperimentalCoroutinesApi::class) // flatMapLatest: a retry restarts the load, dropping the stale one.
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     quranText: QuranText,
@@ -76,9 +79,17 @@ class HomeViewModel @Inject constructor(
     private val query = MutableStateFlow("")
     private val browse = MutableStateFlow(BrowseMode.SURAH)
 
+    /** Bumped by [retry] to restart the load. */
+    private val retries = MutableStateFlow(0)
+
     private data class Load(val surahs: List<Surah> = emptyList(), val failed: Boolean = false)
 
-    private val load = flow { emit(Load(surahs = quranText.surahs())) }.catch { emit(Load(failed = true)) }
+    private val load = retries.flatMapLatest { retry ->
+        flow {
+            if (retry > 0) emit(Load()) // a retry goes back to loading first
+            emit(Load(surahs = quranText.surahs()))
+        }.catch { emit(Load(failed = true)) }
+    }
 
     private data class Listening(val nowPlaying: NowPlaying?, val lastPosition: LastPosition?)
 
@@ -119,6 +130,11 @@ class HomeViewModel @Inject constructor(
 
     fun onBrowseChange(mode: BrowseMode) {
         browse.value = mode
+    }
+
+    /** Loads the surahs again after a failure. */
+    fun retry() {
+        retries.value++
     }
 
     /** The card's play button: pauses or resumes what is queued, else resumes the saved position. */

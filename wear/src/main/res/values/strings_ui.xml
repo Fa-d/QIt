@@ -50,6 +50,8 @@
     <string name="pause">Pause</string>
     <string name="next_ayah">Next ayah</string>
     <string name="cd_options">Playback options</string>
+    <string name="playback_error_network">No connection</string>
+    <string name="playback_error_failed">Couldn\'t play</string>
 
     <!-- Playback options -->
     <string name="speed_header">Speed</string>
