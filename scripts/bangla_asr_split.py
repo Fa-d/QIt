@@ -74,7 +74,8 @@ def dice(a, b):
 # ---- recognition and alignment ------------------------------------------------------------------
 
 def start_server():
-    """Starts whisper-server with the Bangla model unless it is listening already."""
+    """Starts whisper-server with the Bangla model unless it is listening already. No temperature
+    fallback (-nf): on some windows it made one request decode for many minutes, while the others queued."""
     def up():
         try:
             urllib.request.urlopen(SERVER, timeout=2)
@@ -98,15 +99,23 @@ def start_server():
 
 def _launch_server():
     subprocess.Popen(["whisper-server", "-m", WHISPER_MODEL, "-l", "bn", "--port", str(PORT), "-t", "8",
-                      "-bs", "5", "-bo", "5", "-nt"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                      "-bs", "5", "-bo", "5", "-nf", "-nt"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                      start_new_session=True)
 
 
 def _transcribe(wav):
-    out = subprocess.run(["curl", "-s", "--max-time", "600", f"{SERVER}/inference", "-F", f"file=@{wav}",
-                          "-F", "response_format=json", "-F", "language=bn"],
-                         check=True, capture_output=True).stdout
-    return json.loads(out.decode("utf-8", "replace")).get("text", "")
+    """The window's text, or "" if the server can't give it (a window it chokes on is left untranscribed:
+    its verses then just share a file, rather than failing the surah)."""
+    for _ in range(2):
+        done = subprocess.run(["curl", "-s", "--max-time", "1800", f"{SERVER}/inference", "-F", f"file=@{wav}",
+                               "-F", "response_format=json", "-F", "language=bn"], capture_output=True)
+        if done.returncode == 0:
+            try:
+                return json.loads(done.stdout.decode("utf-8", "replace")).get("text", "")
+            except ValueError:
+                pass
+        start_server()  # it may have died
+    return ""
 
 
 def _align(wav, words):
