@@ -1,7 +1,9 @@
 package dev.sadakat.qit.core.data.player
 
+import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import dev.sadakat.qit.core.domain.audio.QueueItemId
 import dev.sadakat.qit.core.domain.model.AyahRef
 import dev.sadakat.qit.core.domain.player.ListenTracker
@@ -17,6 +19,8 @@ import kotlinx.coroutines.launch
  * jumps back at an ayah's end, the end is reported before the jump, and the ayah that just ended is
  * the one counted. [clock] is monotonic (listening time), [wallClock] the epoch (when heard).
  */
+// Player.PositionInfo.mediaItem is marked unstable, but has been stable in practice since Media3 1.0.
+@OptIn(UnstableApi::class)
 class ListeningRecorder(
     private val player: Player,
     private val history: ListeningHistory,
