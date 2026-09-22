@@ -3,6 +3,7 @@
     <!-- Home: continue card, search, surah and juz lists -->
     <string name="home_title">Quran</string>
     <string name="home_cd_reading_settings">Reading settings</string>
+    <string name="home_cd_progress">Your listening</string>
     <string name="home_search_hint">Surah, number or 2:255</string>
     <string name="home_cd_clear_search">Clear search</string>
     <string name="home_browse_surahs">Surahs</string>

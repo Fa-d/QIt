@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Progress: which surahs and ayahs you've heard, and how often -->
+    <string name="progress_title">Your listening</string>
+    <string name="progress_of_ayahs_heard">of %1$s ayahs heard</string>
+    <string name="progress_coverage_line">%1$d%% of the Quran · %2$s listened</string>
+    <plurals name="progress_whole_quran_rounds">
+        <item quantity="one">Whole Quran heard once</item>
+        <item quantity="other">Whole Quran heard %d×</item>
+    </plurals>
+    <string name="progress_order_recent">Recent</string>
+    <string name="progress_order_most_heard">Most heard</string>
+    <string name="progress_order_by_number">By number</string>
+    <string name="progress_ayahs_heard">%1$d of %2$d ayahs heard</string>
+    <string name="progress_rounds_listens">%1$s · %2$s</string>
+    <plurals name="progress_full_rounds">
+        <item quantity="one">%d full round</item>
+        <item quantity="other">%d full rounds</item>
+    </plurals>
+    <plurals name="progress_listens">
+        <item quantity="one">%d listen</item>
+        <item quantity="other">%d listens</item>
+    </plurals>
+    <string name="progress_into_round">%1$d%% into round %2$d</string>
+    <string name="progress_percent_heard">%1$d%% heard</string>
+    <string name="progress_time_hours_minutes">%1$d h %2$d min</string>
+    <string name="progress_time_minutes">%1$d min</string>
+    <string name="progress_time_under_minute">Under a minute</string>
+    <string name="progress_reset">Reset progress</string>
+    <string name="progress_reset_title">Reset your listening progress?</string>
+    <string name="progress_reset_text">This forgets every ayah you\'ve heard, on this phone and on your watch.</string>
+    <string name="progress_reset_confirm">Reset</string>
+    <string name="progress_empty_title">Nothing heard yet</string>
+    <string name="progress_empty_text">Listen to a surah and your progress shows up here: which ayahs you\'ve heard, and how many times.</string>
+</resources>
