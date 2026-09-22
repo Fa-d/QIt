@@ -1,4 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- The tile -->
+    <string name="tile_label">Quran</string>
+    <string name="tile_description">Continue listening, see the ayah and pause</string>
+    <string name="tile_nothing_yet">Choose a surah to start listening</string>
+    <string name="tile_open">Open</string>
+    <string name="tile_continue">Continue</string>
+    <string name="tile_pause">Pause</string>
+    <string name="tile_resume">Resume</string>
+    <string name="tile_position">%1$d:%2$d</string>
+    <string name="tile_progress">Ayah %1$d of %2$d</string>
+    <string name="tile_surah_fallback">Surah %1$d</string>
 </resources>
