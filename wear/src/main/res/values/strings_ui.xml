@@ -3,7 +3,10 @@
     <string name="app_name">QIt</string>
 
     <!-- Home hub -->
+    <string name="home_title">Quran</string>
     <string name="surahs">Surahs</string>
+    <string name="juz_title">Juz</string>
+    <string name="downloaded_title">Downloaded</string>
     <string name="by_juz">By juz</string>
     <string name="downloaded_surahs">Downloaded (%1$d)</string>
     <string name="recitation">Recitation · %1$s</string>

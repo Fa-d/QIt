@@ -29,7 +29,22 @@ private const val ROUTE_MODE = "mode"
 private const val ROUTE_OPTIONS = "options"
 
 private fun surahsRoute(downloaded: Boolean) = "surahs?downloaded=$downloaded"
-private fun surahRoute(number: Int, from: Int? = null) = "surah/$number" + (from?.let { "?from=$it" } ?: "")
+private fun surahRoute(number: Int, from: Int = 0) = "surah/$number?from=$from"
+
+/** Arguments of the surah list route. */
+internal val SurahsArguments = listOf(navArgument("downloaded") { type = NavType.BoolType })
+
+/**
+ * Arguments of the surah route: its number, and the ayah to play from when opened from a juz — 0 for
+ * "from the start". (An Int argument can't be nullable: Navigation rejects it when the graph is built.)
+ */
+internal val SurahArguments = listOf(
+    navArgument("number") { type = NavType.IntType },
+    navArgument("from") {
+        type = NavType.IntType
+        defaultValue = 0
+    },
+)
 
 /**
  * Root of the watch UI: the app scaffold (time text) over a swipe-dismiss navigation graph from
@@ -71,10 +86,7 @@ fun WearQuranApp(
                         onNowPlayingClick = { navController.navigate(ROUTE_NOW_PLAYING) },
                     )
                 }
-                composable(
-                    route = ROUTE_SURAHS,
-                    arguments = listOf(navArgument("downloaded") { type = NavType.BoolType }),
-                ) {
+                composable(route = ROUTE_SURAHS, arguments = SurahsArguments) {
                     SurahListRoute(onSurahClick = { number -> navController.navigate(surahRoute(number)) })
                 }
                 composable(ROUTE_JUZ) {
@@ -82,17 +94,7 @@ fun WearQuranApp(
                         onJuzClick = { start -> navController.navigate(surahRoute(start.surah, start.ayah)) },
                     )
                 }
-                composable(
-                    route = ROUTE_SURAH,
-                    arguments = listOf(
-                        navArgument("number") { type = NavType.IntType },
-                        navArgument("from") {
-                            type = NavType.IntType
-                            nullable = true
-                            defaultValue = null
-                        },
-                    ),
-                ) {
+                composable(route = ROUTE_SURAH, arguments = SurahArguments) {
                     SurahRoute(
                         onPlayNow = { navController.navigate(ROUTE_NOW_PLAYING) },
                         onModeClick = { navController.navigate(ROUTE_MODE) },

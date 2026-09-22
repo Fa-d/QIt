@@ -38,8 +38,8 @@ class WearSurahViewModel @Inject constructor(
 
     private val surahNumber: Int = savedStateHandle.get<Int>("number") ?: 0
 
-    /** The ayah to play from when the screen was opened from a juz; null plays from the basmala. */
-    private val fromAyah: Int? = savedStateHandle.get<Int>("from")
+    /** The ayah to play from when the screen was opened from a juz (0 or absent: from the start). */
+    private val fromAyah: Int? = savedStateHandle.get<Int>("from")?.takeIf { it > 0 }
 
     private val surahFlow = flow { emit(runCatching { quranText.surah(surahNumber) }.getOrNull()) }
 

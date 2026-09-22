@@ -31,6 +31,7 @@ import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
 import dev.sadakat.qit.wear.R
+import dev.sadakat.qit.wear.presentation.ScreenHeader
 
 @Composable
 fun HomeRoute(
@@ -103,6 +104,7 @@ fun HomeScreen(
                     Text(stringResource(R.string.loading), modifier = Modifier.fillMaxWidth())
                 }
             } else {
+                item(key = "title") { ScreenHeader(stringResource(R.string.home_title)) }
                 item(key = "surahs") {
                     HubRow(
                         label = stringResource(R.string.surahs),

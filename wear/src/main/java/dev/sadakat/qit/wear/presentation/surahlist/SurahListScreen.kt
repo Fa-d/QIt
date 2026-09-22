@@ -22,6 +22,7 @@ import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState
 import dev.sadakat.qit.wear.R
+import dev.sadakat.qit.wear.presentation.ScreenHeader
 import kotlin.math.roundToInt
 
 @Composable
@@ -44,6 +45,9 @@ fun SurahListScreen(uiState: WearSurahListUiState, onSurahClick: (Int) -> Unit, 
             contentPadding = contentPadding,
             modifier = Modifier.fillMaxSize(),
         ) {
+            item(key = "title") {
+                ScreenHeader(stringResource(if (uiState.downloadedOnly) R.string.downloaded_title else R.string.surahs))
+            }
             if (uiState.rows.isEmpty()) {
                 item(key = "empty") { EmptyRow(uiState.downloadedOnly) }
             } else {

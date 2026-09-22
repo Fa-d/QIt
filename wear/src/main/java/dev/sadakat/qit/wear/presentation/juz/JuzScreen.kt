@@ -21,6 +21,7 @@ import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
 import dev.sadakat.qit.core.domain.model.AyahRef
 import dev.sadakat.qit.wear.R
+import dev.sadakat.qit.wear.presentation.ScreenHeader
 
 @Composable
 fun JuzRoute(onJuzClick: (AyahRef) -> Unit, modifier: Modifier = Modifier, viewModel: JuzViewModel = hiltViewModel()) {
@@ -38,6 +39,7 @@ fun JuzScreen(uiState: WearJuzUiState, onJuzClick: (AyahRef) -> Unit, modifier: 
             contentPadding = contentPadding,
             modifier = Modifier.fillMaxSize(),
         ) {
+            item(key = "title") { ScreenHeader(stringResource(R.string.juz_title)) }
             items(uiState.rows, key = { it.juz }) { row ->
                 JuzRow(row, onJuzClick)
             }
