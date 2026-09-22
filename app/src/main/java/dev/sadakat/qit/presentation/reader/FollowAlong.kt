@@ -1,3 +1,4 @@
+// kit-migration: pending (still builds Material containers itself; move it onto the :core:ui kit)
 @file:Suppress("MatchingDeclarationName") // FollowAlong.kt = the state, its scroller and its chip.
 
 package dev.sadakat.qit.presentation.reader

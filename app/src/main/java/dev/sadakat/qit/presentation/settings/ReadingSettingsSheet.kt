@@ -1,3 +1,4 @@
+// kit-migration: pending (still builds Material containers itself; move it onto the :core:ui kit)
 package dev.sadakat.qit.presentation.settings
 
 import android.os.Build

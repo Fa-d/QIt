@@ -6,11 +6,12 @@ import org.junit.Test
  * App code draws with design tokens (`QItTheme.colors`, `QItTheme.spacing`, `MaterialTheme.typography`
  * ...), never with literal colors or sizes: one place decides how QIt looks, and light, dark, dynamic
  * color and the text-size setting all keep working. The theme packages, which map the tokens onto
- * Material, are the exception.
+ * Material, are the exception. The phone's UI kit (`:core:ui`) follows the same rule.
  */
 class DesignTokenUsageTest {
 
-    private val themePackages = listOf("dev.sadakat.qit.ui.theme", "dev.sadakat.qit.wear.presentation.theme")
+    private val themePackages =
+        listOf("dev.sadakat.qit.ui.theme", "dev.sadakat.qit.wear.presentation.theme", "dev.sadakat.qit.core.ui.theme")
     private val colorLiteral = Regex("""\bColor\s*\(""")
 
     // A number followed by .dp or .sp, e.g. 16.dp or 1.5.sp; 0.dp ("none") is allowed.
@@ -36,6 +37,6 @@ class DesignTokenUsageTest {
         report(violations, "Literal sizes in app code:")
     }
 
-    private fun tokenFiles() = appMainFiles()
+    private fun tokenFiles() = (appMainFiles() + uiKitMainFiles())
         .filterNot { file -> themePackages.any { file.packagee?.name == it } }
 }
