@@ -30,6 +30,7 @@ import androidx.wear.compose.material3.AlertDialog
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.EdgeButton
+import androidx.wear.compose.material3.FilledTonalButton
 import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
@@ -193,7 +194,7 @@ private fun TransformingLazyColumnItemScope.TitleRow(surah: Surah) {
 @Composable
 private fun TransformingLazyColumnItemScope.DownloadRow(download: SurahDownloadState, onPrimary: () -> Unit) {
     val transformationSpec = rememberTransformationSpec()
-    Button(
+    FilledTonalButton(
         onClick = onPrimary,
         modifier = rowModifier(ButtonDefaults.minimumVerticalListContentPadding, transformationSpec),
         transformation = SurfaceTransformation(transformationSpec),
@@ -207,7 +208,7 @@ private fun TransformingLazyColumnItemScope.DownloadRow(download: SurahDownloadS
 @Composable
 private fun TransformingLazyColumnItemScope.ModeRow(modeLabel: String, onModeClick: () -> Unit) {
     val transformationSpec = rememberTransformationSpec()
-    Button(
+    FilledTonalButton(
         onClick = onModeClick,
         modifier = rowModifier(ButtonDefaults.minimumVerticalListContentPadding, transformationSpec),
         transformation = SurfaceTransformation(transformationSpec),

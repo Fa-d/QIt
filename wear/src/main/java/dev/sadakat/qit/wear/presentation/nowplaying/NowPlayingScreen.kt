@@ -182,7 +182,8 @@ private fun ControlsPage(
                 } else {
                     Text(
                         text = uiState.surahName.orEmpty(),
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -192,7 +193,8 @@ private fun ControlsPage(
                         } else {
                             stringResource(R.string.ayah_position, surahNumber, uiState.ayah)
                         },
-                        style = MaterialTheme.typography.displaySmall,
+                        // Compact enough that the column fits under the clock on small round screens.
+                        style = MaterialTheme.typography.titleLarge,
                     )
                     if (uiState.isBuffering) {
                         CircularProgressIndicator(
@@ -220,7 +222,7 @@ private fun ControlsPage(
                     FilledIconButton(
                         onClick = onOpenOptions,
                         modifier = Modifier
-                            .padding(top = QItTheme.spacing.md)
+                            .padding(top = QItTheme.spacing.xs)
                             .touchTargetAwareSize(IconButtonDefaults.SmallButtonSize),
                     ) {
                         Icon(Icons.Filled.Tune, contentDescription = stringResource(R.string.cd_options))
@@ -299,7 +301,10 @@ internal fun TextPage(uiState: WearNowPlayingUiState) {
                         style = QItTheme.arabic.watchBody,
                         color = QItTheme.colors.arabicText,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
+                        // Inset from the round edge, where the first lines would otherwise clip.
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = QItTheme.spacing.xl),
                     )
                 }
                 uiState.translation?.let { translation ->
@@ -309,7 +314,9 @@ internal fun TextPage(uiState: WearNowPlayingUiState) {
                             style = MaterialTheme.typography.bodySmall,
                             color = QItTheme.colors.translationText,
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = QItTheme.spacing.xl, vertical = QItTheme.spacing.sm),
                         )
                     }
                 }

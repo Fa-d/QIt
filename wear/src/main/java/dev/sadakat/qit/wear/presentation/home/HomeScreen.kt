@@ -21,9 +21,9 @@ import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumnItemScope
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumnState
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
-import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.EdgeButton
+import androidx.wear.compose.material3.FilledTonalButton
 import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.SurfaceTransformation
@@ -147,7 +147,7 @@ private fun TransformingLazyColumnItemScope.HubRow(
     onClick: () -> Unit,
 ) {
     val transformationSpec = rememberTransformationSpec()
-    Button(
+    FilledTonalButton(
         onClick = onClick,
         modifier = Modifier
             .minimumVerticalContentPadding(ButtonDefaults.minimumVerticalListContentPadding)

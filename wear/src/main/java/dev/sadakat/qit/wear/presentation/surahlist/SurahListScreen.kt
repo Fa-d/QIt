@@ -12,8 +12,8 @@ import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumnItemScope
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
-import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
+import androidx.wear.compose.material3.FilledTonalButton
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.SurfaceTransformation
@@ -74,7 +74,7 @@ private fun TransformingLazyColumnItemScope.EmptyRow(downloadedOnly: Boolean) {
 @Composable
 private fun TransformingLazyColumnItemScope.SurahRow(row: SurahRowUiModel, onSurahClick: (Int) -> Unit) {
     val transformationSpec = rememberTransformationSpec()
-    Button(
+    FilledTonalButton(
         onClick = { onSurahClick(row.surah.number) },
         modifier = Modifier
             .minimumVerticalContentPadding(ButtonDefaults.minimumVerticalListContentPadding)

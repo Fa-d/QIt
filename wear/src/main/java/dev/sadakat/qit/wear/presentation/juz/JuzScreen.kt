@@ -12,8 +12,8 @@ import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumnItemScope
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
-import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
+import androidx.wear.compose.material3.FilledTonalButton
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
@@ -48,7 +48,7 @@ fun JuzScreen(uiState: WearJuzUiState, onJuzClick: (AyahRef) -> Unit, modifier: 
 @Composable
 private fun TransformingLazyColumnItemScope.JuzRow(row: JuzRowUiModel, onJuzClick: (AyahRef) -> Unit) {
     val transformationSpec = rememberTransformationSpec()
-    Button(
+    FilledTonalButton(
         onClick = { onJuzClick(row.start) },
         modifier = Modifier
             .minimumVerticalContentPadding(ButtonDefaults.minimumVerticalListContentPadding)
