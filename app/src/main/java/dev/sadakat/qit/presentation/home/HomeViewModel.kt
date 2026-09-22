@@ -144,7 +144,7 @@ class HomeViewModel @Inject constructor(
         return ContinueListeningUi(
             surah = surah.number,
             surahName = surah.nameEnglish,
-            surahNameArabic = surah.nameArabic,
+            surahNameArabic = surah.nameArabicShort,
             ayah = ref.ayah,
             ayahCount = surah.ayahCount,
             isCurrent = nowPlaying != null,

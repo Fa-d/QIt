@@ -74,7 +74,12 @@ fun SurahRow(row: SurahRowUi, onClick: () -> Unit, modifier: Modifier = Modifier
             )
         }
         Spacer(Modifier.width(QItTheme.spacing.sm))
-        Text(text = surah.nameArabic, style = QItTheme.arabic.label, color = QItTheme.colors.arabicText, maxLines = 1)
+        Text(
+            text = surah.nameArabicShort,
+            style = QItTheme.arabic.label,
+            color = QItTheme.colors.arabicText,
+            maxLines = 1,
+        )
         if (row.download !is SurahDownloadState.NotDownloaded) {
             Spacer(Modifier.width(QItTheme.spacing.sm))
             DownloadIndicator(row.download)

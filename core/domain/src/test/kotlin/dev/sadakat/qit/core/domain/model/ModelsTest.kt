@@ -22,6 +22,13 @@ class ModelsTest {
     }
 
     @Test
+    fun `the short Arabic name drops the leading word surah`() {
+        val fatiha = Surah(1, "سُورَةُ ٱلْفَاتِحَةِ", "Al-Faatiha", "The Opening", 7, Revelation.MECCAN)
+        assertEquals("ٱلْفَاتِحَةِ", fatiha.nameArabicShort)
+        assertEquals("البقرة", Surah(2, "البقرة", "Al-Baqara", "The Cow", 286, Revelation.MEDINAN).nameArabicShort)
+    }
+
+    @Test
     fun `tracks round-trip through their codes`() {
         Track.entries.forEach { assertEquals(it, Track.fromCode(it.code)) }
         assertNull(Track.fromCode("xx"))

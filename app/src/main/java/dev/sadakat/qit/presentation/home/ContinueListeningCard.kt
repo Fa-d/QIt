@@ -58,8 +58,9 @@ fun ContinueListeningCard(
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
+                    // A restored session is queued but paused: that's still "continue", not "now playing".
                     text = stringResource(
-                        if (item.isCurrent) R.string.home_now_playing else R.string.home_continue_listening,
+                        if (item.isPlaying) R.string.home_now_playing else R.string.home_continue_listening,
                     ),
                     style = MaterialTheme.typography.labelLarge,
                 )

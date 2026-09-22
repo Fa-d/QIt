@@ -13,7 +13,17 @@ data class Surah(
     val ayahCount: Int,
     val revelation: Revelation,
 ) {
+    /**
+     * The Arabic name without its leading word "سُورَةُ" (surah), e.g. "ٱلْفَاتِحَةِ": for lists and
+     * cards, where the word would only repeat on every row.
+     */
+    val nameArabicShort: String get() = nameArabic.removePrefix(SURAH_WORD).trim()
+
     fun globalAyah(ayah: Int): Int = QuranMeta.globalAyah(number, ayah)
+
+    private companion object {
+        const val SURAH_WORD = "سُورَةُ"
+    }
 }
 
 data class Ayah(

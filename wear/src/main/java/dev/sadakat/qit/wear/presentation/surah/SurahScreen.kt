@@ -168,7 +168,7 @@ private fun TransformingLazyColumnItemScope.TitleRow(surah: Surah) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = surah.nameArabic,
+            text = surah.nameArabicShort,
             style = QItTheme.arabic.watchTitle,
             color = QItTheme.colors.arabicText,
             textAlign = TextAlign.Center,
