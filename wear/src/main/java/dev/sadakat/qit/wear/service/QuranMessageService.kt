@@ -2,7 +2,6 @@ package dev.sadakat.qit.wear.service
 
 import android.util.Log
 import com.google.android.gms.common.api.ApiException
-import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.DataClient
 import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
@@ -20,6 +19,7 @@ import dev.sadakat.qit.core.domain.repository.ListeningHistory
 import dev.sadakat.qit.core.domain.repository.SurahDownloads
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.tasks.await
 import java.io.IOException
 import javax.inject.Inject
 
@@ -47,19 +47,25 @@ class QuranMessageService : WearableListenerService() {
     private fun resetIfSent(dataClient: DataClient, event: DataEvent) {
         val item = event.dataItem
         if (event.type != DataEvent.TYPE_CHANGED || item.uri.path != WearPaths.LISTENING_RESET) return
-        val bytes = resetBytes(dataClient, item) ?: return
-        runBlocking { handleListeningReset(bytes, listeningHistory) }
+        runBlocking {
+            val bytes = resetBytes(dataClient, item) ?: return@runBlocking
+            handleListeningReset(bytes, listeningHistory)
+        }
     }
 
-    /** The reset item's [WearPaths.LISTENING_ASSET] payload, or null if it carries none we can read. */
-    private fun resetBytes(dataClient: DataClient, item: DataItem): ByteArray? {
+    /**
+     * The reset item's [WearPaths.LISTENING_ASSET] payload, or null if it carries none we can read.
+     * `await()` rethrows the task's own failure (an [ApiException]), unlike `Tasks.await`, which
+     * wraps it in an ExecutionException.
+     */
+    private suspend fun resetBytes(dataClient: DataClient, item: DataItem): ByteArray? {
         val asset = DataMapItem.fromDataItem(item).dataMap.getAsset(WearPaths.LISTENING_ASSET)
         if (asset == null) {
             Log.w(TAG, "Listening reset item carries no ${WearPaths.LISTENING_ASSET} asset")
             return null
         }
         return try {
-            val response = Tasks.await(dataClient.getFdForAsset(asset))
+            val response = dataClient.getFdForAsset(asset).await()
             try {
                 response.inputStream.readBytes()
             } finally {
