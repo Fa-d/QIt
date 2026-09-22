@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDropDown
@@ -21,6 +22,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +43,7 @@ import androidx.compose.ui.semantics.semantics
 import dev.sadakat.qit.R
 import dev.sadakat.qit.core.designsystem.QItTheme
 import dev.sadakat.qit.core.designsystem.component.PlayerTokens
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.player.NowPlaying
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
@@ -48,8 +51,7 @@ import dev.sadakat.qit.core.domain.player.RepeatSetting
 import dev.sadakat.qit.core.domain.player.SleepTimerStatus
 import kotlin.math.max
 
-/**
- * The transport, flanked by the two things changed while listening: repeat (for memorizing) on
+/** The transport, flanked by the two things changed while listening: repeat (for memorizing) on
  * the left, speed on the right. Previous and next move by ayah.
  */
 @Composable
@@ -199,26 +201,39 @@ private fun SpeedButton(speed: PlaybackSpeed, onSpeedChange: (PlaybackSpeed) -> 
     }
 }
 
-/** What plays after the Arabic (a menu of the three modes), and the sleep timer: one quiet row. */
+/** What plays after the Arabic (a menu of the three modes, and of the Bangla voices under
+ * them while Bangla plays), and the sleep timer: one quiet row. [voice] is the voice the menu
+ * checks, or null to leave the voices out of it — as NowPlayingSheet.kt still must, until its
+ * rework lets it pass one down.
+ */
 @Composable
 fun ModeAndSleepRow(
     mode: RecitationMode,
     sleepTimer: SleepTimerStatus,
     actions: NowPlayingActions,
     modifier: Modifier = Modifier,
+    voice: BanglaVoice? = null,
 ) {
     // A flow row: with large text the sleep chip moves to a second line instead of squeezing the mode.
     FlowRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(QItTheme.spacing.sm, Alignment.CenterHorizontally),
     ) {
-        ModeChip(mode, actions.onModeChange)
+        ModeChip(mode, voice, actions.onModeChange, actions.onVoiceChange)
         SleepChip(sleepTimer, actions.onSleepTimerChange)
     }
 }
 
+/** What plays after the Arabic (a menu of the three modes, and of the Bangla voices under them
+ * while Bangla plays and the host passes the current [voice]).
+ */
 @Composable
-private fun ModeChip(mode: RecitationMode, onModeChange: (RecitationMode) -> Unit) {
+private fun ModeChip(
+    mode: RecitationMode,
+    voice: BanglaVoice?,
+    onModeChange: (RecitationMode) -> Unit,
+    onVoiceChange: (BanglaVoice) -> Unit,
+) {
     var open by remember { mutableStateOf(false) }
     val description = stringResource(R.string.player_cd_mode_chip, modeName(mode))
     Box {
@@ -240,6 +255,30 @@ private fun ModeChip(mode: RecitationMode, onModeChange: (RecitationMode) -> Uni
                         if (option != mode) onModeChange(option)
                     },
                 )
+            }
+            // The voices only matter once Bangla plays, and only when the host can name the current one.
+            if (mode == RecitationMode.ARABIC_BANGLA && voice != null) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = QItTheme.spacing.xs))
+                Text(
+                    text = stringResource(R.string.bangla_voice),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(
+                        start = QItTheme.spacing.lg,
+                        end = QItTheme.spacing.lg,
+                        bottom = QItTheme.spacing.xs,
+                    ),
+                )
+                BanglaVoice.entries.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(banglaVoiceName(option)) },
+                        trailingIcon = { if (option == voice) Icon(Icons.Rounded.Check, contentDescription = null) },
+                        onClick = {
+                            open = false
+                            if (option != voice) onVoiceChange(option)
+                        },
+                    )
+                }
             }
         }
     }

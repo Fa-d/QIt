@@ -5,7 +5,9 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.core.domain.model.AyahRef
 import dev.sadakat.qit.core.domain.model.AyahRefParser
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.QuranMeta
+import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Surah
 import dev.sadakat.qit.core.domain.player.NowPlaying
 import dev.sadakat.qit.core.domain.player.QuranPlayer
@@ -84,6 +86,11 @@ class HomeViewModel @Inject constructor(
 
     private val listening = combine(player.nowPlaying, settings.lastPosition, ::Listening)
 
+    /** The mode with the voice that plays with it: together they name the tracks acted on. */
+    private data class Recitation(val mode: RecitationMode, val voice: BanglaVoice)
+
+    private val recitation = combine(settings.mode, settings.banglaVoice, ::Recitation)
+
     private data class Browsing(val query: String, val browse: BrowseMode)
 
     private val browsing = combine(query, browse, ::Browsing)
@@ -91,10 +98,10 @@ class HomeViewModel @Inject constructor(
     val uiState: StateFlow<HomeUiState> = combine(
         load,
         browsing,
-        settings.mode,
+        recitation,
         downloads.states,
         listening,
-    ) { load, browsing, mode, downloadStates, listening ->
+    ) { load, browsing, recitation, downloadStates, listening ->
         val byNumber = load.surahs.associateBy { it.number }
         val playingSurah = listening.nowPlaying?.surah
         HomeUiState(
@@ -108,7 +115,13 @@ class HomeViewModel @Inject constructor(
             browse = browsing.browse,
             surahs = load.surahs
                 .filter { SurahSearch.matches(it, browsing.query) }
-                .map { SurahRowUi(it, downloadStates.stateOf(it.number, mode.tracks), it.number == playingSurah) },
+                .map {
+                    SurahRowUi(
+                        it,
+                        downloadStates.stateOf(it.number, recitation.mode.tracks(recitation.voice)),
+                        it.number == playingSurah,
+                    )
+                },
             juz = if (byNumber.isEmpty()) emptyList() else juzRows(byNumber),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())

@@ -3,6 +3,7 @@ package dev.sadakat.qit.presentation.player
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import dev.sadakat.qit.R
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.player.RepeatSetting
@@ -78,6 +79,16 @@ fun modeName(mode: RecitationMode): String = stringResource(
         RecitationMode.ARABIC_ONLY -> R.string.player_mode_full_arabic
         RecitationMode.ARABIC_ENGLISH -> R.string.player_mode_full_english
         RecitationMode.ARABIC_BANGLA -> R.string.player_mode_full_bangla
+    },
+)
+
+/** The voice's narrator, as the mode menu and the settings sheet name them. */
+@Composable
+fun banglaVoiceName(voice: BanglaVoice): String = stringResource(
+    when (voice) {
+        BanglaVoice.ISLAMIC_FOUNDATION -> R.string.bangla_voice_islamic_foundation
+        BanglaVoice.SAYED_ISMAT_TOHA -> R.string.bangla_voice_toha
+        BanglaVoice.SHAREEF_BAEZEED_MAHMOOD -> R.string.bangla_voice_baezeed
     },
 )
 

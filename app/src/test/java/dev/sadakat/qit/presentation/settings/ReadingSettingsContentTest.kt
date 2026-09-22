@@ -18,6 +18,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.sadakat.qit.R
 import dev.sadakat.qit.core.domain.model.ArabicTextSize
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.ThemeMode
 import dev.sadakat.qit.core.domain.model.WordByWord
@@ -40,19 +41,25 @@ class ReadingSettingsContentTest {
     private var pickedSize: ArabicTextSize? = null
     private var showTranslation: Boolean? = null
     private var followAlong: Boolean? = null
+    private var pickedVoice: BanglaVoice? = null
     private var wordByWord: WordByWord? = null
     private var pickedTheme: ThemeMode? = null
     private var dynamicColor: Boolean? = null
 
-    private fun setContent(prefs: ReadingPrefs = ReadingPrefs(), showDynamicColor: Boolean = true) {
+    private fun setContent(
+        prefs: ReadingPrefs = ReadingPrefs(),
+        voice: BanglaVoice = BanglaVoice.DEFAULT,
+        showDynamicColor: Boolean = true,
+    ) {
         composeRule.setContent {
             QItAppTheme {
                 ReadingSettingsContent(
-                    state = ReadingSettingsUiState(prefs = prefs),
+                    state = ReadingSettingsUiState(prefs = prefs, voice = voice),
                     showDynamicColor = showDynamicColor,
                     onArabicTextSizeChange = { pickedSize = it },
                     onShowTranslationChange = { showTranslation = it },
                     onFollowAlongChange = { followAlong = it },
+                    onBanglaVoiceChange = { pickedVoice = it },
                     onWordByWordChange = { wordByWord = it },
                     onThemeModeChange = { pickedTheme = it },
                     onDynamicColorChange = { dynamicColor = it },
@@ -86,6 +93,26 @@ class ReadingSettingsContentTest {
             .assert(isSwitch(false))
         composeRule.onNodeWithText(context.getString(R.string.follow_along))
             .assert(isSwitch(false))
+    }
+
+    @Test
+    fun `tapping a bangla voice row anywhere picks it`() {
+        setContent()
+
+        composeRule.onNodeWithText(context.getString(R.string.bangla_voice_toha)).performScrollTo().performClick()
+
+        assertEquals(BanglaVoice.SAYED_ISMAT_TOHA, pickedVoice)
+    }
+
+    @Test
+    fun `the stored bangla voice is the checked row`() {
+        setContent(voice = BanglaVoice.SHAREEF_BAEZEED_MAHMOOD)
+
+        composeRule.onNodeWithText(context.getString(R.string.bangla_voice_baezeed))
+            .performScrollTo()
+            .assert(isSelected())
+        composeRule.onNodeWithText(context.getString(R.string.bangla_voice_islamic_foundation))
+            .assert(isNotSelected())
     }
 
     @Test
@@ -134,6 +161,7 @@ class ReadingSettingsContentTest {
                     onArabicTextSizeChange = {},
                     onShowTranslationChange = {},
                     onFollowAlongChange = {},
+                    onBanglaVoiceChange = {},
                     onWordByWordChange = {},
                     onThemeModeChange = {},
                     onDynamicColorChange = { dynamicColor = it },

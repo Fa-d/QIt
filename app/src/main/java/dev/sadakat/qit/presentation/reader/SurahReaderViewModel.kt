@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.core.domain.model.Ayah
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.ListeningProgress
 import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
@@ -94,9 +95,11 @@ class SurahReaderViewModel @Inject constructor(
     private val message = MutableStateFlow<ReaderMessage?>(null)
 
     private var currentMode: RecitationMode = RecitationMode.ARABIC_BANGLA
+    private var currentVoice: BanglaVoice = BanglaVoice.DEFAULT
 
     init {
         viewModelScope.launch { settings.mode.collect { currentMode = it } }
+        viewModelScope.launch { settings.banglaVoice.collect { currentVoice = it } }
     }
 
     private data class Heard(val perAyah: List<Int>, val listening: SurahListening?)
@@ -120,29 +123,34 @@ class SurahReaderViewModel @Inject constructor(
             flow { emit(wordMeanings.meanings(surahNumber, language)) }.catch { emit(emptyMap()) }
         }
 
-    private data class Reading(val mode: RecitationMode, val prefs: ReadingPrefs, val meanings: Map<Int, List<String>>)
+    private data class Reading(
+        val mode: RecitationMode,
+        val voice: BanglaVoice,
+        val prefs: ReadingPrefs,
+        val meanings: Map<Int, List<String>>,
+    )
 
     val uiState: StateFlow<SurahReaderUiState> = combine(
         load,
-        combine(settings.mode, settings.readingPrefs, meanings, ::Reading),
+        combine(settings.mode, settings.banglaVoice, settings.readingPrefs, meanings, ::Reading),
         combine(downloads.states, heard) { states, heard -> states to heard },
         player.nowPlaying,
         message,
-    ) { load, (mode, prefs, meanings), (states, heard), nowPlaying, message ->
+    ) { load, reading, (states, heard), nowPlaying, message ->
         SurahReaderUiState(
             surah = load.surah,
             ayahs = load.ayahs,
             loadFailed = load.failed,
-            mode = mode,
-            downloadState = states.stateOf(surahNumber, mode.tracks),
+            mode = reading.mode,
+            downloadState = states.stateOf(surahNumber, reading.mode.tracks(reading.voice)),
             playingAyah = nowPlaying?.takeIf { it.surah == surahNumber }?.ayah,
             initialAyah = initialAyah,
-            showTranslation = prefs.showTranslation,
-            followAlong = prefs.followAlong,
+            showTranslation = reading.prefs.showTranslation,
+            followAlong = reading.prefs.followAlong,
             message = message,
             heard = heard.perAyah,
             listening = heard.listening,
-            wordMeanings = meanings,
+            wordMeanings = reading.meanings,
         )
     }.stateIn(
         viewModelScope,
@@ -168,11 +176,11 @@ class SurahReaderViewModel @Inject constructor(
     }
 
     fun download() {
-        downloads.download(surahNumber, currentMode.tracks)
+        downloads.download(surahNumber, currentMode.tracks(currentVoice))
     }
 
     fun remove() {
-        downloads.remove(surahNumber, currentMode.tracks)
+        downloads.remove(surahNumber, currentMode.tracks(currentVoice))
     }
 
     /** Persists [mode]; if this surah is playing, restarts it at the current ayah in the new mode. */
@@ -190,7 +198,7 @@ class SurahReaderViewModel @Inject constructor(
             message.value = if (!watch.isWatchReachable()) {
                 ReaderMessage.NoWatch
             } else {
-                watch.sendDownload(surahNumber, currentMode.tracks).fold(
+                watch.sendDownload(surahNumber, currentMode.tracks(currentVoice)).fold(
                     onSuccess = { ReaderMessage.SentToWatch(it) },
                     onFailure = { ReaderMessage.NoWatch },
                 )

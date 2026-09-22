@@ -9,12 +9,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -37,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sadakat.qit.R
 import dev.sadakat.qit.core.designsystem.QItTheme
 import dev.sadakat.qit.core.domain.model.ArabicTextSize
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.ThemeMode
 import dev.sadakat.qit.core.domain.model.WordByWord
 import kotlin.math.roundToInt
@@ -61,6 +64,7 @@ fun ReadingSettingsSheet(
             onArabicTextSizeChange = viewModel::setArabicTextSize,
             onShowTranslationChange = viewModel::setShowTranslation,
             onFollowAlongChange = viewModel::setFollowAlong,
+            onBanglaVoiceChange = viewModel::setBanglaVoice,
             onWordByWordChange = viewModel::setWordByWord,
             onThemeModeChange = viewModel::setThemeMode,
             onDynamicColorChange = viewModel::setDynamicColor,
@@ -70,8 +74,9 @@ fun ReadingSettingsSheet(
 
 /**
  * The sheet's stateless content: the Arabic text size with a live preview, the translation and
- * follow-along switches, the word-by-word language, the theme and (where supported) wallpaper
- * colors. Kept separate from the sheet so tests and goldens render it without a window.
+ * follow-along switches, the Bangla voice, the word-by-word language, the theme and (where
+ * supported) wallpaper colors. Kept separate from the sheet so tests and goldens render it
+ * without a window.
  */
 @Composable
 fun ReadingSettingsContent(
@@ -80,6 +85,7 @@ fun ReadingSettingsContent(
     onArabicTextSizeChange: (ArabicTextSize) -> Unit,
     onShowTranslationChange: (Boolean) -> Unit,
     onFollowAlongChange: (Boolean) -> Unit,
+    onBanglaVoiceChange: (BanglaVoice) -> Unit,
     onWordByWordChange: (WordByWord) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onDynamicColorChange: (Boolean) -> Unit,
@@ -166,6 +172,16 @@ fun ReadingSettingsContent(
             checked = prefs.followAlong,
             onCheckedChange = onFollowAlongChange,
         )
+
+        SectionLabel(textRes = R.string.bangla_voice)
+        BanglaVoice.entries.forEach { voice ->
+            SettingRadioRow(
+                title = stringResource(voice.titleRes()),
+                supporting = stringResource(voice.supportingRes()),
+                selected = voice == state.voice,
+                onSelect = { onBanglaVoiceChange(voice) },
+            )
+        }
 
         SectionLabel(textRes = R.string.word_by_word)
         Text(
@@ -289,6 +305,43 @@ private fun SettingSwitchRow(
                 onValueChange = onCheckedChange,
             ),
     )
+}
+
+/** A settings row that reads as one radio choice, as [SettingSwitchRow] reads as one switch. */
+@Composable
+private fun SettingRadioRow(title: String, selected: Boolean, onSelect: () -> Unit, supporting: String? = null) {
+    ListItem(
+        headlineContent = { Text(text = title) },
+        supportingContent = supporting?.let { text ->
+            {
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        trailingContent = { RadioButton(selected = selected, onClick = null) },
+        modifier = Modifier
+            .heightIn(min = QItTheme.sizes.touchTarget)
+            .selectable(
+                selected = selected,
+                role = Role.RadioButton,
+                onClick = onSelect,
+            ),
+    )
+}
+
+private fun BanglaVoice.titleRes(): Int = when (this) {
+    BanglaVoice.ISLAMIC_FOUNDATION -> R.string.bangla_voice_islamic_foundation
+    BanglaVoice.SAYED_ISMAT_TOHA -> R.string.bangla_voice_toha
+    BanglaVoice.SHAREEF_BAEZEED_MAHMOOD -> R.string.bangla_voice_baezeed
+}
+
+private fun BanglaVoice.supportingRes(): Int = when (this) {
+    BanglaVoice.ISLAMIC_FOUNDATION -> R.string.bangla_voice_islamic_foundation_supporting
+    BanglaVoice.SAYED_ISMAT_TOHA -> R.string.bangla_voice_toha_supporting
+    BanglaVoice.SHAREEF_BAEZEED_MAHMOOD -> R.string.bangla_voice_baezeed_supporting
 }
 
 private fun WordByWord.labelRes(): Int = when (this) {

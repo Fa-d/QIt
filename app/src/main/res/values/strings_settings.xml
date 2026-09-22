@@ -9,6 +9,16 @@
     <string name="show_translation">Show translation</string>
     <string name="follow_along">Follow along</string>
     <string name="follow_along_supporting">Keep the reciting ayah on screen</string>
+
+    <!-- Bangla voice -->
+    <string name="bangla_voice">Bangla voice</string>
+    <string name="bangla_voice_islamic_foundation">Islamic Foundation translation</string>
+    <string name="bangla_voice_islamic_foundation_supporting">with Mishary Alafasy</string>
+    <string name="bangla_voice_toha">Sayed Ismat Toha</string>
+    <string name="bangla_voice_toha_supporting">with Abdul Basit (mujawwad) · Hafiz Munir Uddin Ahmad\'s translation</string>
+    <string name="bangla_voice_baezeed">Shareef Baezeed Mahmood</string>
+    <string name="bangla_voice_baezeed_supporting">with Abdur-Rahman As-Sudais</string>
+
     <string name="word_by_word">Word by word</string>
     <string name="word_by_word_supporting">Each word\'s meaning under it, lit as it is recited</string>
     <string name="word_by_word_off">Off</string>

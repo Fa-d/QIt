@@ -116,6 +116,7 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
                 onNext = playerViewModel::nextAyah,
                 onSeek = playerViewModel::seekTo,
                 onModeChange = playerViewModel::setMode,
+                onVoiceChange = playerViewModel::setVoice,
                 onRepeatChange = playerViewModel::setRepeat,
                 onSpeedChange = playerViewModel::setSpeed,
                 onSleepTimerChange = playerViewModel::setSleepTimer,

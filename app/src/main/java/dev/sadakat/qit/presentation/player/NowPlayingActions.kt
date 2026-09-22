@@ -1,5 +1,6 @@
 package dev.sadakat.qit.presentation.player
 
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.player.RepeatSetting
@@ -13,6 +14,8 @@ data class NowPlayingActions(
     /** Moves to a position (ms) in the whole surah. */
     val onSeek: (Long) -> Unit,
     val onModeChange: (RecitationMode) -> Unit,
+    /** Picks who reads the Bangla (with their recording's Arabic) while Arabic + Bangla plays. */
+    val onVoiceChange: (BanglaVoice) -> Unit,
     val onRepeatChange: (RepeatSetting) -> Unit,
     val onSpeedChange: (PlaybackSpeed) -> Unit,
     /** Starts a sleep timer, or cancels it with null. */

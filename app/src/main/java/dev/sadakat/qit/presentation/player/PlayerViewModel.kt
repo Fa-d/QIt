@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.core.domain.audio.QueuePlan
 import dev.sadakat.qit.core.domain.audio.SurahTimeline
 import dev.sadakat.qit.core.domain.model.Ayah
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.player.NowPlaying
@@ -39,6 +40,8 @@ import javax.inject.Inject
 /** What the mini player and the full player show. */
 data class PlayerUiState(
     val nowPlaying: NowPlaying? = null,
+    /** Who reads the Bangla of the queued surah, from [NowPlaying.voice]; matters only in Arabic + Bangla. */
+    val voice: BanglaVoice = BanglaVoice.DEFAULT,
     /** English name of the playing surah; null while unknown. */
     val surahName: String? = null,
     /** The playing ayah's Arabic; null for the basmala (the screen shows it itself). */
@@ -64,6 +67,7 @@ data class PlayerUiState(
 
 @OptIn(ExperimentalCoroutinesApi::class) // flatMapLatest/mapLatest: drop a stale surah's lookups.
 @HiltViewModel
+@Suppress("TooManyFunctions") // One small passthrough per transport control, plus the new voice.
 class PlayerViewModel @Inject constructor(
     private val player: QuranPlayer,
     private val quranText: QuranText,
@@ -128,13 +132,13 @@ class PlayerViewModel @Inject constructor(
 
     /** Where each ayah of the playing queue starts; empty while its files' lengths are unknown. */
     private val ayahStarts = player.nowPlaying
-        .map { playing -> playing?.let { it.surah to it.mode } }
+        .map { playing -> playing?.let { Triple(it.surah, it.mode, it.voice) } }
         .distinctUntilChanged()
-        .mapLatest { key -> key?.let { (surah, mode) -> ayahStartsOf(surah, mode) }.orEmpty() }
+        .mapLatest { key -> key?.let { (surah, mode, voice) -> ayahStartsOf(surah, mode, voice) }.orEmpty() }
         .catch { emit(emptyList()) }
 
-    private suspend fun ayahStartsOf(surah: Int, mode: RecitationMode): List<Long> {
-        val entries = QueuePlan.plan(surah, mode)
+    private suspend fun ayahStartsOf(surah: Int, mode: RecitationMode, voice: BanglaVoice): List<Long> {
+        val entries = QueuePlan.plan(surah, mode, voice)
         val timeline = SurahTimeline(entries.map { timings.durationMs(it.file.id) ?: return emptyList() })
         return (1..QuranMeta.ayahCount(surah)).map { ayah ->
             timeline.positionOf(entries.indexOfFirst { it.id.ayah == ayah }, 0)
@@ -159,6 +163,7 @@ class PlayerViewModel @Inject constructor(
         val ayah = nowPlaying?.takeIf { it.ayah >= 1 }?.let { reading.ayahs.getOrNull(it.ayah - 1) }
         PlayerUiState(
             nowPlaying = nowPlaying,
+            voice = nowPlaying?.voice ?: BanglaVoice.DEFAULT,
             surahName = nowPlaying?.let { names[it.surah] },
             ayahArabic = ayah?.arabic,
             ayahTranslation = nowPlaying?.mode?.translation
@@ -200,6 +205,18 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             settings.setMode(mode)
             player.play(current.surah, current.ayah, mode)
+        }
+    }
+
+    /** Persists [voice] and continues the playing ayah with it. */
+    fun setVoice(voice: BanglaVoice) {
+        viewModelScope.launch {
+            settings.setBanglaVoice(voice)
+            player.nowPlaying.value?.let { current ->
+                if (current.mode == RecitationMode.ARABIC_BANGLA && current.voice != voice) {
+                    player.play(current.surah, current.ayah, current.mode)
+                }
+            }
         }
     }
 
