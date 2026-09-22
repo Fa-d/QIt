@@ -38,24 +38,35 @@ object QuranAudioUrls {
     }
 
     /**
-     * The basmala played before verse 1 of [surah] on [track], or null for surahs 1 and 9.
-     * Every track but [Track.BANGLA] reuses 1:1, which is the basmala (and its meaning). The
-     * [Track.BANGLA] intro already contains the Arabic basmala followed by its Bangla translation.
+     * Whether [track] has a file of its own for [globalAyah]. A recording that reads a few verses'
+     * translation in one go, where the verses couldn't be told apart, has one file for all of them,
+     * under the last ([SharedTranslations]); the others have none.
+     */
+    fun hasOwnFile(track: Track, globalAyah: Int): Boolean = !SharedTranslations.isShared(track, globalAyah)
+
+    /**
+     * The basmala played before verse 1 of [surah] on [track], or null for surahs 1 and 9 (and for a
+     * track whose 1:1 shares its file with 1:2). Every track but [Track.BANGLA] reuses 1:1, which is the
+     * basmala (and its meaning). The [Track.BANGLA] intro already contains the Arabic basmala followed
+     * by its Bangla translation.
      */
     fun basmala(track: Track, surah: Int): AudioFile? {
         if (!QuranMeta.hasBasmalaPrefix(surah)) return null
         return when (track) {
             Track.BANGLA -> AudioFile("bn/intro/$surah", "$BANGLA_VERSES/intro/${threeDigits(surah)}.mp3")
-            else -> verse(track, 1)
+            else -> verse(track, 1).takeIf { hasOwnFile(track, 1) }
         }
     }
 
     /** Whether [track]'s basmala already contains the Arabic, so no Arabic basmala plays before it. */
     fun basmalaIncludesArabic(track: Track): Boolean = track == Track.BANGLA
 
-    /** Every file needed to play [surah] on [track] offline: the basmala (if any), then each verse. */
+    /** Every file needed to play [surah] on [track] offline: the basmala (if any), then each verse's own file. */
     fun surahFiles(surah: Int, track: Track): List<AudioFile> = listOfNotNull(basmala(track, surah)) +
-        (1..QuranMeta.ayahCount(surah)).map { verse(track, QuranMeta.globalAyah(surah, it)) }
+        (1..QuranMeta.ayahCount(surah))
+            .map { QuranMeta.globalAyah(surah, it) }
+            .filter { hasOwnFile(track, it) }
+            .map { verse(track, it) }
 
     private fun everyayah(folder: String, globalAyah: Int): String {
         val ref = QuranMeta.ayahRef(globalAyah)

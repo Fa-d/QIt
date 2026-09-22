@@ -104,6 +104,7 @@ class QuranAudioUrlsTest {
 
     @Test
     fun `every track but bangla reuses verse 1 as the basmala, bangla has one intro per surah`() {
+        // 1:1 is every surah's basmala, so no recording shares its file with 1:2.
         for (track in Track.entries - Track.BANGLA) {
             assertEquals(QuranAudioUrls.verse(track, 1), QuranAudioUrls.basmala(track, 2))
             assertEquals(QuranAudioUrls.verse(track, 1), QuranAudioUrls.basmala(track, 114))
@@ -147,7 +148,7 @@ class QuranAudioUrlsTest {
             val ids = (1..QuranMeta.SURAH_COUNT)
                 .flatMap { QuranAudioUrls.surahFiles(it, track) }
                 .map { it.id }
-            assertEquals(QuranMeta.TOTAL_AYAHS, ids.distinct().size)
+            assertEquals((1..QuranMeta.TOTAL_AYAHS).count { QuranAudioUrls.hasOwnFile(track, it) }, ids.distinct().size)
         }
         val banglaIds = (1..QuranMeta.SURAH_COUNT)
             .flatMap { QuranAudioUrls.surahFiles(it, Track.BANGLA) }
@@ -159,6 +160,9 @@ class QuranAudioUrlsTest {
         }
         val ids = all.map { it.id }.distinct()
         assertEquals(ids.size, all.map { it.url }.distinct().size)
-        assertEquals(Track.entries.size * QuranMeta.TOTAL_AYAHS + QuranMeta.SURAH_COUNT - 2, ids.size)
+        val ownFiles = Track.entries.sumOf { track ->
+            (1..QuranMeta.TOTAL_AYAHS).count { QuranAudioUrls.hasOwnFile(track, it) }
+        }
+        assertEquals(ownFiles + QuranMeta.SURAH_COUNT - 2, ids.size)
     }
 }

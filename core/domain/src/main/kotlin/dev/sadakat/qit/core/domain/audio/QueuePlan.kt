@@ -42,6 +42,8 @@ object QueuePlan {
      * surahs with one, then for each ayah one entry per track of the mode, in the mode's order.
      * The prefix is each track's basmala, except that a translation basmala which already contains
      * the Arabic ([QuranAudioUrls.basmalaIncludesArabic], the Islamic Foundation intro) plays alone.
+     * A verse whose translation is read with the next verse's has no entry on that track
+     * ([QuranAudioUrls.hasOwnFile]): the next verse's file holds both.
      */
     fun plan(surah: Int, mode: RecitationMode, voice: BanglaVoice): List<QueueEntry> {
         val tracks = mode.tracks(voice)
@@ -57,7 +59,7 @@ object QueuePlan {
         }
         val verses = (1..QuranMeta.ayahCount(surah)).flatMap { ayah ->
             val globalAyah = QuranMeta.globalAyah(surah, ayah)
-            tracks.map { track ->
+            tracks.filter { QuranAudioUrls.hasOwnFile(it, globalAyah) }.map { track ->
                 QueueEntry(QueueItemId(surah, ayah, track), QuranAudioUrls.verse(track, globalAyah))
             }
         }
