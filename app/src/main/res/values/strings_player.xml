@@ -1,5 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Mini player and full player -->
-    <string name="cd_close_player">Close player</string>
+    <string name="player_cd_open">Open player</string>
+    <string name="player_position">%1$d/%2$d · %3$s</string>
+    <string name="player_ayah_of">Ayah %1$d of %2$d</string>
+    <string name="player_basmala">Bismillah</string>
+    <string name="player_cd_more">More options</string>
+    <string name="player_open_in_reader">Open in reader</string>
+    <string name="player_stop">Stop playback</string>
+    <string name="player_cd_seek">Ayah</string>
+    <string name="player_mode_arabic">Arabic</string>
+    <string name="player_mode_english">+ English</string>
+    <string name="player_mode_bangla">+ Bangla</string>
+    <string name="player_cd_mode">Recitation</string>
+
+    <!-- Repeat -->
+    <string name="player_repeat_off">Repeat</string>
+    <string name="player_repeat_ayah">Ayah ×%1$d</string>
+    <string name="player_repeat_ayah_forever">Ayah ∞</string>
+    <string name="player_repeat_range">%1$d–%2$d ×%3$d</string>
+    <string name="player_repeat_range_forever">%1$d–%2$d ∞</string>
+    <string name="player_repeat_title">Repeat</string>
+    <string name="player_repeat_target_off">Off</string>
+    <string name="player_repeat_target_ayah">Each ayah</string>
+    <string name="player_repeat_target_range">Range</string>
+    <string name="player_repeat_range_label">Ayahs %1$d–%2$d</string>
+    <string name="player_repeat_times">Times</string>
+    <string name="player_repeat_times_n">%1$d×</string>
+    <string name="player_repeat_times_forever">∞</string>
+    <string name="player_repeat_apply">Repeat</string>
+    <string name="player_cancel">Cancel</string>
+
+    <!-- Speed -->
+    <string name="player_speed">%1$s×</string>
+    <string name="player_cd_speed">Speed %1$s×</string>
+
+    <!-- Sleep timer -->
+    <string name="player_sleep">Sleep</string>
+    <string name="player_sleep_end_of_surah">End of surah</string>
+    <string name="player_sleep_minutes">%1$d min</string>
+    <string name="player_sleep_remaining">%1$d:%2$02d</string>
+    <string name="player_sleep_cancel">Turn off timer</string>
+    <string name="player_cd_sleep_active">Sleep timer on</string>
 </resources>

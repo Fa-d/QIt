@@ -1,22 +1,14 @@
 package dev.sadakat.qit.presentation.navigation
 
-import androidx.navigation.NavType
+import kotlinx.serialization.Serializable
 
-/** Navigation destinations of the phone UI. */
-object QuranDestinations {
-    const val SURAH_LIST = "surahs"
-    const val ARG_SURAH = "surah"
-    const val ARG_AYAH = "ayah"
-    const val SURAH_READER_PATTERN = "surah/{$ARG_SURAH}?$ARG_AYAH={$ARG_AYAH}"
+/** The home screen: continue card, search, surahs and juz. */
+@Serializable
+data object HomeDestination
 
-    val surahReaderArguments = listOf(
-        androidx.navigation.navArgument(ARG_SURAH) { type = NavType.IntType },
-        androidx.navigation.navArgument(ARG_AYAH) {
-            type = NavType.IntType
-            defaultValue = 0
-        },
-    )
-
-    /** Route of the reader for [surah], optionally scrolling to [ayah]. */
-    fun surahReader(surah: Int, ayah: Int = 0): String = "surah/$surah?$ARG_AYAH=$ayah"
-}
+/**
+ * One surah in the reader, opened at [ayah] (0 = the top). The reader's ViewModel reads these from
+ * its SavedStateHandle under the property names, "surah" and "ayah".
+ */
+@Serializable
+data class ReaderDestination(val surah: Int, val ayah: Int = 0)

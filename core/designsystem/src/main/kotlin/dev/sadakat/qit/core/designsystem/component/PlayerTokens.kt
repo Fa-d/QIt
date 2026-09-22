@@ -9,6 +9,9 @@ object PlayerTokens {
     /** The progress line along the mini player's top edge. */
     val ProgressLineHeight = 2.dp
 
+    /** The play/pause button of the home screen's continue card. */
+    val CardPlayButtonSize = 56.dp
+
     /** The main play/pause button of the full player. */
     val PlayButtonSize = 72.dp
     val PlayButtonIconSize = 36.dp

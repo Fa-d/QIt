@@ -1,4 +1,4 @@
-package dev.sadakat.qit.presentation.surahlist
+package dev.sadakat.qit.presentation.home
 
 import dev.sadakat.qit.core.domain.model.Surah
 import java.util.Locale
