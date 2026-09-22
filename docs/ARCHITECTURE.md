@@ -293,7 +293,7 @@ action); continue and resume launch `MainActivity` with `WearIntents` extras, be
 is in the foreground and may start the playback service. `TileRefresher` requests a redraw
 (debounced) when the surah, ayah or play state changes.
 
-## Phone → watch
+## Phone ↔ watch
 
 The reader's "send to watch" action calls `WatchConnection` (an interface in `:app` so the ViewModel
 stays testable). `WatchLink` implements it over the Wearable Data Layer: it looks up reachable
@@ -304,6 +304,17 @@ nodes by the `qit_watch_app` capability (declared in each app's `res/values/wear
 On the watch, `service/QuranMessageService` (a `WearableListenerService`) receives it; payload
 handling lives in the top-level `handleQuranMessage` function (unit-tested): bad payloads or invalid
 surahs/tracks are logged and dropped, anything valid goes to `SurahDownloads.download`.
+
+**Listening, watch → phone.** Each device records what it hears into its own `ListeningHistory`
+(the player records wherever it plays). The watch's `sync/ListeningPublisher` keeps one Wearable
+**data item** at `/quran/listening` up to date with its own snapshot (`ListeningSnapshotMessage`
+JSON as an asset, so there's no size limit), right away and then debounced as the counts change;
+data items sync by themselves whenever the devices reconnect. The phone's
+`watch/ListeningSyncService` imports each change as the source `watch:<node>`, and
+`watch/ListeningSync` catches up on every watch's item at app start. A reset on the phone is
+published as `/quran/listening/reset`; the watch (`QuranMessageService.onDataChanged` →
+`handleListeningReset`) clears its own counts, and the phone ignores any snapshot counted before the
+reset, so forgotten listening never comes back.
 
 Because a watch on Bluetooth would crawl through the phone's proxy network, the watch's
 `network/WifiForDownloads` watches the download states and, while any surah is downloading, requests
