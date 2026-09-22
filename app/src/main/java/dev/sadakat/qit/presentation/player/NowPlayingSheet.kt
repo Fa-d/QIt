@@ -53,6 +53,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import dev.sadakat.qit.R
@@ -84,7 +85,8 @@ fun NowPlayingSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface,
-        modifier = modifier,
+        // The sheet is its own window: expose its test tags as resource ids too (baseline profile).
+        modifier = modifier.semantics { testTagsAsResourceId = true },
     ) {
         NowPlayingContent(
             state = state,
