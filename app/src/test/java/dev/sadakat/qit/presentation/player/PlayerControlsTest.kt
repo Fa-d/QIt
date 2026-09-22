@@ -25,7 +25,7 @@ class PlayerControlsTest {
 
     private val calls = mutableListOf<Any>()
 
-    private fun setContent(mode: RecitationMode, voice: BanglaVoice?) {
+    private fun setContent(mode: RecitationMode, voice: BanglaVoice) {
         composeRule.setContent {
             QItAppTheme {
                 ModeAndSleepRow(
@@ -78,17 +78,6 @@ class PlayerControlsTest {
     @Test
     fun `the voices stay out of the menu in the other modes`() {
         setContent(RecitationMode.ARABIC_ENGLISH, voice = BanglaVoice.DEFAULT)
-
-        composeRule.onNodeWithTag("player_mode").performClick()
-
-        composeRule.onNodeWithText("Bangla voice").assertDoesNotExist()
-        composeRule.onNodeWithText("Sayed Ismat Toha").assertDoesNotExist()
-    }
-
-    @Test
-    fun `without a voice passed down the menu leaves the voices out`() {
-        // NowPlayingSheet.kt still calls this without one; the voices live in the settings sheet.
-        setContent(RecitationMode.ARABIC_BANGLA, voice = null)
 
         composeRule.onNodeWithTag("player_mode").performClick()
 

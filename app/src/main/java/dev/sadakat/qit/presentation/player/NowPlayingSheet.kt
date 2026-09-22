@@ -134,6 +134,7 @@ fun NowPlayingContent(
         TransportRow(nowPlaying, actions, Modifier.padding(top = QItTheme.spacing.sm))
         ModeAndSleepRow(
             mode = nowPlaying.mode,
+            voice = state.voice,
             sleepTimer = state.sleepTimer,
             actions = actions,
             modifier = Modifier.padding(top = QItTheme.spacing.md),

@@ -51,7 +51,8 @@ import dev.sadakat.qit.core.domain.player.RepeatSetting
 import dev.sadakat.qit.core.domain.player.SleepTimerStatus
 import kotlin.math.max
 
-/** The transport, flanked by the two things changed while listening: repeat (for memorizing) on
+/**
+ * The transport, flanked by the two things changed while listening: repeat (for memorizing) on
  * the left, speed on the right. Previous and next move by ayah.
  */
 @Composable
@@ -201,18 +202,17 @@ private fun SpeedButton(speed: PlaybackSpeed, onSpeedChange: (PlaybackSpeed) -> 
     }
 }
 
-/** What plays after the Arabic (a menu of the three modes, and of the Bangla voices under
- * them while Bangla plays), and the sleep timer: one quiet row. [voice] is the voice the menu
- * checks, or null to leave the voices out of it — as NowPlayingSheet.kt still must, until its
- * rework lets it pass one down.
+/**
+ * What plays after the Arabic (a menu of the three modes, and of the Bangla voices under them while
+ * Bangla plays, [voice] checked), and the sleep timer: one quiet row.
  */
 @Composable
 fun ModeAndSleepRow(
     mode: RecitationMode,
+    voice: BanglaVoice,
     sleepTimer: SleepTimerStatus,
     actions: NowPlayingActions,
     modifier: Modifier = Modifier,
-    voice: BanglaVoice? = null,
 ) {
     // A flow row: with large text the sleep chip moves to a second line instead of squeezing the mode.
     FlowRow(
@@ -224,13 +224,10 @@ fun ModeAndSleepRow(
     }
 }
 
-/** What plays after the Arabic (a menu of the three modes, and of the Bangla voices under them
- * while Bangla plays and the host passes the current [voice]).
- */
 @Composable
 private fun ModeChip(
     mode: RecitationMode,
-    voice: BanglaVoice?,
+    voice: BanglaVoice,
     onModeChange: (RecitationMode) -> Unit,
     onVoiceChange: (BanglaVoice) -> Unit,
 ) {
@@ -256,8 +253,8 @@ private fun ModeChip(
                     },
                 )
             }
-            // The voices only matter once Bangla plays, and only when the host can name the current one.
-            if (mode == RecitationMode.ARABIC_BANGLA && voice != null) {
+            // The voices only matter while Bangla plays.
+            if (mode == RecitationMode.ARABIC_BANGLA) {
                 HorizontalDivider(modifier = Modifier.padding(vertical = QItTheme.spacing.xs))
                 Text(
                     text = stringResource(R.string.bangla_voice),
