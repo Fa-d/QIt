@@ -84,4 +84,29 @@ class DownloadAggregationTest {
         assertEquals(listOf(2 to Track.BANGLA), DownloadAggregation.pairsContaining("bn/intro/2"))
         assertEquals(emptyList<Pair<Int, Track>>(), DownloadAggregation.pairsContaining("unknown/1"))
     }
+
+    @Test
+    fun `batch progress counts whole surahs, not the files in flight`() {
+        // Al-Ikhlaas on the Arabic track (basmala + 4 verses): 2 files done, 1 half way, 2 queued.
+        val files = surahFiles(112, Track.ARABIC).map { it.id } // ar/1 (basmala), then the 4 verses
+        val active = mapOf(files[2] to 0.5f, files[3] to 0f, files[4] to 0f)
+        val batch = DownloadAggregation.batchProgress(active)
+        assertEquals(listOf(112), batch.surahs)
+        assertEquals((5 - 2.5f) / 5, batch.progress, 0.0001f)
+    }
+
+    @Test
+    fun `batch progress spans every surah and track in flight`() {
+        val active = mapOf("ar/8" to 0f, "en/6222" to 1f, "en/1" to 0f)
+        val batch = DownloadAggregation.batchProgress(active)
+        assertEquals(listOf(2, 112), batch.surahs)
+        // Al-Baqarah Arabic: 287 files, 1 pending; Al-Ikhlaas English: 5 files, the basmala pending.
+        assertEquals((287 + 5 - 2f) / (287 + 5), batch.progress, 0.0001f)
+    }
+
+    @Test
+    fun `a shared basmala alone makes no batch`() {
+        assertEquals(DownloadBatch(emptyList(), 1f), DownloadAggregation.batchProgress(mapOf("ar/1" to 0f)))
+        assertEquals(DownloadBatch(emptyList(), 1f), DownloadAggregation.batchProgress(emptyMap()))
+    }
 }

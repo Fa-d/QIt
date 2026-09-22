@@ -7,6 +7,9 @@ import dev.sadakat.qit.core.domain.repository.SurahDownloadState
 /** State of one downloaded file, independent of the download library. */
 enum class FileDownloadState { ACTIVE, COMPLETED, FAILED }
 
+/** A batch of downloads as a whole: the [surahs] it covers and how much of their files is on disk, 0..1. */
+data class DownloadBatch(val surahs: List<Int>, val progress: Float)
+
 /** Derives per-surah download state from per-file download state. Pure logic. */
 object DownloadAggregation {
 
@@ -64,6 +67,27 @@ object DownloadAggregation {
             active -> SurahDownloadState.Downloading(completed, pairFiles.size)
             else -> SurahDownloadState.Failed(completed, pairFiles.size)
         }
+    }
+
+    /**
+     * Progress of the downloads still running, as a whole. [active] holds each queued or downloading
+     * file (by id) with the share of it already downloaded (0..1). Every surah/track pair with one of
+     * its own files active counts with all its files, so the progress is that of whole surahs: files
+     * downloaded earlier count as done, and it never jumps back when the next file starts.
+     */
+    fun batchProgress(active: Map<String, Float>): DownloadBatch {
+        val pairs = active.keys.flatMapTo(sortedSetOf(compareBy({ it.first }, { it.second }))) { id ->
+            pairsContaining(id).filter { id in ownIdsByPair.getValue(it) }
+        }
+        if (pairs.isEmpty()) return DownloadBatch(emptyList(), 1f)
+        var total = 0
+        var pending = 0f
+        for (pair in pairs) {
+            val files = filesByPair.getValue(pair)
+            total += files.size
+            for (file in files) active[file.id]?.let { pending += 1f - it.coerceIn(0f, 1f) }
+        }
+        return DownloadBatch(pairs.map { it.first }.distinct(), ((total - pending) / total).coerceIn(0f, 1f))
     }
 
     /** Every surah/track pair whose files include [fileId] (the shared basmala files belong to many). */
