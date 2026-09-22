@@ -73,6 +73,13 @@ it was aligned on). `scripts/build_audio_timing.py` maps its word indices onto t
 English and Bangla file with `ffprobe` over the local `quran_audio/` folder into
 `assets/quran/audio/durations.json`, which lets the player treat a surah as one recording.
 
+## Word-by-word meanings
+
+The meaning shown under each Arabic word (English and Bangla) comes from the [quran.com](https://quran.com)
+API v4 (Quran.com / Quran Foundation), whose word-by-word translations are bundled offline:
+`scripts/build_word_meanings.py` fetches both languages, aligns quran.com's words onto the bundled
+text (only 37:130 splits differently), and writes `core/data/src/main/assets/quran/words/en|bn/001..114.json`.
+
 ## Text sources
 
 The bundled text assets (`core/data/src/main/assets/quran/`) are generated from the
@@ -140,6 +147,8 @@ Dependencies point inward: `:app` and `:wear` → `:core:data` → `:core:domain
 | `scripts/split_bangla_verses.py` | Split the 114 Bangla surah files into per-verse mp3s by cross-correlation/DTW alignment |
 | `scripts/verify_quran_audio.sh` | Check counts, sizes and sha1 sums of the downloaded audio |
 | `scripts/build_audio_timing.py` | Map quran-align's word timings onto the text and measure every audio file (`timing/ar.alafasy/*.json`, `audio/durations.json`) |
+| `scripts/build_word_meanings.py` | Fetch quran.com's word-by-word translations and write the meaning assets (`words/en|bn/001..114.json`) |
 | `scripts/test_build_quran_text.py` | Unit tests for the text builder's pure functions |
 | `scripts/test_build_audio_timing.py` | Unit tests for the timing builder's pure functions |
+| `scripts/test_build_word_meanings.py` | Unit tests for the meaning builder's pure functions |
 | `scripts/install-git-hooks.sh` | Point git at `scripts/git-hooks/` (spotless + detekt before each commit) |
