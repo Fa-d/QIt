@@ -9,8 +9,14 @@ correlate; runs of those are placed by a gapped DTW alignment over MFCCs and sna
 near-silent splices between clips (flag "dtw"). Resumable: finished surahs are skipped (--force redoes).
 
 Needs ffmpeg + numpy/scipy:  quran_audio/.venv/bin/python scripts/split_bangla_verses.py [--surahs 1,2] [--jobs 6]
+
+--voice toha / --voice baezeed split the recordings of the extra Bangla voices, which read the
+translation of a group of verses after the group's Arabic: each group's translation is cut among its
+verses by speech recognition and forced alignment (scripts/bangla_asr_split.py), where the words
+tell the verses apart; the others share the file of the group's last verse. Afterwards,
+--shared-table regenerates :core:domain's SharedTranslationsData.kt from their TSVs.
 """
-import argparse, glob, os, subprocess, sys, tempfile
+import argparse, glob, json, os, subprocess, sys, tempfile
 from multiprocessing import Pool
 
 import numpy as np
@@ -18,12 +24,31 @@ from scipy.fft import dct
 from scipy.signal import fftconvolve, stft
 
 ROOT = "/Users/faddy/MyLab/AndroidAllProjects/QIt/quran_audio"
-AR = f"{ROOT}/arabic/alafasy-128k"
-BN_SRC = f"{ROOT}/bangla/alafasy-bangla-translation"
-OUT = f"{ROOT}/bangla/bangla-translation-verses"
-WORK = f"{ROOT}/bangla/.work"
-ALIGN_TSV = f"{ROOT}/bangla/bangla_alignment.tsv"
-REPORT = f"{ROOT}/bangla/bangla_split_report.txt"
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Each voice: its surah files (Arabic + Bangla), the verse-by-verse recording of the same Arabic, and
+# where the verse files go. "if" reads every verse's translation after it; the others read a group's.
+VOICES = {
+    "if": dict(src="bangla/alafasy-bangla-translation", pattern="{:03d} - *.mp3", arabic="arabic/alafasy-128k",
+               out="bangla/bangla-translation-verses", work="bangla/.work", name="bangla", grouped=False),
+    "toha": dict(src="bangla/toha-src", pattern="{:03d}.mp3", arabic="arabic/abdul-basit-mujawwad-128k",
+                 out="bangla/toha-verses", work="bangla/.work-toha", name="toha", grouped=True, track="BANGLA_TOHA"),
+    "baezeed": dict(src="bangla/baezeed-src", pattern="{:03d}.mp3", arabic="arabic/sudais-192k",
+                    out="bangla/baezeed-verses", work="bangla/.work-baezeed", name="baezeed", grouped=True,
+                    track="BANGLA_BAEZEED"),
+}
+# The voice comes from the environment so that Pool workers (spawned, not forked, on macOS) see it too.
+if __name__ == "__main__" and "--voice" in sys.argv[:-1]:
+    os.environ["QIT_BANGLA_VOICE"] = sys.argv[sys.argv.index("--voice") + 1]
+VOICE = os.environ.get("QIT_BANGLA_VOICE", "if")
+_CFG = VOICES[VOICE]
+AR = f"{ROOT}/{_CFG['arabic']}"
+BN_SRC = f"{ROOT}/{_CFG['src']}"
+OUT = f"{ROOT}/{_CFG['out']}"
+WORK = f"{ROOT}/{_CFG['work']}"
+ALIGN_TSV = f"{ROOT}/bangla/{_CFG['name']}_alignment.tsv"
+REPORT = f"{ROOT}/bangla/{_CFG['name']}_split_report.txt"
+GROUPED = _CFG["grouped"]
 
 VERSES = [7, 286, 200, 176, 120, 165, 206, 75, 129, 109, 123, 111, 43, 52, 99, 128, 111, 110, 98, 135,
           112, 78, 118, 64, 77, 227, 93, 88, 69, 60, 34, 30, 73, 54, 45, 83, 182, 88, 75, 85, 54, 53,
@@ -136,7 +161,7 @@ def voice_model():
     X, Y = [], []
     for surah in (1, 19, 36, 55, 67, 78, 97, 112, 113, 114):
         first, n = FIRST_AYAH[surah - 1], VERSES[surah - 1]
-        x = decode(glob.glob(f"{BN_SRC}/{surah:03d} - *.mp3")[0], SR, 1)
+        x = decode(source_file(surah), SR, 1)
         cum2 = np.concatenate([[0.0], np.cumsum(x * x)])
         anc, cur = [], 0
         for k in range(n):
@@ -282,25 +307,22 @@ def encode(pcm, s, e, out_path):
 
 def process(surah):
     try:
-        return split_surah(surah)
+        return split_surah_grouped(surah) if GROUPED else split_surah(surah)
     except Exception:
         import traceback
         return surah, None, traceback.format_exc()
 
 
-def split_surah(surah):
+def source_file(surah):
+    found = glob.glob(f"{BN_SRC}/{_CFG['pattern'].format(surah)}")
+    return found[0] if len(found) == 1 else None
+
+
+def locate_arabic(surah, x, cum2, db):
+    """Where each Arabic verse of [surah] is inside the surah file x: [(start, end, confidence)], the verse
+    templates and per-verse flags."""
     n, first = VERSES[surah - 1], FIRST_AYAH[surah - 1]
-    tsv = f"{WORK}/{surah:03d}.tsv"
-    src = glob.glob(f"{BN_SRC}/{surah:03d} - *.mp3")
-    if len(src) != 1:
-        return surah, None, f"source file not found ({len(src)} matches)"
-    src = src[0]
-
-    x = decode(src, SR, 1)
     dur = len(x) / SR
-    cum2 = np.concatenate([[0.0], np.cumsum(x * x)])
-    db = frame_db(x)
-
     # 1) anchors: Arabic verse positions, in order. A verse that doesn't correlate (different take)
     #    leaves the cursor where it was, so it can't drag the following verses off course.
     anchors, verses, cursor = [], [], 0
@@ -348,6 +370,23 @@ def split_surah(surah):
             anchors[k + i] = (s, e, anchors[k + i][2])
             flags[k + i].append("dtw")
         k = j + 1
+
+    return anchors, verses, flags
+
+
+def split_surah(surah):
+    n, first = VERSES[surah - 1], FIRST_AYAH[surah - 1]
+    tsv = f"{WORK}/{surah:03d}.tsv"
+    src = source_file(surah)
+    if src is None:
+        return surah, None, "source file not found"
+
+    x = decode(src, SR, 1)
+    dur = len(x) / SR
+    cum2 = np.concatenate([[0.0], np.cumsum(x * x)])
+    db = frame_db(x)
+
+    anchors, verses, flags = locate_arabic(surah, x, cum2, db)
 
     # 3) Bangla segments between anchors (Arabic verse k, then its translation)
     raw = [(anchors[k][1], max(anchors[k][1], anchors[k + 1][0]) if k + 1 < n else dur) for k in range(n)]
@@ -403,10 +442,169 @@ def split_surah(surah):
     return surah, tsv, None
 
 
+# ---- voices that read a group's translation after its Arabic ----------------------------------------
+
+TRANSLATION_MIN = 8.0   # a gap after an Arabic verse this long needs one word of the verses' meaning to be translation
+TRANSLATION_WORDS = 3   # words of the verses' meaning any gap with that many is translation (not a breath or the crowd)
+LOUD_DROP = 30          # dB below a template's loudest frame that counts as its silent edge
+
+
+def loud_span(v):
+    """(start, end) seconds of the audible part of verse template v: the everyayah files carry a
+    second or more of silence, while the surah files already go on with the translation there."""
+    db = frame_db(v)
+    loud = np.flatnonzero(db > db.max() - LOUD_DROP)
+    if len(loud) == 0:
+        return 0.0, len(v) / SR
+    return loud[0] / 100, (loud[-1] + 1) / 100
+
+
+def split_surah_grouped(surah):
+    import bangla_asr_split as asr
+
+    n, first = VERSES[surah - 1], FIRST_AYAH[surah - 1]
+    tsv = f"{WORK}/{surah:03d}.tsv"
+    src = source_file(surah)
+    if src is None:
+        return surah, None, "source file not found"
+    asr.start_server()
+    x = decode(src, SR, 1)
+    dur = len(x) / SR
+    cum2 = np.concatenate([[0.0], np.cumsum(x * x)])
+    db = frame_db(x)
+    pcm16 = (decode(src, 16000, 1) * 32767).clip(-32768, 32767).astype(np.int16)
+
+    anchors, verses, flags = locate_arabic(surah, x, cum2, db)
+    arabic = []  # the audible Arabic of each verse
+    for k, (s0, e0, conf) in enumerate(anchors):
+        if "dtw" in flags[k]:
+            arabic.append((s0, e0))
+        else:
+            a, b = loud_span(verses[k])
+            arabic.append((s0 + a, min(s0 + b, e0)))
+
+    # translation chunks: the gap after an Arabic verse that holds speech in Bangla
+    chunks = {}  # k -> (start, end, words): the translation of the group ending at verse k
+    group_start = 0
+    for k in range(n):
+        g0 = arabic[k][1]
+        g1 = arabic[k + 1][0] if k + 1 < n else dur
+        s, e = trim(db, g0, max(g0, g1))
+        if e - s < 1.0:
+            continue
+        words = asr.words_in(pcm16, db, s, e)
+        matched = asr.matching_words(words, [first + j for j in range(group_start, k + 1)])
+        if matched >= TRANSLATION_WORDS or (e - s >= TRANSLATION_MIN and matched >= 1):
+            chunks[k] = (s, e, words)
+            group_start = k + 1
+    if n - 1 not in chunks:
+        return surah, None, "no translation after the last verse"
+
+    # split each chunk among the verses of its group
+    pieces = []  # (start, end, [global ayahs it holds])
+    margins = {}
+    group_start = 0
+    for k in sorted(chunks):
+        s, e, words = chunks[k]
+        group = list(range(group_start, k + 1))
+        parts, ms = asr.split_chunk(db, s, e, [first + j for j in group], words)
+        for j, m in zip(group, ms):
+            margins[j] = m
+        for a, b, held in parts:
+            pieces.append((a, b, [first + group[h] for h in held]))
+        group_start = k + 1
+
+    # encode from the original audio (stereo, 44.1 kHz)
+    os.makedirs(OUT, exist_ok=True)
+    with tempfile.TemporaryDirectory() as td:
+        rawpcm = f"{td}/s.raw"
+        decode(src, OUT_SR, 2, fmt="s16le", out=rawpcm)
+        pcm = np.memmap(rawpcm, dtype="<i2", mode="r").reshape(-1, 2)
+        for a, b, held in pieces:
+            encode(pcm, a, b, f"{OUT}/{held[-1]:05d}.mp3")
+        del pcm
+    # a verse that now shares a file mustn't keep one from an earlier run
+    owner = {g: held[-1] for _, _, held in pieces for g in held}
+    for g in owner:
+        if owner[g] != g and os.path.exists(f"{OUT}/{g:05d}.mp3"):
+            os.remove(f"{OUT}/{g:05d}.mp3")
+
+    span = {held[-1]: (a, b) for a, b, held in pieces}
+    rows = []
+    for k in range(n):
+        g = first + k
+        a0, a1 = arabic[k]
+        b0, b1 = span.get(g, (0.0, 0.0))
+        f = list(flags[k])
+        if owner[g] != g:
+            f.append(f"shared:{owner[g]}")
+        m = margins.get(k)
+        if m is not None:
+            f.append(f"margin:{m:.2f}")
+        rows.append(f"{g}\t{surah}\t{k + 1}\t{a0:.3f}\t{a1:.3f}\t{b0:.3f}\t{b1:.3f}\t{anchors[k][2]:.3f}\t{','.join(f)}")
+    os.makedirs(WORK, exist_ok=True)
+    with open(tsv + ".part", "w") as fh:
+        fh.write(f"#surah\t{surah}\tduration\t{dur:.3f}\tintro\t-\n")
+        fh.write("\n".join(rows) + "\n")
+    os.replace(tsv + ".part", tsv)
+    with open(f"{WORK}/{surah:03d}.words.json", "w", encoding="utf-8") as fh:
+        json.dump({str(k): [[w, round(a, 2), round(b, 2)] for w, a, b in c[2]] for k, c in chunks.items()},
+                  fh, ensure_ascii=False)
+    return surah, tsv, None
+
+
+def shared_verses():
+    """Global ayahs that share their file with a later verse, from the voice's TSVs."""
+    out = []
+    for surah in range(1, 115):
+        p = f"{WORK}/{surah:03d}.tsv"
+        if not os.path.exists(p):
+            continue
+        for line in open(p).read().strip().split("\n")[1:]:
+            cols = line.split("\t")
+            if len(cols) > 8 and "shared:" in cols[8]:
+                out.append(int(cols[0]))
+    return sorted(out)
+
+
+def as_ranges(numbers):
+    """[3, 4, 5, 9] -> "3-5,9"."""
+    runs = []
+    for g in numbers:
+        if runs and g == runs[-1][1] + 1:
+            runs[-1][1] = g
+        else:
+            runs.append([g, g])
+    return ",".join(f"{a}-{b}" if a != b else f"{a}" for a, b in runs)
+
+
+def write_shared_table():
+    """Regenerates :core:domain's SharedTranslationsData.kt from every grouped voice's TSVs."""
+    global WORK
+    entries = []
+    for name, cfg in VOICES.items():
+        if not cfg["grouped"]:
+            continue
+        WORK = f"{ROOT}/{cfg['work']}"
+        entries.append(f'    Track.{cfg["track"]} to "{as_ranges(shared_verses())}",')
+    path = f"{REPO}/core/domain/src/main/kotlin/dev/sadakat/qit/core/domain/audio/SharedTranslationsData.kt"
+    with open(path, "w") as f:
+        f.write("// Generated by scripts/split_bangla_verses.py: do not edit.\n"
+                "package dev.sadakat.qit.core.domain.audio\n\n"
+                "import dev.sadakat.qit.core.domain.model.Track\n\n"
+                "/** See [SharedTranslations]. */\n"
+                "internal val SHARED_TRANSLATIONS: Map<Track, String> = mapOf(\n"
+                + "\n".join(entries) + "\n)\n")
+    print(f"wrote {path}")
+
+
 def done(surah):
     first, n = FIRST_AYAH[surah - 1], VERSES[surah - 1]
-    return os.path.exists(f"{WORK}/{surah:03d}.tsv") and all(
-        os.path.exists(f"{OUT}/{first + k:05d}.mp3") for k in range(n))
+    tsv = f"{WORK}/{surah:03d}.tsv"
+    if not os.path.exists(tsv):
+        return False
+    shared = {int(r.split("\t")[0]) for r in open(tsv).read().strip().split("\n")[1:] if "shared:" in r}
+    return all(os.path.exists(f"{OUT}/{first + k:05d}.mp3") for k in range(n) if first + k not in shared)
 
 
 def report():
@@ -441,10 +639,17 @@ def main():
     ap.add_argument("--surahs", help="comma list, e.g. 1,2,112 (default: all)")
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--voice", choices=sorted(VOICES), default="if",
+                    help="which recording to split (default: if, the Islamic Foundation translation)")
+    ap.add_argument("--shared-table", action="store_true",
+                    help="only regenerate :core:domain's table of verses that share a file")
     a = ap.parse_args()
+    if a.shared_table:
+        write_shared_table()
+        return
     surahs = [int(s) for s in a.surahs.split(",")] if a.surahs else list(range(1, 115))
     todo = [s for s in surahs if a.force or not done(s)]
-    todo.sort(key=lambda s: -os.path.getsize(glob.glob(f"{BN_SRC}/{s:03d} - *.mp3")[0]))  # biggest first
+    todo.sort(key=lambda s: -os.path.getsize(source_file(s)))  # biggest first
     print(f"{len(todo)} surah(s) to process, {len(surahs) - len(todo)} already done", flush=True)
     failed = []
     with Pool(a.jobs) as pool:
