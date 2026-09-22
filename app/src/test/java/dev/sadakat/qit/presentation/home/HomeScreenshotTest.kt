@@ -3,6 +3,7 @@ package dev.sadakat.qit.presentation.home
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
+import dev.sadakat.qit.core.designsystem.skin.QItTone
 import dev.sadakat.qit.core.domain.model.AyahRef
 import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.Revelation
@@ -27,7 +28,7 @@ class HomeScreenshotTest {
     fun light() = composeRule.snapshot("home_light") { Home(home()) }
 
     @Test
-    fun dark() = composeRule.snapshot("home_dark", darkTheme = true) { Home(home()) }
+    fun dark() = composeRule.snapshot("home_dark", tone = QItTone.DARK) { Home(home()) }
 
     @Test
     fun searchWithJump() = composeRule.snapshot("home_search_jump") {

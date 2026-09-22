@@ -45,10 +45,6 @@ class ReadingSettingsViewModel @Inject constructor(private val settings: QuranSe
         updateReadingPrefs { it.copy(themeMode = mode) }
     }
 
-    fun setDynamicColor(use: Boolean) {
-        updateReadingPrefs { it.copy(dynamicColor = use) }
-    }
-
     private fun updateReadingPrefs(transform: (ReadingPrefs) -> ReadingPrefs) {
         viewModelScope.launch { settings.updateReadingPrefs(transform) }
     }

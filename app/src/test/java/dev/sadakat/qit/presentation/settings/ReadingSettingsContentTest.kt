@@ -1,6 +1,5 @@
 package dev.sadakat.qit.presentation.settings
 
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -42,20 +41,19 @@ class ReadingSettingsContentTest {
     private var followAlong: Boolean? = null
     private var wordByWord: WordByWord? = null
     private var pickedTheme: ThemeMode? = null
-    private var dynamicColor: Boolean? = null
+    private var openedAppearance = false
 
-    private fun setContent(prefs: ReadingPrefs = ReadingPrefs(), showDynamicColor: Boolean = true) {
+    private fun setContent(prefs: ReadingPrefs = ReadingPrefs()) {
         composeRule.setContent {
             QItAppTheme {
                 ReadingSettingsContent(
                     state = ReadingSettingsUiState(prefs = prefs),
-                    showDynamicColor = showDynamicColor,
                     onArabicTextSizeChange = { pickedSize = it },
                     onShowTranslationChange = { showTranslation = it },
                     onFollowAlongChange = { followAlong = it },
                     onWordByWordChange = { wordByWord = it },
                     onThemeModeChange = { pickedTheme = it },
-                    onDynamicColorChange = { dynamicColor = it },
+                    onOpenAppearance = { openedAppearance = true },
                 )
             }
         }
@@ -123,29 +121,28 @@ class ReadingSettingsContentTest {
     }
 
     @Test
-    fun `wallpaper colors appear only where the device supports them`() {
-        // One content per test; the flag is snapshot state the content reads live.
-        val showDynamicColor = mutableStateOf(false)
-        composeRule.setContent {
-            QItAppTheme {
-                ReadingSettingsContent(
-                    state = ReadingSettingsUiState(),
-                    showDynamicColor = showDynamicColor.value,
-                    onArabicTextSizeChange = {},
-                    onShowTranslationChange = {},
-                    onFollowAlongChange = {},
-                    onWordByWordChange = {},
-                    onThemeModeChange = {},
-                    onDynamicColorChange = { dynamicColor = it },
-                )
-            }
-        }
-        composeRule.onNodeWithText(context.getString(R.string.wallpaper_colors)).assertDoesNotExist()
+    fun `sepia is one of the page tones`() {
+        setContent()
+        composeRule.onNodeWithText(context.getString(R.string.theme_sepia)).performScrollTo().performClick()
+        assertEquals(ThemeMode.SEPIA, pickedTheme)
+    }
 
-        composeRule.runOnIdle { showDynamicColor.value = true }
-        composeRule.onNodeWithText(context.getString(R.string.wallpaper_colors)).performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText(context.getString(R.string.wallpaper_colors)).performClick()
-        assertEquals(true, dynamicColor)
+    @Test
+    fun `the sheet leads on to Appearance`() {
+        setContent()
+        composeRule.onNodeWithText(context.getString(R.string.appearance_more)).performScrollTo().performClick()
+        assertEquals(true, openedAppearance)
+    }
+
+    @Test
+    fun `the size slider says the size's name, not its position`() {
+        setContent(prefs = ReadingPrefs(arabicTextSize = ArabicTextSize.LARGE))
+        composeRule.onNode(hasSettableProgress()).assert(
+            SemanticsMatcher.expectValue(
+                SemanticsProperties.StateDescription,
+                context.getString(R.string.arabic_size_name_large),
+            ),
+        )
     }
 
     @Test

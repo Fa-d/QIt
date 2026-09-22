@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
+import dev.sadakat.qit.core.designsystem.skin.QItTone
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.SurahListening
 import dev.sadakat.qit.core.domain.player.WordPointer
@@ -29,7 +30,7 @@ class ReaderScreenshotTest {
     }
 
     @Test
-    fun dark() = composeRule.snapshot("reader_dark", darkTheme = true) {
+    fun dark() = composeRule.snapshot("reader_dark", tone = QItTone.DARK) {
         Reader(readerState())
     }
 

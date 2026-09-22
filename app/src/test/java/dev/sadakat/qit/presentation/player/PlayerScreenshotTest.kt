@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
+import dev.sadakat.qit.core.designsystem.skin.QItTone
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.player.NowPlaying
@@ -31,13 +32,13 @@ class PlayerScreenshotTest {
     fun miniLight() = composeRule.snapshot("player_mini_light") { Mini() }
 
     @Test
-    fun miniDark() = composeRule.snapshot("player_mini_dark", darkTheme = true) { Mini() }
+    fun miniDark() = composeRule.snapshot("player_mini_dark", tone = QItTone.DARK) { Mini() }
 
     @Test
     fun fullLight() = composeRule.snapshot("player_full_light") { Full(state()) }
 
     @Test
-    fun fullDark() = composeRule.snapshot("player_full_dark", darkTheme = true) { Full(state()) }
+    fun fullDark() = composeRule.snapshot("player_full_dark", tone = QItTone.DARK) { Full(state()) }
 
     @Test
     fun fullWordByWord() = composeRule.snapshot("player_full_word_by_word") {

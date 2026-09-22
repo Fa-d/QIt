@@ -68,19 +68,28 @@ fun <T> QItSegmentedToggle(
     val style = MaterialTheme.typography.labelLarge
     val density = LocalDensity.current
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        val segment = maxWidth / options.size
-        // A segment pads its label and, when selected, shows a check mark beside it.
-        val room = segment - KitTokens.SegmentChrome
-        val fits = labels.all { text ->
-            with(density) { measurer.measure(text, style, maxLines = 1).size.width.toDp() } <= room
+        val room = maxWidth / options.size - KitTokens.SegmentPadding
+        val widest = labels.maxOf { text ->
+            with(density) { measurer.measure(text, style, maxLines = 1).size.width.toDp() }
         }
-        if (fits) {
+        // The check mark goes first when space is short: the fill and the selection state still tell.
+        val fit = when {
+            widest + KitTokens.SegmentCheck <= room -> SegmentFit.WITH_CHECK
+            widest <= room -> SegmentFit.WITHOUT_CHECK
+            else -> SegmentFit.NONE
+        }
+        if (fit != SegmentFit.NONE) {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 options.forEachIndexed { index, option ->
                     SegmentedButton(
                         selected = option == selected,
                         onClick = { onSelect(option) },
                         shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                        icon = if (fit == SegmentFit.WITH_CHECK) {
+                            { SegmentedButtonDefaults.Icon(active = option == selected) }
+                        } else {
+                            {}
+                        },
                         label = { Text(text = labels[index], maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     )
                 }
@@ -108,6 +117,8 @@ fun <T> QItSegmentedToggle(
         }
     }
 }
+
+private enum class SegmentFit { WITH_CHECK, WITHOUT_CHECK, NONE }
 
 /** A settings row that reads as one switch: the whole row toggles, the switch only shows state. */
 @Composable

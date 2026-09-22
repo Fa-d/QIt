@@ -10,6 +10,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import dev.sadakat.qit.core.designsystem.QItTheme
+import dev.sadakat.qit.core.designsystem.skin.QItTone
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState
 import dev.sadakat.qit.testing.snapshot
 import org.junit.Rule
@@ -30,7 +31,7 @@ class ComponentsScreenshotTest {
     fun light() = composeRule.snapshot("components_light") { Components() }
 
     @Test
-    fun dark() = composeRule.snapshot("components_dark", darkTheme = true) { Components() }
+    fun dark() = composeRule.snapshot("components_dark", tone = QItTone.DARK) { Components() }
 }
 
 @Composable

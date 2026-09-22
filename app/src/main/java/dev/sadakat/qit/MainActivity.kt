@@ -18,9 +18,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import dev.sadakat.qit.core.designsystem.skin.QItTone
-import dev.sadakat.qit.core.domain.model.ThemeMode
 import dev.sadakat.qit.presentation.AppViewModel
 import dev.sadakat.qit.presentation.QuranApp
+import dev.sadakat.qit.presentation.appearance.tone
 import dev.sadakat.qit.ui.theme.QItAppTheme
 import dev.sadakat.qit.ui.theme.toQItStyle
 
@@ -46,13 +46,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val appViewModel: AppViewModel = hiltViewModel()
             val app by appViewModel.uiState.collectAsStateWithLifecycle()
-            val systemDark = isSystemInDarkTheme()
-            val tone = when (app.themeMode) {
-                ThemeMode.SYSTEM -> if (systemDark) QItTone.DARK else QItTone.LIGHT
-                ThemeMode.LIGHT -> QItTone.LIGHT
-                ThemeMode.SEPIA -> QItTone.SEPIA
-                ThemeMode.DARK -> QItTone.DARK
-            }
+            val tone = app.themeMode.tone(systemDark = isSystemInDarkTheme())
             val darkTheme = tone == QItTone.DARK
             // The in-app theme can differ from the system's, so the system bar icons follow it.
             DisposableEffect(darkTheme) {

@@ -25,7 +25,9 @@ import androidx.navigation.compose.rememberNavController
 import dev.sadakat.qit.R
 import dev.sadakat.qit.core.designsystem.QItTheme
 import dev.sadakat.qit.core.ui.kit.QItAppShell
+import dev.sadakat.qit.presentation.appearance.AppearanceRoute
 import dev.sadakat.qit.presentation.home.HomeRoute
+import dev.sadakat.qit.presentation.navigation.AppearanceDestination
 import dev.sadakat.qit.presentation.navigation.HomeDestination
 import dev.sadakat.qit.presentation.navigation.ProgressDestination
 import dev.sadakat.qit.presentation.navigation.ReaderDestination
@@ -52,6 +54,7 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
     val snackbarHostState = remember { SnackbarHostState() }
     var showNowPlaying by rememberSaveable { mutableStateOf(false) }
     var showReadingSettings by rememberSaveable { mutableStateOf(false) }
+    val openAppearance = { navController.navigate(AppearanceDestination) { launchSingleTop = true } }
     val openReader: (Int, Int) -> Unit = { surah, ayah ->
         navController.navigate(ReaderDestination(surah, ayah)) { launchSingleTop = true }
     }
@@ -111,6 +114,9 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
                     contentPadding = contentPadding,
                 )
             }
+            composable<AppearanceDestination> {
+                AppearanceRoute(onBack = { navController.popBackStack() }, contentPadding = contentPadding)
+            }
             composable<ProgressDestination> {
                 ProgressRoute(
                     onBack = { navController.popBackStack() },
@@ -148,6 +154,12 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
         )
     }
     if (showReadingSettings) {
-        ReadingSettingsSheet(onDismiss = { showReadingSettings = false })
+        ReadingSettingsSheet(
+            onDismiss = { showReadingSettings = false },
+            onOpenAppearance = {
+                showReadingSettings = false
+                openAppearance()
+            },
+        )
     }
 }
