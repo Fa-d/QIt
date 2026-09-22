@@ -18,6 +18,7 @@ import dev.sadakat.qit.core.domain.audio.QueueItemId
 import dev.sadakat.qit.core.domain.audio.QueuePlan
 import dev.sadakat.qit.core.domain.audio.SurahTimeline
 import dev.sadakat.qit.core.domain.model.AyahRef
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.player.NowPlaying
@@ -117,6 +118,9 @@ class ExoQuranPlayer(
     /** Mode of the queued surah; the mode in [NowPlaying] comes from here, not from the items. */
     private var mode: RecitationMode = RecitationMode.ARABIC_BANGLA
 
+    /** Voice of the queued surah, as [mode] above: stored at queue time, not read from the items. */
+    private var voice: BanglaVoice = BanglaVoice.DEFAULT
+
     /** Last position already persisted for the current queue, to save once per ayah, not per item. */
     private var savedPosition: AyahRef? = null
 
@@ -141,11 +145,11 @@ class ExoQuranPlayer(
         .distinctUntilChanged()
         .flowOn(Dispatchers.Main)
 
-    /** The playing surah's word timings, loaded once per surah. */
+    /** The playing surah's word timings, loaded once per surah and reciter (the queue's Arabic track). */
     private val surahWords = _nowPlaying
-        .map { it?.surah }
+        .map { playing -> playing?.let { it.surah to it.mode.tracks(it.voice).first() } }
         .distinctUntilChanged()
-        .mapLatest { surah -> surah?.let { timings.wordTimings(it) }.orEmpty() }
+        .mapLatest { key -> key?.let { (surah, reciter) -> timings.wordTimings(surah, reciter) }.orEmpty() }
         .catch { emit(emptyMap()) }
 
     override val pointer: Flow<WordPointer> =
@@ -227,10 +231,11 @@ class ExoQuranPlayer(
         }
         scope.launch {
             this@ExoQuranPlayer.mode = mode
+            voice = settings.banglaVoice.first()
             savedPosition = null
             applySpeed(settings.playbackSpeed.first())
-            val items = QuranMediaItems.build(quranText.surah(surah), mode)
-            timeline = timelineOf(surah, mode)
+            val items = QuranMediaItems.build(quranText.surah(surah), mode, voice)
+            timeline = timelineOf(surah, mode, voice)
             exoPlayer.setMediaItems(items, QueuePlan.indexOfAyah(ids(items), fromAyah), 0)
             exoPlayer.prepare()
             exoPlayer.play()
@@ -299,10 +304,11 @@ class ExoQuranPlayer(
             // play() may have raced in while we were reading the settings.
             if (exoPlayer.mediaItemCount > 0) return@launch
             mode = last.mode
+            voice = settings.banglaVoice.first()
             savedPosition = AyahRef(last.ref.surah, max(last.ref.ayah, 1))
             applySpeed(settings.playbackSpeed.first())
-            val items = QuranMediaItems.build(quranText.surah(last.ref.surah), last.mode)
-            timeline = timelineOf(last.ref.surah, last.mode)
+            val items = QuranMediaItems.build(quranText.surah(last.ref.surah), last.mode, voice)
+            timeline = timelineOf(last.ref.surah, last.mode, voice)
             exoPlayer.setMediaItems(items, QueuePlan.indexOfAyah(ids(items), last.ref.ayah), 0)
             exoPlayer.prepare()
             exoPlayer.playWhenReady = playWhenReady
@@ -448,9 +454,11 @@ class ExoQuranPlayer(
 
     private fun currentId(): QueueItemId? = exoPlayer.currentMediaItem?.mediaId?.let(QueueItemId::parse)
 
-    /** [surah]'s queue in [mode] laid end to end, or null if any of its files' lengths is unknown. */
-    private suspend fun timelineOf(surah: Int, mode: RecitationMode): SurahTimeline? {
-        val durations = QueuePlan.plan(surah, mode).map { entry -> timings.durationMs(entry.file.id) ?: return null }
+    /** [surah]'s queue in [mode] read by [voice] laid end to end, or null if any of its files' lengths is unknown. */
+    private suspend fun timelineOf(surah: Int, mode: RecitationMode, voice: BanglaVoice): SurahTimeline? {
+        val durations = QueuePlan.plan(surah, mode, voice).map { entry ->
+            timings.durationMs(entry.file.id) ?: return null
+        }
         return SurahTimeline(durations)
     }
 
@@ -494,6 +502,7 @@ class ExoQuranPlayer(
             isBuffering = exoPlayer.playbackState == Player.STATE_BUFFERING,
             speed = speed,
             repeat = repeat,
+            voice = voice,
         )
         savePosition(id)
     }

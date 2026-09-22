@@ -38,6 +38,7 @@ private fun Settings() {
         onArabicTextSizeChange = {},
         onShowTranslationChange = {},
         onFollowAlongChange = {},
+        onBanglaVoiceChange = {},
         onWordByWordChange = {},
         onThemeModeChange = {},
         onDynamicColorChange = {},

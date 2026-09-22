@@ -2,14 +2,20 @@ package dev.sadakat.qit.presentation.settings
 
 import app.cash.turbine.test
 import dev.sadakat.qit.core.domain.model.ArabicTextSize
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
+import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.ThemeMode
+import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.model.WordByWord
+import dev.sadakat.qit.core.domain.player.NowPlaying
+import dev.sadakat.qit.core.testing.FakeQuranPlayer
 import dev.sadakat.qit.core.testing.FakeQuranSettings
 import dev.sadakat.qit.core.testing.MainDispatcherRule
 import dev.sadakat.qit.presentation.awaitWhere
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -19,8 +25,9 @@ class ReadingSettingsViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val settings = FakeQuranSettings()
+    private val player = FakeQuranPlayer()
 
-    private fun viewModel() = ReadingSettingsViewModel(settings)
+    private fun viewModel() = ReadingSettingsViewModel(settings, player)
 
     @Test
     fun `the state mirrors the stored reading prefs`() = runTest {
@@ -29,6 +36,58 @@ class ReadingSettingsViewModelTest {
             val state = awaitWhere { it.prefs.themeMode == ThemeMode.DARK }
             assertEquals(ThemeMode.DARK, state.prefs.themeMode)
             assertEquals(true, state.prefs.dynamicColor)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `the state mirrors the stored bangla voice`() = runTest {
+        settings.banglaVoice.value = BanglaVoice.SAYED_ISMAT_TOHA
+        viewModel().uiState.test {
+            assertEquals(BanglaVoice.SAYED_ISMAT_TOHA, awaitWhere { it.voice == BanglaVoice.SAYED_ISMAT_TOHA }.voice)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `picking a voice stores it, and restarts arabic and bangla at the current ayah`() = runTest {
+        player.nowPlaying.value = NowPlaying(2, 10, Track.ARABIC, RecitationMode.ARABIC_BANGLA, true, false)
+        val viewModel = viewModel()
+        viewModel.uiState.test {
+            awaitWhere { it.prefs == ReadingPrefs() }
+
+            viewModel.setBanglaVoice(BanglaVoice.SAYED_ISMAT_TOHA)
+
+            assertEquals(BanglaVoice.SAYED_ISMAT_TOHA, settings.banglaVoice.value)
+            assertEquals(listOf(FakeQuranPlayer.PlayCall(2, 10, RecitationMode.ARABIC_BANGLA)), player.playCalls)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `picking the playing voice, or another mode's playback, does not restart`() = runTest {
+        val viewModel = viewModel()
+        viewModel.uiState.test {
+            awaitWhere { it.prefs == ReadingPrefs() }
+
+            // Arabic + Bangla, already read by the picked voice.
+            player.nowPlaying.value = NowPlaying(
+                2,
+                10,
+                Track.ARABIC,
+                RecitationMode.ARABIC_BANGLA,
+                true,
+                false,
+                voice = BanglaVoice.DEFAULT,
+            )
+            viewModel.setBanglaVoice(BanglaVoice.DEFAULT)
+
+            // Arabic only: the voice is stored but nothing restarts.
+            player.nowPlaying.value = NowPlaying(2, 10, Track.ARABIC, RecitationMode.ARABIC_ONLY, true, false)
+            viewModel.setBanglaVoice(BanglaVoice.SHAREEF_BAEZEED_MAHMOOD)
+
+            assertEquals(BanglaVoice.SHAREEF_BAEZEED_MAHMOOD, settings.banglaVoice.value)
+            assertTrue(player.playCalls.isEmpty())
             cancelAndIgnoreRemainingEvents()
         }
     }

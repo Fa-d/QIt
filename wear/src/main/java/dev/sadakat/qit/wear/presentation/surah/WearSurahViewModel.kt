@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Surah
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class WearSurahUiState(
@@ -43,16 +45,23 @@ class WearSurahViewModel @Inject constructor(
 
     private val surahFlow = flow { emit(runCatching { quranText.surah(surahNumber) }.getOrNull()) }
 
+    /** The voice the mode's tracks are read in, kept for the actions (no picker on the watch). */
+    private var currentVoice: BanglaVoice = BanglaVoice.DEFAULT
+
+    init {
+        viewModelScope.launch { settings.banglaVoice.collect { currentVoice = it } }
+    }
+
     val uiState: StateFlow<WearSurahUiState> = combine(
         surahFlow,
-        settings.mode,
+        combine(settings.mode, settings.banglaVoice, ::Pair),
         surahDownloads.states,
-    ) { surah, mode, downloads ->
+    ) { surah, (mode, voice), downloads ->
         WearSurahUiState(
             surah = surah,
             mode = mode,
             download = if (surah != null) {
-                downloads.stateOf(surah.number, mode.tracks)
+                downloads.stateOf(surah.number, mode.tracks(voice))
             } else {
                 SurahDownloadState.NotDownloaded
             },
@@ -70,12 +79,12 @@ class WearSurahViewModel @Inject constructor(
     fun download() {
         val state = uiState.value
         val surah = state.surah ?: return
-        surahDownloads.download(surah.number, state.mode.tracks)
+        surahDownloads.download(surah.number, state.mode.tracks(currentVoice))
     }
 
     fun remove() {
         val state = uiState.value
         val surah = state.surah ?: return
-        surahDownloads.remove(surah.number, state.mode.tracks)
+        surahDownloads.remove(surah.number, state.mode.tracks(currentVoice))
     }
 }

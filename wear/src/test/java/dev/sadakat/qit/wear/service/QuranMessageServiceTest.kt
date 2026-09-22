@@ -5,10 +5,13 @@ import dev.sadakat.qit.core.data.link.ListeningResetMessage
 import dev.sadakat.qit.core.data.link.QuranDownloadMessage
 import dev.sadakat.qit.core.data.link.WearPaths
 import dev.sadakat.qit.core.domain.model.AyahRef
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.repository.ListeningCounts
 import dev.sadakat.qit.core.testing.FakeListeningHistory
+import dev.sadakat.qit.core.testing.FakeQuranSettings
 import dev.sadakat.qit.core.testing.FakeSurahDownloads
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -20,6 +23,7 @@ class QuranMessageServiceTest {
 
     private val downloads = FakeSurahDownloads()
     private val history = FakeListeningHistory()
+    private val settings = FakeQuranSettings()
 
     @Test
     fun `a valid download message downloads the requested surah and tracks`() {
@@ -62,6 +66,20 @@ class QuranMessageServiceTest {
         handleQuranMessage(WearPaths.QURAN_DOWNLOAD, payload, downloads)
 
         assertTrue(downloads.downloadRequests.isEmpty())
+    }
+
+    @Test
+    fun `a voice choice is stored as the watch's own`() = runTest {
+        handleBanglaVoice("toha", settings)
+
+        assertEquals(BanglaVoice.SAYED_ISMAT_TOHA, settings.banglaVoice.first())
+    }
+
+    @Test
+    fun `an unknown voice code is ignored`() = runTest {
+        handleBanglaVoice("someone-else", settings)
+
+        assertEquals(BanglaVoice.DEFAULT, settings.banglaVoice.first())
     }
 
     @Test

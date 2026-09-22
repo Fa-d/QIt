@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dev.sadakat.qit.core.domain.model.ArabicTextSize
 import dev.sadakat.qit.core.domain.model.AyahRef
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.ThemeMode
@@ -32,6 +33,15 @@ class DataStoreQuranSettings(private val context: Context) : QuranSettings {
 
     override suspend fun setMode(mode: RecitationMode) {
         context.quranDataStore.edit { it[MODE] = mode.name }
+    }
+
+    override val banglaVoice: Flow<BanglaVoice> =
+        context.quranDataStore.data.map { preferences ->
+            preferences[BANGLA_VOICE]?.let { BanglaVoice.fromCode(it) } ?: BanglaVoice.DEFAULT
+        }
+
+    override suspend fun setBanglaVoice(voice: BanglaVoice) {
+        context.quranDataStore.edit { it[BANGLA_VOICE] = voice.code }
     }
 
     override val lastPosition: Flow<LastPosition?> =
@@ -97,6 +107,7 @@ class DataStoreQuranSettings(private val context: Context) : QuranSettings {
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val PLAYBACK_SPEED = stringPreferencesKey("playback_speed")
+        val BANGLA_VOICE = stringPreferencesKey("bangla_voice")
         val DEFAULT_MODE = RecitationMode.ARABIC_BANGLA
     }
 }

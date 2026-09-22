@@ -1,6 +1,7 @@
 package dev.sadakat.qit.presentation.player
 
 import app.cash.turbine.test
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
@@ -120,6 +121,67 @@ class PlayerViewModelTest {
         val viewModel = viewModel()
         viewModel.setMode(RecitationMode.ARABIC_ONLY)
         assertEquals(emptyList<FakeQuranPlayer.PlayCall>(), player.playCalls)
+    }
+
+    @Test
+    fun `changing the voice remembers it and continues the same ayah with it`() = runTest {
+        val viewModel = viewModel()
+        player.nowPlaying.value = NowPlaying(
+            2,
+            7,
+            Track.ARABIC,
+            RecitationMode.ARABIC_BANGLA,
+            isPlaying = true,
+            isBuffering = false,
+            voice = BanglaVoice.DEFAULT,
+        )
+
+        viewModel.setVoice(BanglaVoice.SAYED_ISMAT_TOHA)
+
+        assertEquals(BanglaVoice.SAYED_ISMAT_TOHA, settings.banglaVoice.value)
+        assertEquals(FakeQuranPlayer.PlayCall(2, 7, RecitationMode.ARABIC_BANGLA), player.playCalls.last())
+    }
+
+    @Test
+    fun `voice changes only restart arabic and bangla, and only another voice`() = runTest {
+        val viewModel = viewModel()
+
+        // Arabic + English: stored, nothing restarted.
+        player.nowPlaying.value = playing(ayah = 7)
+        viewModel.setVoice(BanglaVoice.SAYED_ISMAT_TOHA)
+        assertEquals(emptyList<FakeQuranPlayer.PlayCall>(), player.playCalls)
+
+        // Arabic + Bangla, already read by the picked voice.
+        player.nowPlaying.value = NowPlaying(
+            2,
+            7,
+            Track.ARABIC,
+            RecitationMode.ARABIC_BANGLA,
+            isPlaying = true,
+            isBuffering = false,
+            voice = BanglaVoice.SAYED_ISMAT_TOHA,
+        )
+        viewModel.setVoice(BanglaVoice.SAYED_ISMAT_TOHA)
+        assertEquals(emptyList<FakeQuranPlayer.PlayCall>(), player.playCalls)
+    }
+
+    @Test
+    fun `the ui state carries the playing voice`() = runTest {
+        val viewModel = viewModel()
+        player.nowPlaying.value = NowPlaying(
+            2,
+            7,
+            Track.ARABIC,
+            RecitationMode.ARABIC_BANGLA,
+            isPlaying = true,
+            isBuffering = false,
+            voice = BanglaVoice.SHAREEF_BAEZEED_MAHMOOD,
+        )
+
+        viewModel.uiState.test {
+            assertEquals(BanglaVoice.SHAREEF_BAEZEED_MAHMOOD, awaitWhere { it.nowPlaying != null }.voice)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test

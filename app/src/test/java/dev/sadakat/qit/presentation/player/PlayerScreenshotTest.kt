@@ -101,6 +101,7 @@ class PlayerScreenshotTest {
             onNext = {},
             onSeek = {},
             onModeChange = {},
+            onVoiceChange = {},
             onRepeatChange = {},
             onSpeedChange = {},
             onSleepTimerChange = {},

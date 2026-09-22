@@ -16,6 +16,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.player.NowPlaying
@@ -48,6 +49,7 @@ class NowPlayingContentTest {
         onNext = { calls += "next" },
         onSeek = { calls += "seek ${it}ms" },
         onModeChange = { calls += it },
+        onVoiceChange = { calls += it },
         onRepeatChange = { calls += it },
         onSpeedChange = { calls += it },
         onSleepTimerChange = { calls += it ?: "cancel sleep" },
@@ -56,12 +58,12 @@ class NowPlayingContentTest {
     )
 
     private fun setContent(
-        repeat: RepeatSetting = RepeatSetting.Off,
         sleepTimer: SleepTimerStatus = SleepTimerStatus.Off,
         translation: String? = "Our Lord, grant us mercy from Yourself.",
         progress: PlaybackProgress =
             PlaybackProgress(itemPositionMs = 2_000, surahPositionMs = 192_000, surahDurationMs = 1_037_000),
         pointer: WordPointer = WordPointer.Off,
+        nowPlaying: NowPlaying = playing(),
     ) {
         composeRule.setContent {
             QItAppTheme {
@@ -70,15 +72,7 @@ class NowPlayingContentTest {
                     pointer = pointer,
                     onCollapse = { calls += "collapse" },
                     state = PlayerUiState(
-                        nowPlaying = NowPlaying(
-                            18,
-                            10,
-                            Track.ARABIC,
-                            RecitationMode.ARABIC_ENGLISH,
-                            isPlaying = true,
-                            isBuffering = false,
-                            repeat = repeat,
-                        ),
+                        nowPlaying = nowPlaying,
                         surahName = "Al-Kahf",
                         ayahArabic = "رَبَّنَآ ءَاتِنَا مِن لَّدُنكَ رَحْمَةً",
                         ayahTranslation = translation,
@@ -91,6 +85,11 @@ class NowPlayingContentTest {
             }
         }
     }
+
+    private fun playing(
+        repeat: RepeatSetting = RepeatSetting.Off,
+        mode: RecitationMode = RecitationMode.ARABIC_ENGLISH,
+    ) = NowPlaying(18, 10, Track.ARABIC, mode, isPlaying = true, isBuffering = false, repeat = repeat)
 
     @Test
     fun `shows the ayah, its translation and where it is`() {
@@ -166,7 +165,7 @@ class NowPlayingContentTest {
 
     @Test
     fun `an active repeat shows on its button`() {
-        setContent(repeat = RepeatSetting.Ayah(3))
+        setContent(nowPlaying = playing(repeat = RepeatSetting.Ayah(3)))
 
         composeRule.onNodeWithContentDescription("Repeat: Ayah ×3").assertIsDisplayed()
         composeRule.onNodeWithText("3").assertIsDisplayed()

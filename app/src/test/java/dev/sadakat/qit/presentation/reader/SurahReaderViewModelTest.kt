@@ -3,6 +3,7 @@ package dev.sadakat.qit.presentation.reader
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import dev.sadakat.qit.core.domain.model.AyahRef
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
@@ -174,8 +175,31 @@ class SurahReaderViewModelTest {
             awaitWhere { it.surah != null }
             viewModel.download()
             viewModel.remove()
-            assertEquals(listOf(2 to RecitationMode.ARABIC_BANGLA.tracks), downloads.downloadRequests)
-            assertEquals(listOf(2 to RecitationMode.ARABIC_BANGLA.tracks), downloads.removeRequests)
+            assertEquals(
+                listOf(2 to RecitationMode.ARABIC_BANGLA.tracks(BanglaVoice.DEFAULT)),
+                downloads.downloadRequests,
+            )
+            assertEquals(
+                listOf(2 to RecitationMode.ARABIC_BANGLA.tracks(BanglaVoice.DEFAULT)),
+                downloads.removeRequests,
+            )
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `download and remove use the stored voice's tracks`() = runTest {
+        settings.banglaVoice.value = BanglaVoice.SAYED_ISMAT_TOHA
+        val viewModel = viewModel()
+        viewModel.uiState.test {
+            awaitWhere { it.surah != null }
+
+            viewModel.download()
+            viewModel.remove()
+
+            val tracks = RecitationMode.ARABIC_BANGLA.tracks(BanglaVoice.SAYED_ISMAT_TOHA)
+            assertEquals(listOf(2 to tracks), downloads.downloadRequests)
+            assertEquals(listOf(2 to tracks), downloads.removeRequests)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -211,7 +235,7 @@ class SurahReaderViewModelTest {
             awaitWhere { it.surah != null }
             viewModel.sendToWatch()
             assertEquals(ReaderMessage.SentToWatch(2), awaitWhere { it.message != null }.message)
-            assertEquals(listOf(2 to RecitationMode.ARABIC_BANGLA.tracks), watch.sentSurahs)
+            assertEquals(listOf(2 to RecitationMode.ARABIC_BANGLA.tracks(BanglaVoice.DEFAULT)), watch.sentSurahs)
             cancelAndIgnoreRemainingEvents()
         }
     }
