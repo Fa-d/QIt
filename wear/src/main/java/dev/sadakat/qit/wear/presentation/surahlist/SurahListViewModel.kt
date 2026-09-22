@@ -43,12 +43,12 @@ class SurahListViewModel @Inject constructor(
 
     val uiState: StateFlow<WearSurahListUiState> = combine(
         surahsFlow,
-        settings.mode,
+        combine(settings.mode, settings.banglaVoice, ::Pair),
         surahDownloads.states,
-    ) { surahs, mode, downloads ->
+    ) { surahs, (mode, voice), downloads ->
         WearSurahListUiState(
             rows = surahs
-                .map { SurahRowUiModel(it, downloads.stateOf(it.number, mode.tracks)) }
+                .map { SurahRowUiModel(it, downloads.stateOf(it.number, mode.tracks(voice))) }
                 .filter { !downloadedOnly || it.download is SurahDownloadState.Downloaded },
             downloadedOnly = downloadedOnly,
             mode = mode,
