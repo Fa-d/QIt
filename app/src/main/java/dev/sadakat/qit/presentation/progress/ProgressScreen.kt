@@ -1,4 +1,3 @@
-// kit-migration: pending (still builds Material containers itself; move it onto the :core:ui kit)
 package dev.sadakat.qit.presentation.progress
 
 import androidx.compose.foundation.layout.Arrangement
@@ -6,13 +5,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,22 +17,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +41,12 @@ import dev.sadakat.qit.R
 import dev.sadakat.qit.core.designsystem.QItTheme
 import dev.sadakat.qit.core.domain.model.ListeningOrder
 import dev.sadakat.qit.core.domain.model.QuranMeta
+import dev.sadakat.qit.core.ui.kit.QItAlertDialog
+import dev.sadakat.qit.core.ui.kit.QItCard
+import dev.sadakat.qit.core.ui.kit.QItMenu
+import dev.sadakat.qit.core.ui.kit.QItScaffold
+import dev.sadakat.qit.core.ui.kit.QItSegmentedToggle
+import dev.sadakat.qit.core.ui.kit.QItTopBar
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -71,13 +66,12 @@ fun ProgressRoute(
         onOrderChange = viewModel::setOrder,
         onReset = viewModel::reset,
         onOpenReader = onOpenReader,
-        // Until this screen moves onto the kit: keep clear of the mini player and the status bar.
-        modifier = modifier.padding(contentPadding).statusBarsPadding(),
+        modifier = modifier,
+        contentPadding = contentPadding,
     )
 }
 
 /** The listening progress: how much of the Quran has been heard, then each surah heard and how often. */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProgressScreen(
     state: ProgressUiState,
@@ -86,6 +80,7 @@ fun ProgressScreen(
     onReset: () -> Unit,
     onOpenReader: (surah: Int, ayah: Int) -> Unit,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(),
 ) {
     var resetPending by remember { mutableStateOf(false) }
     if (resetPending) {
@@ -98,35 +93,25 @@ fun ProgressScreen(
         )
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        TopAppBar(
-            title = { Text(stringResource(R.string.progress_title)) },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = stringResource(R.string.cd_back),
-                    )
-                }
-            },
-            actions = {
-                if (!state.isEmpty) {
-                    ProgressOverflowMenu(onResetClick = { resetPending = true })
-                }
-            },
-            // Inset paddings come from the app scaffold; don't apply them twice.
-            windowInsets = WindowInsets(0, 0, 0, 0),
-        )
+    QItScaffold(
+        topBar = { ProgressTopBar(showMenu = !state.isEmpty, onBack = onBack, onResetClick = { resetPending = true }) },
+        modifier = modifier,
+        contentPadding = contentPadding,
+    ) { padding ->
         when {
-            state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            state.isLoading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
 
-            state.isEmpty -> ProgressEmpty(Modifier.fillMaxSize())
+            state.isEmpty -> ProgressEmpty(Modifier.fillMaxSize().padding(padding))
 
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = QItTheme.spacing.lg),
+                // The list scrolls behind the top bar and the mini player; only its items keep clear.
+                contentPadding = PaddingValues(
+                    top = padding.calculateTopPadding(),
+                    bottom = padding.calculateBottomPadding() + QItTheme.spacing.lg,
+                ),
             ) {
                 item(key = "summary") { ProgressSummary(state) }
                 item(key = "order") { OrderToggle(selected = state.order, onSelect = onOrderChange) }
@@ -138,11 +123,26 @@ fun ProgressScreen(
     }
 }
 
+@Composable
+private fun ProgressTopBar(showMenu: Boolean, onBack: () -> Unit, onResetClick: () -> Unit) {
+    QItTopBar(
+        title = { Text(stringResource(R.string.progress_title)) },
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = stringResource(R.string.cd_back),
+                )
+            }
+        },
+        actions = { if (showMenu) ProgressOverflowMenu(onResetClick = onResetClick) },
+    )
+}
+
 /** Ayahs heard of the whole Quran, the coverage line and how long was listened in total. */
 @Composable
 private fun ProgressSummary(state: ProgressUiState, modifier: Modifier = Modifier) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    QItCard(
         shape = RoundedCornerShape(QItTheme.radius.lg),
         modifier = modifier
             .fillMaxWidth()
@@ -199,21 +199,15 @@ private fun OrderToggle(selected: ListeningOrder, onSelect: (ListeningOrder) -> 
         ListeningOrder.MOST_HEARD to R.string.progress_order_most_heard,
         ListeningOrder.BY_NUMBER to R.string.progress_order_by_number,
     )
-    SingleChoiceSegmentedButtonRow(
+    QItSegmentedToggle(
+        options = options.map { it.first },
+        selected = selected,
+        onSelect = onSelect,
+        label = { order -> stringResource(options.first { it.first == order }.second) },
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = QItTheme.spacing.screenGutter, vertical = QItTheme.spacing.sm),
-    ) {
-        options.forEachIndexed { index, (order, label) ->
-            SegmentedButton(
-                selected = order == selected,
-                onClick = { onSelect(order) },
-                shape = SegmentedButtonDefaults.itemShape(index, options.size),
-            ) {
-                Text(stringResource(label))
-            }
-        }
-    }
+    )
 }
 
 /** Nothing has been heard yet; the screen stays empty until the first ayah is played. */
@@ -256,7 +250,7 @@ private fun ProgressOverflowMenu(onResetClick: () -> Unit) {
                 contentDescription = stringResource(R.string.cd_more_options),
             )
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        QItMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.progress_reset)) },
                 onClick = {
@@ -270,7 +264,7 @@ private fun ProgressOverflowMenu(onResetClick: () -> Unit) {
 
 @Composable
 private fun ResetProgressDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
+    QItAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.progress_reset_title)) },
         text = { Text(stringResource(R.string.progress_reset_text)) },

@@ -25,4 +25,6 @@
     <string name="cd_buffering">Buffering</string>
     <string name="remove">Remove</string>
     <string name="cancel">Cancel</string>
+    <string name="retry">Retry</string>
+    <string name="cd_open_surah">Open surah</string>
 </resources>

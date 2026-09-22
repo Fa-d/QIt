@@ -18,5 +18,14 @@
     <string name="home_juz_title">Juz %1$d</string>
     <string name="home_juz_starts">Starts at %1$s %2$d:%3$d</string>
     <string name="home_cd_playing">Playing</string>
+    <string name="home_cd_appearance">Appearance</string>
+    <string name="home_cd_open_juz">Open juz</string>
+    <string name="home_cd_open_verse">Open verse</string>
+    <string name="home_cd_surah_number">Surah %1$d</string>
+    <string name="home_cd_juz_number">Juz %1$d</string>
     <string name="home_no_results">No surah matches \"%1$s\"</string>
+    <string name="home_no_results_hint">Try a name, a number, or a verse like 2:255</string>
+    <string name="home_search_example_name">Al-Kahf</string>
+    <string name="home_search_example_number">36</string>
+    <string name="home_search_example_verse">2:255</string>
 </resources>

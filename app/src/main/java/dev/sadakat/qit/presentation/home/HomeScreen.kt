@@ -1,31 +1,26 @@
-// kit-migration: pending (still builds Material containers itself; move it onto the :core:ui kit)
 package dev.sadakat.qit.presentation.home
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.FormatSize
 import androidx.compose.material.icons.rounded.Insights
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -37,6 +32,14 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sadakat.qit.R
 import dev.sadakat.qit.core.designsystem.QItTheme
+import dev.sadakat.qit.core.ui.kit.QItScaffold
+import dev.sadakat.qit.core.ui.kit.QItSearchField
+import dev.sadakat.qit.core.ui.kit.QItSegmentedToggle
+import dev.sadakat.qit.core.ui.kit.QItTopBar
+import dev.sadakat.qit.core.ui.kit.QItTopBarScrollKind
+import dev.sadakat.qit.core.ui.kit.QItTopBarSize
+import dev.sadakat.qit.core.ui.kit.rememberQItTopBarScroll
+import dev.sadakat.qit.presentation.components.LoadError
 
 /** Connects [HomeScreen] to its [HomeViewModel]. */
 @Composable
@@ -44,6 +47,7 @@ fun HomeRoute(
     onOpenReader: (surah: Int, ayah: Int) -> Unit,
     onOpenProgress: () -> Unit,
     onOpenReadingSettings: () -> Unit,
+    onOpenAppearance: () -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(),
     viewModel: HomeViewModel = hiltViewModel(),
@@ -57,8 +61,10 @@ fun HomeRoute(
         onOpenProgress = onOpenProgress,
         onContinuePlayPause = viewModel::onContinuePlayPause,
         onOpenReadingSettings = onOpenReadingSettings,
-        // Until this screen moves onto the kit: keep clear of the mini player and the status bar.
-        modifier = modifier.padding(contentPadding).statusBarsPadding(),
+        onOpenAppearance = onOpenAppearance,
+        onRetry = viewModel::retry,
+        contentPadding = contentPadding,
+        modifier = modifier,
     )
 }
 
@@ -66,7 +72,6 @@ fun HomeRoute(
  * Home: the continue card first (the most common thing to do), then search — by name, number or a
  * verse reference — and the surahs or the juz. The large title collapses as the list scrolls.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     state: HomeUiState,
@@ -76,38 +81,58 @@ fun HomeScreen(
     onOpenProgress: () -> Unit,
     onContinuePlayPause: () -> Unit,
     onOpenReadingSettings: () -> Unit,
+    onOpenAppearance: () -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(),
 ) {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
-    ) {
-        LargeTopAppBar(
-            title = { Text(stringResource(R.string.home_title)) },
-            actions = {
-                IconButton(onClick = onOpenProgress) {
-                    Icon(
-                        Icons.Rounded.Insights,
-                        contentDescription = stringResource(R.string.home_cd_progress),
-                    )
-                }
-                IconButton(onClick = onOpenReadingSettings) {
-                    Icon(
-                        Icons.Rounded.FormatSize,
-                        contentDescription = stringResource(R.string.home_cd_reading_settings),
-                    )
-                }
-            },
-            // Inset paddings come from the app scaffold; don't apply them twice.
-            windowInsets = WindowInsets(0, 0, 0, 0),
-            scrollBehavior = scrollBehavior,
-        )
+    val scroll = rememberQItTopBarScroll(QItTopBarScrollKind.COLLAPSE_ON_SCROLL)
+    QItScaffold(
+        topBar = {
+            QItTopBar(
+                title = { Text(stringResource(R.string.home_title)) },
+                actions = {
+                    IconButton(onClick = onOpenProgress) {
+                        Icon(
+                            Icons.Rounded.Insights,
+                            contentDescription = stringResource(R.string.home_cd_progress),
+                        )
+                    }
+                    IconButton(onClick = onOpenReadingSettings) {
+                        Icon(
+                            Icons.Rounded.FormatSize,
+                            contentDescription = stringResource(R.string.home_cd_reading_settings),
+                        )
+                    }
+                    IconButton(onClick = onOpenAppearance) {
+                        Icon(
+                            Icons.Rounded.Palette,
+                            contentDescription = stringResource(R.string.home_cd_appearance),
+                        )
+                    }
+                },
+                size = QItTopBarSize.LARGE,
+                scroll = scroll,
+            )
+        },
+        modifier = modifier.nestedScroll(scroll.nestedScrollConnection),
+        contentPadding = contentPadding,
+    ) { padding ->
         when {
-            state.loadFailed -> Message(stringResource(R.string.load_error), isError = true)
+            state.loadFailed -> LoadError(
+                message = stringResource(R.string.load_error),
+                onRetry = onRetry,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = padding.calculateTopPadding()),
+            )
 
-            state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            state.isLoading -> Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(top = padding.calculateTopPadding()),
+                contentAlignment = Alignment.Center,
+            ) {
                 CircularProgressIndicator()
             }
 
@@ -115,7 +140,11 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .testTag("home_list"),
-                contentPadding = PaddingValues(bottom = QItTheme.spacing.lg),
+                // The list scrolls behind the top bar and the mini player; only its items keep clear.
+                contentPadding = PaddingValues(
+                    top = padding.calculateTopPadding(),
+                    bottom = padding.calculateBottomPadding() + QItTheme.spacing.lg,
+                ),
             ) {
                 homeItems(state, onQueryChange, onBrowseChange, onOpenReader, onContinuePlayPause)
             }
@@ -141,7 +170,16 @@ private fun LazyListScope.homeItems(
         }
     }
     item(key = "search") {
-        HomeSearchField(query = state.query, onQueryChange = onQueryChange)
+        QItSearchField(
+            query = state.query,
+            onQueryChange = onQueryChange,
+            placeholder = stringResource(R.string.home_search_hint),
+            clearLabel = stringResource(R.string.home_cd_clear_search),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = QItTheme.spacing.screenGutter, vertical = QItTheme.spacing.sm)
+                .testTag("home_search"),
+        )
     }
     if (!state.isSearching) {
         item(key = "browse") {
@@ -163,36 +201,57 @@ private fun LazyListScope.homeItems(
         }
     }
     if (state.isSearching && state.surahs.isEmpty() && state.jumpTarget == null) {
-        item(key = "empty") { Message(stringResource(R.string.home_no_results, state.query.trim())) }
+        item(key = "empty") { EmptySearch(query = state.query, onQueryChange = onQueryChange) }
     }
 }
 
 @Composable
 private fun BrowseToggle(selected: BrowseMode, onSelect: (BrowseMode) -> Unit, modifier: Modifier = Modifier) {
-    val options = listOf(BrowseMode.SURAH to R.string.home_browse_surahs, BrowseMode.JUZ to R.string.home_browse_juz)
-    SingleChoiceSegmentedButtonRow(
+    val labels = mapOf(
+        BrowseMode.SURAH to R.string.home_browse_surahs,
+        BrowseMode.JUZ to R.string.home_browse_juz,
+    )
+    QItSegmentedToggle(
+        options = labels.keys.toList(),
+        selected = selected,
+        onSelect = onSelect,
+        label = { mode -> stringResource(labels.getValue(mode)) },
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = QItTheme.spacing.screenGutter, vertical = QItTheme.spacing.sm),
+    )
+}
+
+/** No match: teach the search syntax, with examples that fill the field when tapped. */
+@Composable
+private fun EmptySearch(query: String, onQueryChange: (String) -> Unit, modifier: Modifier = Modifier) {
+    val examples = listOf(
+        stringResource(R.string.home_search_example_name),
+        stringResource(R.string.home_search_example_number),
+        stringResource(R.string.home_search_example_verse),
+    )
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = QItTheme.spacing.screenGutter, vertical = QItTheme.spacing.xl),
     ) {
-        options.forEachIndexed { index, (mode, label) ->
-            SegmentedButton(
-                selected = mode == selected,
-                onClick = { onSelect(mode) },
-                shape = SegmentedButtonDefaults.itemShape(index, options.size),
-            ) {
-                Text(stringResource(label))
+        Text(
+            text = stringResource(R.string.home_no_results, query.trim()),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            text = stringResource(R.string.home_no_results_hint),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = QItTheme.spacing.xs),
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(QItTheme.spacing.sm),
+            modifier = Modifier.padding(top = QItTheme.spacing.md),
+        ) {
+            examples.forEach { example ->
+                AssistChip(onClick = { onQueryChange(example) }, label = { Text(example) })
             }
         }
     }
-}
-
-@Composable
-private fun Message(text: String, modifier: Modifier = Modifier, isError: Boolean = false) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodyLarge,
-        color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = modifier.padding(QItTheme.spacing.xl),
-    )
 }

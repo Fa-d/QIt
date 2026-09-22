@@ -104,6 +104,7 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
                         navController.navigate(ProgressDestination) { launchSingleTop = true }
                     },
                     onOpenReadingSettings = { showReadingSettings = true },
+                    onOpenAppearance = openAppearance,
                     contentPadding = contentPadding,
                 )
             }

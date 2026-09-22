@@ -38,8 +38,12 @@ import dev.sadakat.qit.presentation.components.NumberBadge
 fun SurahRow(row: SurahRowUi, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val surah = row.surah
     val nameColor = if (row.isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-    ListRow(onClick = onClick, modifier = modifier.testTag("surah_${surah.number}")) {
-        NumberBadge(surah.number)
+    ListRow(
+        onClick = onClick,
+        onClickLabel = stringResource(R.string.cd_open_surah),
+        modifier = modifier.testTag("surah_${surah.number}"),
+    ) {
+        NumberBadge(surah.number, label = stringResource(R.string.home_cd_surah_number, surah.number))
         Spacer(Modifier.width(QItTheme.spacing.md))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -90,8 +94,12 @@ fun SurahRow(row: SurahRowUi, onClick: () -> Unit, modifier: Modifier = Modifier
 /** A juz and where it starts. */
 @Composable
 fun JuzRow(row: JuzRowUi, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    ListRow(onClick = onClick, modifier = modifier.testTag("juz_${row.juz}")) {
-        NumberBadge(row.juz)
+    ListRow(
+        onClick = onClick,
+        onClickLabel = stringResource(R.string.home_cd_open_juz),
+        modifier = modifier.testTag("juz_${row.juz}"),
+    ) {
+        NumberBadge(row.juz, label = stringResource(R.string.home_cd_juz_number, row.juz))
         Spacer(Modifier.width(QItTheme.spacing.md))
         Column(Modifier.weight(1f)) {
             Text(stringResource(R.string.home_juz_title, row.juz), style = MaterialTheme.typography.titleMedium)
@@ -109,7 +117,11 @@ fun JuzRow(row: JuzRowUi, onClick: () -> Unit, modifier: Modifier = Modifier) {
 /** The search matched a verse reference: go straight to it. */
 @Composable
 fun JumpRow(jump: AyahJumpUi, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    ListRow(onClick = onClick, modifier = modifier.testTag("jump")) {
+    ListRow(
+        onClick = onClick,
+        onClickLabel = stringResource(R.string.home_cd_open_verse),
+        modifier = modifier.testTag("jump"),
+    ) {
         Box(
             modifier = Modifier
                 .size(QItTheme.sizes.numberBadge)
@@ -140,12 +152,17 @@ fun JumpRow(jump: AyahJumpUi, onClick: () -> Unit, modifier: Modifier = Modifier
 }
 
 @Composable
-private fun ListRow(onClick: () -> Unit, modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
+private fun ListRow(
+    onClick: () -> Unit,
+    onClickLabel: String,
+    modifier: Modifier = Modifier,
+    content: @Composable RowScope.() -> Unit,
+) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = QItTheme.sizes.touchTarget)
-            .clickable(onClick = onClick)
+            .clickable(onClickLabel = onClickLabel, onClick = onClick)
             .padding(horizontal = QItTheme.spacing.screenGutter, vertical = QItTheme.spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
