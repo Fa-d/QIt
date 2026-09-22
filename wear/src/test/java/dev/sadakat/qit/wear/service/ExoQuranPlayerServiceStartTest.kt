@@ -11,6 +11,8 @@ import dev.sadakat.qit.core.data.player.ExoQuranPlayer
 import dev.sadakat.qit.core.domain.model.AyahRef
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.repository.LastPosition
+import dev.sadakat.qit.core.testing.FakeAudioTimings
+import dev.sadakat.qit.core.testing.FakeListeningHistory
 import dev.sadakat.qit.core.testing.FakeQuranSettings
 import dev.sadakat.qit.core.testing.FakeQuranText
 import kotlinx.coroutines.CoroutineScope
@@ -40,7 +42,16 @@ class ExoQuranPlayerServiceStartTest {
     @Before
     fun setUp() {
         exoPlayer = TestExoPlayerBuilder(context).build()
-        player = ExoQuranPlayer(context, exoPlayer, text, settings, CoroutineScope(Dispatchers.Main))
+        player =
+            ExoQuranPlayer(
+                context,
+                exoPlayer,
+                text,
+                settings,
+                FakeAudioTimings(),
+                FakeListeningHistory(),
+                CoroutineScope(Dispatchers.Main),
+            )
     }
 
     @After

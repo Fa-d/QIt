@@ -140,7 +140,5 @@ class PlayerViewModel @Inject constructor(
     fun setSpeed(speed: PlaybackSpeed) = player.setSpeed(speed)
 
     /** Starts a sleep timer, or cancels the running one with null. */
-    fun setSleepTimer(option: SleepOption?) {
-        if (option == null) player.cancelSleepTimer() else player.startSleepTimer(option)
-    }
+    fun setSleepTimer(option: SleepOption?) = player.setSleepTimer(option)
 }

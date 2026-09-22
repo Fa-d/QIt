@@ -24,7 +24,10 @@ object RepeatPolicy {
 
     data class Decision(val step: RepeatStep, val progress: RepeatProgress)
 
-    /** The decision when [finishedAyah] has played to its end. */
+    /**
+     * The decision when [finishedAyah] has played to its end. Moving on from an ayah repeat's last
+     * play starts the next ayah's count afresh; moving on inside a range keeps the range's round.
+     */
     fun afterAyah(setting: RepeatSetting, progress: RepeatProgress, finishedAyah: Int): Decision = when {
         finishedAyah < 1 -> advance()
 
@@ -32,6 +35,8 @@ object RepeatPolicy {
 
         setting is RepeatSetting.Range && finishedAyah == setting.to ->
             again(setting.times, progress, restartAt = setting.from) ?: Decision(RepeatStep.Finish, RepeatProgress())
+
+        setting is RepeatSetting.Range -> Decision(RepeatStep.Advance, progress)
 
         else -> advance()
     }

@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.room)
     alias(libs.plugins.kover)
 }
 
@@ -30,6 +32,11 @@ android {
     }
 }
 
+// The listening history's schema, exported for migrations (see QuranDatabase).
+room {
+    schemaDirectory("$projectDir/schemas")
+}
+
 dependencies {
     api(project(":core:domain"))
 
@@ -40,6 +47,11 @@ dependencies {
     // Quran audio: playback data sources, downloads (DownloadManager/DownloadService), cache
     api(libs.media3.exoplayer)
     implementation(libs.datastore.preferences)
+
+    // The listening history
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
 
     testImplementation(project(":core:testing"))
     testImplementation(libs.robolectric)

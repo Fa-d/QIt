@@ -110,7 +110,7 @@ class OptionsViewModelTest {
 
     @Test
     fun `a timer started on the phone shows as Off until the watch picks one`() = runTest {
-        player.startSleepTimer(SleepOption.Minutes(15))
+        player.setSleepTimer(SleepOption.Minutes(15))
 
         // The status no longer says which option started it, so nothing is marked selected.
         val state = collected().uiState.value

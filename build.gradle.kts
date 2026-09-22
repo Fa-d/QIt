@@ -124,6 +124,9 @@ fun KoverReportFiltersConfig.excludeGeneratedAndGlue() {
             "*.R",
             "*.R$*",
             "*ComposableSingletons*",
+            // Room's generated database and DAO implementations
+            "*_Impl",
+            "*_Impl$*",
         )
         packages("hilt_aggregated_deps", "dagger")
         annotatedBy("androidx.compose.ui.tooling.preview.Preview")
