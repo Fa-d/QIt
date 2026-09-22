@@ -36,18 +36,20 @@ import androidx.compose.ui.unit.dp
 import dev.sadakat.qit.R
 import dev.sadakat.qit.core.designsystem.QItTheme
 import dev.sadakat.qit.core.designsystem.component.PlayerTokens
+import dev.sadakat.qit.core.domain.player.PlaybackProgress
 import dev.sadakat.qit.presentation.components.NumberBadge
 import dev.sadakat.qit.presentation.components.ayahTitleText
 import dev.sadakat.qit.presentation.components.bismillahTitleText
 
 /**
  * The player pinned under every screen while something is queued: what plays, how far through the
- * surah (the line on top), play/pause and next. Tap or swipe it up for the full player. There is no
- * close button here — stopping is rare and lives in the full player.
+ * surah (the line on top, read at draw time as it moves), play/pause and next. Tap or swipe it up
+ * for the full player. There is no close button here — stopping is rare and lives in the full player.
  */
 @Composable
 fun MiniPlayer(
     state: PlayerUiState,
+    progress: () -> PlaybackProgress,
     onExpand: () -> Unit,
     onTogglePlayPause: () -> Unit,
     onNext: () -> Unit,
@@ -72,7 +74,10 @@ fun MiniPlayer(
         // The surface runs behind the navigation bar (edge to edge); the controls stay above it.
         Column(Modifier.navigationBarsPadding()) {
             LinearProgressIndicator(
-                progress = { nowPlaying.progress },
+                // The surah's time once its length is known, else how many ayahs are behind.
+                progress = {
+                    progress().takeIf { it.surahDurationMs > 0 }?.fraction ?: nowPlaying.progress
+                },
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = QItTheme.colors.progressTrack,
                 gapSize = 0.dp,

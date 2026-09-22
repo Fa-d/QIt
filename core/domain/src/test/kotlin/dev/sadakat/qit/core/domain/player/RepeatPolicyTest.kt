@@ -95,4 +95,21 @@ class RepeatPolicyTest {
         assertNull(RepeatPolicy.entryAyah(range, currentAyah = 4))
         assertNull(RepeatPolicy.entryAyah(RepeatSetting.Ayah(3), currentAyah = 9))
     }
+
+    @Test
+    fun `moving on inside a range keeps its round`() {
+        val range = RepeatSetting.Range(from = 3, to = 5, times = 2)
+        assertEquals(
+            RepeatPolicy.Decision(RepeatStep.Advance, RepeatProgress(2)),
+            RepeatPolicy.afterAyah(range, RepeatProgress(2), finishedAyah = 4),
+        )
+    }
+
+    @Test
+    fun `moving on from an ayah repeat's last play counts the next ayah afresh`() {
+        assertEquals(
+            RepeatPolicy.Decision(RepeatStep.Advance, RepeatProgress()),
+            RepeatPolicy.afterAyah(RepeatSetting.Ayah(times = 3), RepeatProgress(3), finishedAyah = 4),
+        )
+    }
 }

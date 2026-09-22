@@ -10,7 +10,8 @@ data class NowPlayingActions(
     val onTogglePlayPause: () -> Unit,
     val onPrevious: () -> Unit,
     val onNext: () -> Unit,
-    val onSeekToAyah: (Int) -> Unit,
+    /** Moves to a position (ms) in the whole surah. */
+    val onSeek: (Long) -> Unit,
     val onModeChange: (RecitationMode) -> Unit,
     val onRepeatChange: (RepeatSetting) -> Unit,
     val onSpeedChange: (PlaybackSpeed) -> Unit,

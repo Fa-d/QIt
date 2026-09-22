@@ -36,6 +36,18 @@
             </intent-filter>
         </service>
 
+        <service
+            android:name=".watch.ListeningSyncService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/quran/listening" />
+            </intent-filter>
+        </service>
+
     </application>
 
 </manifest>

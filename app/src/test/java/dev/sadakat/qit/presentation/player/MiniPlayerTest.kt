@@ -12,6 +12,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.player.NowPlaying
+import dev.sadakat.qit.core.domain.player.PlaybackProgress
 import dev.sadakat.qit.core.domain.player.SleepTimerStatus
 import dev.sadakat.qit.ui.theme.QItAppTheme
 import org.junit.Assert.assertEquals
@@ -36,6 +37,7 @@ class MiniPlayerTest {
             QItAppTheme {
                 MiniPlayer(
                     state = PlayerUiState(nowPlaying = nowPlaying, surahName = "Al-Kahf", sleepTimer = sleepTimer),
+                    progress = { PlaybackProgress.START },
                     onExpand = { expands++ },
                     onTogglePlayPause = { toggles++ },
                     onNext = { nexts++ },

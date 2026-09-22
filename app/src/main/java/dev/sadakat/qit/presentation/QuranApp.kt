@@ -23,22 +23,27 @@ import androidx.navigation.compose.rememberNavController
 import dev.sadakat.qit.core.designsystem.QItTheme
 import dev.sadakat.qit.presentation.home.HomeRoute
 import dev.sadakat.qit.presentation.navigation.HomeDestination
+import dev.sadakat.qit.presentation.navigation.ProgressDestination
 import dev.sadakat.qit.presentation.navigation.ReaderDestination
 import dev.sadakat.qit.presentation.player.MiniPlayer
 import dev.sadakat.qit.presentation.player.NowPlayingActions
 import dev.sadakat.qit.presentation.player.NowPlayingSheet
 import dev.sadakat.qit.presentation.player.PlayerViewModel
+import dev.sadakat.qit.presentation.progress.ProgressRoute
 import dev.sadakat.qit.presentation.reader.SurahReaderRoute
 import dev.sadakat.qit.presentation.settings.ReadingSettingsSheet
 
 /**
- * Root of the phone UI: home and the reader, the mini player pinned under both whenever something
- * is queued, the full player sliding up from it, and the reading settings sheet.
+ * Root of the phone UI: home, the reader and progress, the mini player pinned under them whenever
+ * something is queued, the full player sliding up from it, and the reading settings sheet.
  */
 @Composable
 fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = hiltViewModel()) {
     val navController = rememberNavController()
     val playerState by playerViewModel.uiState.collectAsStateWithLifecycle()
+    val pointer by playerViewModel.pointer.collectAsStateWithLifecycle()
+    // Read only inside lambdas, where it's drawn: the root doesn't recompose with every tick.
+    val progress = playerViewModel.progress.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showNowPlaying by rememberSaveable { mutableStateOf(false) }
     var showReadingSettings by rememberSaveable { mutableStateOf(false) }
@@ -65,6 +70,7 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
             ) {
                 MiniPlayer(
                     state = playerState,
+                    progress = { progress.value },
                     onExpand = { showNowPlaying = true },
                     onTogglePlayPause = playerViewModel::togglePlayPause,
                     onNext = playerViewModel::nextAyah,
@@ -78,12 +84,24 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
             modifier = Modifier.padding(padding),
         ) {
             composable<HomeDestination> {
-                HomeRoute(onOpenReader = openReader, onOpenReadingSettings = { showReadingSettings = true })
+                HomeRoute(
+                    onOpenReader = openReader,
+                    onOpenProgress = {
+                        navController.navigate(ProgressDestination) { launchSingleTop = true }
+                    },
+                    onOpenReadingSettings = { showReadingSettings = true },
+                )
             }
             composable<ReaderDestination> {
                 SurahReaderRoute(
                     onBack = { navController.popBackStack() },
                     onOpenReadingSettings = { showReadingSettings = true },
+                )
+            }
+            composable<ProgressDestination> {
+                ProgressRoute(
+                    onBack = { navController.popBackStack() },
+                    onOpenReader = openReader,
                 )
             }
         }
@@ -96,7 +114,7 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
                 onTogglePlayPause = playerViewModel::togglePlayPause,
                 onPrevious = playerViewModel::previousAyah,
                 onNext = playerViewModel::nextAyah,
-                onSeekToAyah = playerViewModel::seekToAyah,
+                onSeek = playerViewModel::seekTo,
                 onModeChange = playerViewModel::setMode,
                 onRepeatChange = playerViewModel::setRepeat,
                 onSpeedChange = playerViewModel::setSpeed,
@@ -111,6 +129,8 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
                 },
             ),
             onDismiss = { showNowPlaying = false },
+            pointer = pointer,
+            progress = { progress.value },
         )
     }
     if (showReadingSettings) {

@@ -26,6 +26,8 @@ import dev.sadakat.qit.core.domain.player.NowPlaying
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.player.RepeatSetting
 import dev.sadakat.qit.core.domain.repository.LastPosition
+import dev.sadakat.qit.core.testing.FakeAudioTimings
+import dev.sadakat.qit.core.testing.FakeListeningHistory
 import dev.sadakat.qit.core.testing.FakeQuranSettings
 import dev.sadakat.qit.core.testing.FakeQuranText
 import kotlinx.coroutines.CoroutineScope
@@ -48,6 +50,8 @@ class ExoQuranPlayerTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val settings = FakeQuranSettings()
     private val text = FakeQuranText()
+    private val timings = FakeAudioTimings()
+    private val history = FakeListeningHistory()
     private val players = mutableListOf<ExoPlayer>()
     private lateinit var exoPlayer: ExoPlayer
     private lateinit var player: ExoQuranPlayer
@@ -55,7 +59,7 @@ class ExoQuranPlayerTest {
     @Before
     fun setUp() {
         exoPlayer = newPlayer(SeekableFakeMediaSourceFactory())
-        player = ExoQuranPlayer(context, exoPlayer, text, settings, CoroutineScope(Dispatchers.Main))
+        player = ExoQuranPlayer(context, exoPlayer, text, settings, timings, history, CoroutineScope(Dispatchers.Main))
     }
 
     @After
@@ -323,7 +327,8 @@ class ExoQuranPlayerTest {
     @Test
     fun `a playback error shows a short message that the next play clears`() {
         val failing = newPlayer(FailingOnceMediaSourceFactory())
-        val failingPlayer = ExoQuranPlayer(context, failing, text, settings, CoroutineScope(Dispatchers.Main))
+        val failingPlayer =
+            ExoQuranPlayer(context, failing, text, settings, timings, history, CoroutineScope(Dispatchers.Main))
 
         failingPlayer.play(2, fromAyah = 1, mode = RecitationMode.ARABIC_ONLY)
 
@@ -339,7 +344,8 @@ class ExoQuranPlayerTest {
     @Test
     fun `retrying with play-pause after an error clears it so a repeat failure is reported again`() {
         val failing = newPlayer(FailingOnceMediaSourceFactory())
-        val failingPlayer = ExoQuranPlayer(context, failing, text, settings, CoroutineScope(Dispatchers.Main))
+        val failingPlayer =
+            ExoQuranPlayer(context, failing, text, settings, timings, history, CoroutineScope(Dispatchers.Main))
         failingPlayer.play(2, fromAyah = 1, mode = RecitationMode.ARABIC_ONLY)
         runUntil(failing) { failingPlayer.error.value != null }
 

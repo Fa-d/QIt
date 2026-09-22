@@ -17,6 +17,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.sadakat.qit.R
 import dev.sadakat.qit.core.domain.model.RecitationMode
+import dev.sadakat.qit.core.domain.player.WordPointer
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState
 import dev.sadakat.qit.core.testing.TestQuran
 import dev.sadakat.qit.ui.theme.QItAppTheme
@@ -66,6 +67,7 @@ class SurahReaderScreenTest {
             QItAppTheme {
                 SurahReaderScreen(
                     state = state,
+                    pointer = WordPointer.Off,
                     onBack = {},
                     onOpenReadingSettings = { openedReadingSettings = true },
                     onAyahClick = { tappedAyah = it },
@@ -165,6 +167,7 @@ class SurahReaderScreenTest {
             QItAppTheme {
                 SurahReaderScreen(
                     state = state.value,
+                    pointer = WordPointer.Off,
                     onBack = {},
                     onOpenReadingSettings = {},
                     onAyahClick = {},
@@ -237,6 +240,7 @@ class SurahReaderScreenTest {
             QItAppTheme {
                 SurahReaderScreen(
                     state = state.value,
+                    pointer = WordPointer.Off,
                     onBack = {},
                     onOpenReadingSettings = {},
                     onAyahClick = {},

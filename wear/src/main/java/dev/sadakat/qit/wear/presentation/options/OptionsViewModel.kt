@@ -76,11 +76,11 @@ class OptionsViewModel @Inject constructor(settings: QuranSettings, private val 
     fun selectSleep(selection: SleepSelection) {
         sleepChoice.value = selection.takeIf { it != SleepSelection.OFF }
         when (selection) {
-            SleepSelection.OFF -> player.cancelSleepTimer()
-            SleepSelection.MINUTES_15 -> player.startSleepTimer(SleepOption.Minutes(SLEEP_MINUTES_15))
-            SleepSelection.MINUTES_30 -> player.startSleepTimer(SleepOption.Minutes(SLEEP_MINUTES_30))
-            SleepSelection.MINUTES_60 -> player.startSleepTimer(SleepOption.Minutes(SLEEP_MINUTES_60))
-            SleepSelection.END_OF_SURAH -> player.startSleepTimer(SleepOption.EndOfSurah)
+            SleepSelection.OFF -> player.setSleepTimer(null)
+            SleepSelection.MINUTES_15 -> player.setSleepTimer(SleepOption.Minutes(SLEEP_MINUTES_15))
+            SleepSelection.MINUTES_30 -> player.setSleepTimer(SleepOption.Minutes(SLEEP_MINUTES_30))
+            SleepSelection.MINUTES_60 -> player.setSleepTimer(SleepOption.Minutes(SLEEP_MINUTES_60))
+            SleepSelection.END_OF_SURAH -> player.setSleepTimer(SleepOption.EndOfSurah)
         }
     }
 

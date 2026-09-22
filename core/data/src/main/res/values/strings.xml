@@ -2,4 +2,16 @@
 <resources>
     <string name="quran_download_channel_name">Quran downloads</string>
     <string name="quran_download_notification_title">Downloading surah audio</string>
+    <string name="quran_download_one">Downloading %1$s</string>
+    <plurals name="quran_download_many">
+        <item quantity="one">Downloading %d surah</item>
+        <item quantity="other">Downloading %d surahs</item>
+    </plurals>
+    <string name="quran_download_percent">%1$d%%</string>
+    <string name="quran_download_waiting">Waiting for a network connection</string>
+    <string name="quran_download_done">%1$s is ready offline</string>
+    <string name="quran_download_done_text">It plays without a network connection</string>
+    <string name="quran_download_failed">%1$s didn\'t finish downloading</string>
+    <string name="quran_download_failed_text">Some ayahs couldn\'t be downloaded. Open QIt to try again.</string>
+    <string name="quran_download_surah_fallback">Surah %1$d</string>
 </resources>

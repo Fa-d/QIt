@@ -16,6 +16,8 @@ import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.player.RepeatSetting
 import dev.sadakat.qit.core.domain.player.SleepOption
 import dev.sadakat.qit.core.domain.player.SleepTimerStatus
+import dev.sadakat.qit.core.testing.FakeAudioTimings
+import dev.sadakat.qit.core.testing.FakeListeningHistory
 import dev.sadakat.qit.core.testing.FakeQuranSettings
 import dev.sadakat.qit.core.testing.FakeQuranText
 import kotlinx.coroutines.CoroutineScope
@@ -49,10 +51,16 @@ class ExoQuranPlayerRepeatAndSleepTest {
         exoPlayer = TestExoPlayerBuilder(context)
             .setMediaSourceFactory(TenSecondSources())
             .build()
-        player =
-            ExoQuranPlayer(context, exoPlayer, FakeQuranText(), settings, CoroutineScope(Dispatchers.Main), clock = {
-                now
-            })
+        player = ExoQuranPlayer(
+            context = context,
+            exoPlayer = exoPlayer,
+            quranText = FakeQuranText(),
+            settings = settings,
+            timings = FakeAudioTimings(),
+            history = FakeListeningHistory(),
+            scope = CoroutineScope(Dispatchers.Main),
+            clock = { now },
+        )
     }
 
     @After
@@ -156,7 +164,7 @@ class ExoQuranPlayerRepeatAndSleepTest {
     @Test
     fun `the sleep timer counts down, fades the volume and pauses`() {
         start(2, 1)
-        player.startSleepTimer(SleepOption.Minutes(1))
+        player.setSleepTimer(SleepOption.Minutes(1))
         shadowOf(Looper.getMainLooper()).idle()
         assertEquals(SleepTimerStatus.Counting(60_000L), player.sleepTimer.value)
 
@@ -175,11 +183,11 @@ class ExoQuranPlayerRepeatAndSleepTest {
     @Test
     fun `cancelling the sleep timer restores the volume`() {
         start(2, 1)
-        player.startSleepTimer(SleepOption.Minutes(1))
+        player.setSleepTimer(SleepOption.Minutes(1))
         now = 55_000L
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(1))
 
-        player.cancelSleepTimer()
+        player.setSleepTimer(null)
 
         assertEquals(SleepTimerStatus.Off, player.sleepTimer.value)
         assertEquals(1f, exoPlayer.volume)
@@ -189,7 +197,7 @@ class ExoQuranPlayerRepeatAndSleepTest {
     @Test
     fun `the end-of-surah sleep stop fades over the last ayah and ends with the surah`() {
         start(1, 6)
-        player.startSleepTimer(SleepOption.EndOfSurah)
+        player.setSleepTimer(SleepOption.EndOfSurah)
         shadowOf(Looper.getMainLooper()).idle()
         assertEquals(SleepTimerStatus.EndOfSurah, player.sleepTimer.value)
 
@@ -208,7 +216,7 @@ class ExoQuranPlayerRepeatAndSleepTest {
     fun `the end-of-surah sleep stop wins over a range that loops the last ayah`() {
         start(1, 6)
         player.setRepeat(RepeatSetting.Range(from = 6, to = 7, times = null))
-        player.startSleepTimer(SleepOption.EndOfSurah)
+        player.setSleepTimer(SleepOption.EndOfSurah)
 
         finishCurrentItem()
         runMainLooperUntil { currentMediaId() == "1:7:ar" }
@@ -223,7 +231,7 @@ class ExoQuranPlayerRepeatAndSleepTest {
     fun `stop ends the sleep timer and the repeat`() {
         start(2, 1)
         player.setRepeat(RepeatSetting.Ayah(times = 3))
-        player.startSleepTimer(SleepOption.Minutes(5))
+        player.setSleepTimer(SleepOption.Minutes(5))
 
         player.stop()
 

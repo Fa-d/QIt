@@ -22,4 +22,14 @@
         <item quantity="other">Sent to %d watches</item>
     </plurals>
     <string name="no_watch_found">No watch with QIt found</string>
+
+    <!-- Listening progress in the reader -->
+    <string name="ayah_heard_short">×%1$d</string>
+    <plurals name="ayah_heard_times">
+        <item quantity="one">Heard %d time</item>
+        <item quantity="other">Heard %d times</item>
+    </plurals>
+    <string name="reader_heard_ayahs">%1$d of %2$d ayahs heard</string>
+    <string name="reader_heard_rounds">Heard in full %1$d×</string>
+    <string name="reader_heard_rounds_next">Heard in full %1$d× · %2$d%% into the next round</string>
 </resources>

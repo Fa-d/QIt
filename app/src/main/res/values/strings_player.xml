@@ -13,9 +13,21 @@
     <string name="player_mode_english">+ English</string>
     <string name="player_mode_bangla">+ Bangla</string>
     <string name="player_cd_mode">Recitation</string>
+    <string name="player_cd_close">Close player</string>
+    <string name="player_mode_full_arabic">Arabic</string>
+    <string name="player_mode_full_english">Arabic + English</string>
+    <string name="player_mode_full_bangla">Arabic + Bangla</string>
+    <string name="player_cd_mode_chip">Recitation: %1$s</string>
+
+    <!-- The surah time bar -->
+    <string name="player_cd_time_bar">Position in the surah</string>
+    <string name="player_time_remaining">−%1$s</string>
+    <string name="player_time_state">%1$s of %2$s</string>
+    <string name="player_seek_ayah">Ayah %1$d</string>
 
     <!-- Repeat -->
     <string name="player_repeat_off">Repeat</string>
+    <string name="player_cd_repeat">Repeat: %1$s</string>
     <string name="player_repeat_ayah">Ayah ×%1$d</string>
     <string name="player_repeat_ayah_forever">Ayah ∞</string>
     <string name="player_repeat_range">%1$d–%2$d ×%3$d</string>

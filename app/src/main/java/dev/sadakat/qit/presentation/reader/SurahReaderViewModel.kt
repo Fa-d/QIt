@@ -5,11 +5,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.core.domain.model.Ayah
+import dev.sadakat.qit.core.domain.model.ListeningProgress
 import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Surah
+import dev.sadakat.qit.core.domain.model.SurahListening
 import dev.sadakat.qit.core.domain.player.QuranPlayer
+import dev.sadakat.qit.core.domain.player.WordPointer
+import dev.sadakat.qit.core.domain.repository.ListeningHistory
 import dev.sadakat.qit.core.domain.repository.QuranSettings
 import dev.sadakat.qit.core.domain.repository.QuranText
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState
@@ -21,7 +25,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -46,9 +52,14 @@ data class SurahReaderUiState(
     val showTranslation: Boolean = true,
     val followAlong: Boolean = true,
     val message: ReaderMessage? = null,
+    /** Times each ayah was heard, by ayah - 1; empty until known. */
+    val heard: List<Int> = emptyList(),
+    /** How far this surah has been listened to; null while nothing of it has been heard. */
+    val listening: SurahListening? = null,
 )
 
 @HiltViewModel
+@Suppress("LongParameterList") // One surah brings its text, settings, audio, playback, watch and listening together.
 class SurahReaderViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     quranText: QuranText,
@@ -56,6 +67,7 @@ class SurahReaderViewModel @Inject constructor(
     private val downloads: SurahDownloads,
     private val player: QuranPlayer,
     private val watch: WatchConnection,
+    history: ListeningHistory,
 ) : ViewModel() {
 
     private val surahNumber: Int = savedStateHandle.get<Int>("surah") ?: 1
@@ -80,13 +92,26 @@ class SurahReaderViewModel @Inject constructor(
         viewModelScope.launch { settings.mode.collect { currentMode = it } }
     }
 
+    private data class Heard(val perAyah: List<Int>, val listening: SurahListening?)
+
+    /** This surah's listening, per ayah and as a whole. */
+    private val heard = history.counts.map { counts ->
+        val listening = ListeningProgress.surah(counts, surahNumber)
+        Heard(
+            (1..QuranMeta.ayahCount(surahNumber)).map {
+                counts.count(surahNumber, it)
+            },
+            listening.takeIf { it.isHeard },
+        )
+    }
+
     val uiState: StateFlow<SurahReaderUiState> = combine(
         load,
         combine(settings.mode, settings.readingPrefs) { mode, prefs -> mode to prefs },
-        downloads.states,
+        combine(downloads.states, heard) { states, heard -> states to heard },
         player.nowPlaying,
         message,
-    ) { load, (mode, prefs), states, nowPlaying, message ->
+    ) { load, (mode, prefs), (states, heard), nowPlaying, message ->
         SurahReaderUiState(
             surah = load.surah,
             ayahs = load.ayahs,
@@ -98,12 +123,21 @@ class SurahReaderViewModel @Inject constructor(
             showTranslation = prefs.showTranslation,
             followAlong = prefs.followAlong,
             message = message,
+            heard = heard.perAyah,
+            listening = heard.listening,
         )
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
         SurahReaderUiState(initialAyah = initialAyah),
     )
+
+    /** The word pointer over this surah's reciting ayah; Off while another surah (or nothing) plays. */
+    val pointer: StateFlow<WordPointer> = combine(player.nowPlaying, player.pointer) { nowPlaying, pointer ->
+        if (nowPlaying?.surah == surahNumber) pointer else WordPointer.Off
+    }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), WordPointer.Off)
 
     fun playAyah(ayah: Int) {
         player.play(surahNumber, ayah, currentMode)

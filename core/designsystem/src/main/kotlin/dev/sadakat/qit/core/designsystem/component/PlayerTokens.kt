@@ -15,4 +15,9 @@ object PlayerTokens {
     /** The main play/pause button of the full player. */
     val PlayButtonSize = 72.dp
     val PlayButtonIconSize = 36.dp
+
+    /** The full player's surah time bar: a thin track and a slim thumb. */
+    val TimeBarTrackHeight = 4.dp
+    val TimeBarThumbWidth = 4.dp
+    val TimeBarThumbHeight = 20.dp
 }

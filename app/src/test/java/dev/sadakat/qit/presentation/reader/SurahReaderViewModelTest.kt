@@ -2,11 +2,14 @@ package dev.sadakat.qit.presentation.reader
 
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
+import dev.sadakat.qit.core.domain.model.AyahRef
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.player.NowPlaying
+import dev.sadakat.qit.core.domain.player.WordPointer
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState
+import dev.sadakat.qit.core.testing.FakeListeningHistory
 import dev.sadakat.qit.core.testing.FakeQuranPlayer
 import dev.sadakat.qit.core.testing.FakeQuranSettings
 import dev.sadakat.qit.core.testing.FakeQuranText
@@ -32,6 +35,7 @@ class SurahReaderViewModelTest {
     private val downloads = FakeSurahDownloads()
     private val player = FakeQuranPlayer()
     private val watch = FakeWatchConnection()
+    private val history = FakeListeningHistory()
 
     private fun viewModel(surah: Int = 2, ayah: Int = 0) = SurahReaderViewModel(
         SavedStateHandle(mapOf("surah" to surah, "ayah" to ayah)),
@@ -40,6 +44,7 @@ class SurahReaderViewModelTest {
         downloads,
         player,
         watch,
+        history,
     )
 
     @Test
@@ -239,6 +244,47 @@ class SurahReaderViewModelTest {
         quranText.failure = IllegalStateException("disk on fire")
         viewModel().uiState.test {
             assertTrue(awaitWhere { it.loadFailed }.loadFailed)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `shows how often each ayah was heard, and the surah's progress`() = runTest {
+        history.recordHeard(AyahRef(2, 1), atMs = 10)
+        history.recordHeard(AyahRef(2, 1), atMs = 20)
+        history.recordHeard(AyahRef(2, 3), atMs = 30)
+
+        viewModel().uiState.test {
+            val state = awaitWhere { it.surah != null && it.heard.isNotEmpty() }
+            assertEquals(listOf(2, 0, 1), state.heard.take(3))
+            assertEquals(286, state.heard.size)
+            assertEquals(2, state.listening?.ayahsHeard)
+            assertEquals(3, state.listening?.totalListens)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `no listening summary before anything is heard`() = runTest {
+        viewModel().uiState.test {
+            val state = awaitWhere { it.surah != null }
+            assertNull(state.listening)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `the pointer follows this surah's recitation only`() = runTest {
+        val viewModel = viewModel()
+        viewModel.pointer.test {
+            assertEquals(WordPointer.Off, awaitItem())
+            player.pointer.value = WordPointer.Reciting(1)
+            player.nowPlaying.value =
+                NowPlaying(2, 5, Track.ARABIC, RecitationMode.ARABIC_ONLY, isPlaying = true, isBuffering = false)
+            assertEquals(WordPointer.Reciting(1), expectMostRecentItem())
+            player.nowPlaying.value =
+                NowPlaying(3, 5, Track.ARABIC, RecitationMode.ARABIC_ONLY, isPlaying = true, isBuffering = false)
+            assertEquals(WordPointer.Off, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }

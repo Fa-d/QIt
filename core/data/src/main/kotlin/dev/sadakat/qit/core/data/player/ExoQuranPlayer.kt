@@ -16,10 +16,12 @@ import androidx.media3.exoplayer.ExoPlayer
 import dev.sadakat.qit.core.data.audio.QuranMediaItems
 import dev.sadakat.qit.core.domain.audio.QueueItemId
 import dev.sadakat.qit.core.domain.audio.QueuePlan
+import dev.sadakat.qit.core.domain.audio.SurahTimeline
 import dev.sadakat.qit.core.domain.model.AyahRef
 import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.player.NowPlaying
+import dev.sadakat.qit.core.domain.player.PlaybackProgress
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.player.QuranPlayer
 import dev.sadakat.qit.core.domain.player.RepeatPolicy
@@ -29,16 +31,30 @@ import dev.sadakat.qit.core.domain.player.RepeatStep
 import dev.sadakat.qit.core.domain.player.SleepOption
 import dev.sadakat.qit.core.domain.player.SleepTimer
 import dev.sadakat.qit.core.domain.player.SleepTimerStatus
+import dev.sadakat.qit.core.domain.player.WordPointer
+import dev.sadakat.qit.core.domain.repository.AudioTimings
 import dev.sadakat.qit.core.domain.repository.LastPosition
+import dev.sadakat.qit.core.domain.repository.ListeningHistory
 import dev.sadakat.qit.core.domain.repository.QuranSettings
 import dev.sadakat.qit.core.domain.repository.QuranText
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
@@ -54,16 +70,26 @@ import kotlin.math.max
  * of an ayah where [RepeatPolicy] intervenes, the player pauses exactly at its end
  * (`pauseAtEndOfMediaItems`) and the policy's step is applied there — no blip of the next ayah.
  * The sleep timer ticks on [clock] (a monotonic clock) and fades the volume out before it stops.
+ *
+ * The file lengths from [timings] lay the queue end to end ([SurahTimeline]): [progress] and
+ * [seekTo] work on the whole surah, and so does the media session ([sessionPlayer]), whose
+ * notification then shows and seeks the surah instead of one ayah's file. What is heard is written
+ * to [history] by a [ListeningRecorder].
  */
 // pauseAtEndOfMediaItems and ForwardingPlayer are marked unstable, but have been stable in practice since Media3 1.0.
-@OptIn(UnstableApi::class)
+// flatMapLatest: a position change restarts the ticker; mapLatest: a new surah drops a stale lookup.
+@OptIn(UnstableApi::class, ExperimentalCoroutinesApi::class)
+@Suppress("LongParameterList") // Its collaborators, all injected: splitting them up would only hide that.
 class ExoQuranPlayer(
     private val context: Context,
     private val exoPlayer: ExoPlayer,
     private val quranText: QuranText,
     private val settings: QuranSettings,
+    private val timings: AudioTimings,
+    history: ListeningHistory,
     private val scope: CoroutineScope,
     private val clock: () -> Long = SystemClock::elapsedRealtime,
+    wallClock: () -> Long = System::currentTimeMillis,
 ) : QuranPlayer {
 
     private val _nowPlaying = MutableStateFlow<NowPlaying?>(null)
@@ -96,6 +122,35 @@ class ExoQuranPlayer(
 
     private var session: Player? = null
 
+    /** The queued surah laid end to end; null while nothing is queued or the file lengths are unknown. */
+    private var timeline: SurahTimeline? = null
+
+    /** Bumped whenever the position moves other than by playing on: restarts the [progress] ticker. */
+    private val positionMoves = MutableStateFlow(0)
+
+    override val progress: Flow<PlaybackProgress> = positionMoves
+        .flatMapLatest {
+            flow {
+                emit(currentProgress())
+                while (exoPlayer.isPlaying) {
+                    delay(PROGRESS_TICK_MS)
+                    emit(currentProgress())
+                }
+            }
+        }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Main)
+
+    /** The playing surah's word timings, loaded once per surah. */
+    private val surahWords = _nowPlaying
+        .map { it?.surah }
+        .distinctUntilChanged()
+        .mapLatest { surah -> surah?.let { timings.wordTimings(it) }.orEmpty() }
+        .catch { emit(emptyMap()) }
+
+    override val pointer: Flow<WordPointer> =
+        combine(_nowPlaying, progress, surahWords, WordPointer::of).distinctUntilChanged()
+
     /** The player to hand to the MediaSession: next/previous from the notification move by ayah, not by item. */
     val sessionPlayer: Player
         get() = session ?: AyahAwarePlayer().also { session = it }
@@ -107,11 +162,26 @@ class ExoQuranPlayer(
             publish()
         }
 
+        override fun onPositionDiscontinuity(
+            oldPosition: Player.PositionInfo,
+            newPosition: Player.PositionInfo,
+            reason: Int,
+        ) {
+            positionMoves.value++
+            if (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION) {
+                onAyahPlayedThrough(
+                    QueueItemId.parse(oldPosition.mediaItem?.mediaId),
+                    QueueItemId.parse(newPosition.mediaItem?.mediaId),
+                )
+            }
+        }
+
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             if (isPlaying) {
                 crossingBoundary = false
                 _error.value = null
             }
+            positionMoves.value++
             publish()
         }
 
@@ -142,6 +212,7 @@ class ExoQuranPlayer(
 
     init {
         exoPlayer.addListener(listener)
+        exoPlayer.addListener(ListeningRecorder(exoPlayer, history, scope, clock, wallClock))
     }
 
     /** Replaces the queue with [surah] in [mode] and starts at [fromAyah] (0 = basmala). */
@@ -159,6 +230,7 @@ class ExoQuranPlayer(
             savedPosition = null
             applySpeed(settings.playbackSpeed.first())
             val items = QuranMediaItems.build(quranText.surah(surah), mode)
+            timeline = timelineOf(surah, mode)
             exoPlayer.setMediaItems(items, QueuePlan.indexOfAyah(ids(items), fromAyah), 0)
             exoPlayer.prepare()
             exoPlayer.play()
@@ -202,7 +274,18 @@ class ExoQuranPlayer(
         exoPlayer.pauseAtEndOfMediaItems = false
         exoPlayer.stop()
         exoPlayer.clearMediaItems()
+        timeline = null
         _nowPlaying.value = null
+    }
+
+    /** Moves to [surahPositionMs] into the queued surah; the repeat follows as for any manual move. */
+    override fun seekTo(surahPositionMs: Long) {
+        val line = timeline?.takeIf { it.itemCount == exoPlayer.mediaItemCount } ?: return
+        val point = line.locate(surahPositionMs)
+        queueIds().getOrNull(point.index)?.let { moveRepeat(it.ayah) }
+        exoPlayer.seekTo(point.index, point.positionInItemMs)
+        updateBoundaryStop()
+        publish()
     }
 
     /**
@@ -219,6 +302,7 @@ class ExoQuranPlayer(
             savedPosition = AyahRef(last.ref.surah, max(last.ref.ayah, 1))
             applySpeed(settings.playbackSpeed.first())
             val items = QuranMediaItems.build(quranText.surah(last.ref.surah), last.mode)
+            timeline = timelineOf(last.ref.surah, last.mode)
             exoPlayer.setMediaItems(items, QueuePlan.indexOfAyah(ids(items), last.ref.ayah), 0)
             exoPlayer.prepare()
             exoPlayer.playWhenReady = playWhenReady
@@ -243,7 +327,11 @@ class ExoQuranPlayer(
         scope.launch { settings.setPlaybackSpeed(speed) }
     }
 
-    override fun startSleepTimer(option: SleepOption) {
+    override fun setSleepTimer(option: SleepOption?) {
+        if (option == null) {
+            finishSleepTimer()
+            return
+        }
         sleepTicker?.cancel()
         sleep = SleepTimer(option, startedAtMs = clock())
         sleepTicker = scope.launch {
@@ -253,8 +341,6 @@ class ExoQuranPlayer(
             }
         }
     }
-
-    override fun cancelSleepTimer() = finishSleepTimer()
 
     /**
      * One sleep timer tick: publishes the countdown, sets the fade volume, and pauses when the timer is
@@ -315,6 +401,18 @@ class ExoQuranPlayer(
         publish()
     }
 
+    /**
+     * Playback ran on from [from] into [to] without a boundary pause. When that leaves an ayah, the
+     * repeat policy had nothing to do there (else it would have paused), but the count still moves
+     * on: an ayah repeat's next ayah starts counting afresh.
+     */
+    private fun onAyahPlayedThrough(from: QueueItemId?, to: QueueItemId?) {
+        if (from == null || to == null || from.ayah == to.ayah) return
+        val decision = RepeatPolicy.afterAyah(repeat, repeatProgress, from.ayah)
+        if (decision.step == RepeatStep.Advance) repeatProgress = decision.progress
+        updateBoundaryStop()
+    }
+
     private fun resumeAcrossBoundary() {
         crossingBoundary = true
         exoPlayer.play()
@@ -349,6 +447,29 @@ class ExoQuranPlayer(
     }
 
     private fun currentId(): QueueItemId? = exoPlayer.currentMediaItem?.mediaId?.let(QueueItemId::parse)
+
+    /** [surah]'s queue in [mode] laid end to end, or null if any of its files' lengths is unknown. */
+    private suspend fun timelineOf(surah: Int, mode: RecitationMode): SurahTimeline? {
+        val durations = QueuePlan.plan(surah, mode).map { entry -> timings.durationMs(entry.file.id) ?: return null }
+        return SurahTimeline(durations)
+    }
+
+    /** The timeline of the queue as it is now; null if it doesn't match the queue. */
+    private fun currentTimeline(): SurahTimeline? = timeline?.takeIf { it.itemCount == exoPlayer.mediaItemCount }
+
+    /** [positionInItemMs] into the current item as a position in the surah; unchanged without a timeline. */
+    private fun surahPosition(positionInItemMs: Long): Long =
+        currentTimeline()?.positionOf(exoPlayer.currentMediaItemIndex, positionInItemMs) ?: positionInItemMs
+
+    private fun currentProgress(): PlaybackProgress {
+        val line = currentTimeline()
+        val inItem = exoPlayer.currentPosition
+        return PlaybackProgress(
+            itemPositionMs = inItem,
+            surahPositionMs = line?.positionOf(exoPlayer.currentMediaItemIndex, inItem) ?: 0,
+            surahDurationMs = line?.durationMs ?: 0,
+        )
+    }
 
     /** Sets the playback speed; ExoPlayer keeps the pitch natural. */
     private fun applySpeed(speed: PlaybackSpeed) {
@@ -421,7 +542,12 @@ class ExoQuranPlayer(
      * shuffle from system media controls: Media3's repeat would loop a single *track* (just the
      * Arabic of an ayah, or just its translation) and shuffle has no meaning for a surah. Repeat is
      * QIt's own, in the app.
+     *
+     * Positions and the duration are the whole surah's (once its file lengths are known), so the
+     * notification's seek bar runs through the surah instead of restarting with every file, and
+     * dragging it moves across ayahs.
      */
+    @Suppress("TooManyFunctions") // One-line overrides of the Player it forwards to.
     private inner class AyahAwarePlayer : ForwardingPlayer(exoPlayer) {
         override fun seekToNext() = this@ExoQuranPlayer.nextAyah()
 
@@ -430,6 +556,22 @@ class ExoQuranPlayer(
         override fun seekToPrevious() = this@ExoQuranPlayer.previousAyah()
 
         override fun seekToPreviousMediaItem() = this@ExoQuranPlayer.previousAyah()
+
+        override fun getDuration(): Long = currentTimeline()?.durationMs ?: super.getDuration()
+
+        override fun getContentDuration(): Long = currentTimeline()?.durationMs ?: super.getContentDuration()
+
+        override fun getCurrentPosition(): Long = surahPosition(super.getCurrentPosition())
+
+        override fun getContentPosition(): Long = surahPosition(super.getContentPosition())
+
+        override fun getBufferedPosition(): Long = surahPosition(super.getBufferedPosition())
+
+        override fun getContentBufferedPosition(): Long = surahPosition(super.getContentBufferedPosition())
+
+        override fun seekTo(positionMs: Long) {
+            if (currentTimeline() == null) super.seekTo(positionMs) else this@ExoQuranPlayer.seekTo(positionMs)
+        }
 
         override fun isCommandAvailable(command: Int): Boolean =
             command !in HIDDEN_SESSION_COMMANDS && super.isCommandAvailable(command)
@@ -444,6 +586,9 @@ class ExoQuranPlayer(
         private const val TAG = "ExoQuranPlayer"
         private const val ACTION_MEDIA_SESSION_SERVICE = "androidx.media3.session.MediaSessionService"
         private const val TICK_MS = 1_000L
+
+        /** How often [progress] samples while playing: fine enough for the word pointer. */
+        private const val PROGRESS_TICK_MS = 50L
 
         /** Fading ticks faster so the volume steps are inaudible. */
         private const val FADE_TICK_MS = 100L

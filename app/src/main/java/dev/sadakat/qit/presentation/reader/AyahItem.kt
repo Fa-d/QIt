@@ -18,13 +18,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
@@ -32,7 +35,9 @@ import dev.sadakat.qit.R
 import dev.sadakat.qit.core.designsystem.QItTheme
 import dev.sadakat.qit.core.domain.model.Ayah
 import dev.sadakat.qit.core.domain.model.Track
+import dev.sadakat.qit.core.domain.player.WordPointer
 import dev.sadakat.qit.presentation.components.NumberBadge
+import dev.sadakat.qit.presentation.components.RecitedArabicText
 
 /** Semantics flag marking the ayah that is currently playing. */
 val AyahIsPlaying = SemanticsPropertyKey<Boolean>("AyahIsPlaying")
@@ -40,9 +45,11 @@ val AyahIsPlaying = SemanticsPropertyKey<Boolean>("AyahIsPlaying")
 var SemanticsPropertyReceiver.ayahIsPlaying by AyahIsPlaying
 
 /**
- * One ayah of the reader: its number in the octagram, the Arabic (right-aligned, sized by the
- * reading setting) and the mode's translation when one is shown. The reciting ayah is highlighted;
- * a deep link pulses the same gold wash once so the eye finds the landed-on ayah.
+ * One ayah of the reader: its number in the octagram (with how many times it was heard under it),
+ * the Arabic (right-aligned, sized by the reading setting) and the mode's translation when one is
+ * shown. The reciting ayah is highlighted and carries the word [pointer]; with [followWords] its
+ * recited line is kept on screen. A deep link pulses the same gold wash once so the eye finds the
+ * landed-on ayah.
  */
 @Composable
 fun AyahItem(
@@ -52,6 +59,9 @@ fun AyahItem(
     pulsed: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    pointer: WordPointer = WordPointer.Off,
+    heardTimes: Int = 0,
+    followWords: Boolean = false,
 ) {
     val colors = QItTheme.colors
     val motion = QItTheme.motion
@@ -65,8 +75,13 @@ fun AyahItem(
         animationSpec = motion.standard(),
         label = "ayahArabic",
     )
+    val translating = isPlaying && pointer == WordPointer.Translating
     val translationColor by animateColorAsState(
-        targetValue = if (isPlaying) colors.onPlayingAyahHighlight else colors.translationText,
+        targetValue = when {
+            translating -> colors.currentWordOnHighlight
+            isPlaying -> colors.onPlayingAyahHighlight
+            else -> colors.translationText
+        },
         animationSpec = motion.standard(),
         label = "ayahTranslation",
     )
@@ -96,13 +111,19 @@ fun AyahItem(
     ) {
         // The number sits beside the ayah, not on a line of its own: more of the surah fits on screen.
         Row {
-            NumberBadge(number = ayah.number, size = QItTheme.sizes.numberBadgeSmall)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                NumberBadge(number = ayah.number, size = QItTheme.sizes.numberBadgeSmall)
+                if (heardTimes > 0) HeardTimes(heardTimes, onHighlight = isPlaying)
+            }
             Spacer(Modifier.width(QItTheme.spacing.md))
             Column(Modifier.weight(1f)) {
-                Text(
+                RecitedArabicText(
                     text = ayah.arabic,
+                    pointer = if (isPlaying) pointer else WordPointer.Off,
                     style = QItTheme.arabic.body,
-                    color = arabicColor,
+                    recitedColor = arabicColor,
+                    onHighlight = isPlaying,
+                    keepCurrentLineInView = isPlaying && followWords,
                     // Right, not End: the Arabic styles set an RTL text direction, where End is the left edge.
                     textAlign = TextAlign.Right,
                     modifier = Modifier.fillMaxWidth(),
@@ -122,6 +143,20 @@ fun AyahItem(
             }
         }
     }
+}
+
+/** "×12" under the ayah number: how many times it was heard. */
+@Composable
+private fun HeardTimes(times: Int, onHighlight: Boolean) {
+    val description = pluralStringResource(R.plurals.ayah_heard_times, times, times)
+    Text(
+        text = stringResource(R.string.ayah_heard_short, times),
+        style = MaterialTheme.typography.labelSmall,
+        color = if (onHighlight) QItTheme.colors.onPlayingAyahHighlight else MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier
+            .padding(top = QItTheme.spacing.xxs)
+            .semantics { contentDescription = description },
+    )
 }
 
 private const val PULSE_ALPHA = 1f

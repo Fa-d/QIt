@@ -14,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -40,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,6 +56,10 @@ import dev.sadakat.qit.core.designsystem.QItTheme
 import dev.sadakat.qit.core.designsystem.component.PlayerTokens
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.player.NowPlaying
+import dev.sadakat.qit.core.domain.player.PlaybackProgress
+import dev.sadakat.qit.core.domain.player.WordPointer
+import dev.sadakat.qit.presentation.components.RecitedArabicText
+import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -65,23 +71,41 @@ fun NowPlayingSheet(
     actions: NowPlayingActions,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    pointer: WordPointer = WordPointer.Off,
+    progress: () -> PlaybackProgress = { PlaybackProgress.START },
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface,
         modifier = modifier,
     ) {
-        NowPlayingContent(state = state, actions = actions)
+        NowPlayingContent(
+            state = state,
+            actions = actions,
+            pointer = pointer,
+            progress = progress,
+            onCollapse = { scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() } },
+        )
     }
 }
 
 /**
- * The full player's content: the reciting ayah large, with its translation; where in the surah
- * (drag to move by ayah); the transport; the recitation mode; and repeat, speed and sleep timer.
+ * The full player's content, kept to what listening needs: the reciting ayah large, with the word
+ * pointer and its translation; the whole surah as one time bar; the transport, with repeat and speed
+ * at its sides; and the recitation mode and sleep timer in one quiet row.
  */
 @Composable
-fun NowPlayingContent(state: PlayerUiState, actions: NowPlayingActions, modifier: Modifier = Modifier) {
+fun NowPlayingContent(
+    state: PlayerUiState,
+    actions: NowPlayingActions,
+    modifier: Modifier = Modifier,
+    pointer: WordPointer = WordPointer.Off,
+    progress: () -> PlaybackProgress = { PlaybackProgress.START },
+    onCollapse: () -> Unit = {},
+) {
     val nowPlaying = state.nowPlaying ?: return
     Column(
         modifier = modifier
@@ -89,7 +113,7 @@ fun NowPlayingContent(state: PlayerUiState, actions: NowPlayingActions, modifier
             .padding(horizontal = QItTheme.spacing.screenGutter)
             .padding(bottom = QItTheme.spacing.lg),
     ) {
-        Header(state, nowPlaying, actions)
+        Header(state, nowPlaying, actions, onCollapse)
         HorizontalDivider(
             thickness = QItTheme.sizes.ornamentStroke,
             color = QItTheme.colors.ornament,
@@ -98,31 +122,36 @@ fun NowPlayingContent(state: PlayerUiState, actions: NowPlayingActions, modifier
         AyahText(
             arabic = state.ayahArabic ?: stringResource(R.string.basmala),
             translation = state.ayahTranslation,
+            pointer = pointer,
             modifier = Modifier.weight(1f),
         )
-        AyahSeekBar(nowPlaying, onSeekToAyah = actions.onSeekToAyah)
-        Transport(nowPlaying, actions)
-        Spacer(Modifier.height(QItTheme.spacing.lg))
-        ModeSelector(nowPlaying.mode, onModeChange = actions.onModeChange)
-        Spacer(Modifier.height(QItTheme.spacing.md))
-        PlayerOptions(
-            nowPlaying = nowPlaying,
+        SurahTimeBar(nowPlaying, progress, ayahAt = state::ayahAt, onSeek = actions.onSeek)
+        TransportRow(nowPlaying, actions, Modifier.padding(top = QItTheme.spacing.sm))
+        ModeAndSleepRow(
+            mode = nowPlaying.mode,
             sleepTimer = state.sleepTimer,
-            onRepeatChange = actions.onRepeatChange,
-            onSpeedChange = actions.onSpeedChange,
-            onSleepTimerChange = actions.onSleepTimerChange,
+            actions = actions,
+            modifier = Modifier.padding(top = QItTheme.spacing.md),
         )
     }
 }
 
 @Composable
-private fun Header(state: PlayerUiState, nowPlaying: NowPlaying, actions: NowPlayingActions) {
+private fun Header(state: PlayerUiState, nowPlaying: NowPlaying, actions: NowPlayingActions, onCollapse: () -> Unit) {
     var menuOpen by remember { mutableStateOf(false) }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
+        IconButton(onClick = onCollapse) {
+            Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = stringResource(R.string.player_cd_close))
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = QItTheme.spacing.xs),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             Text(
                 text = state.surahName ?: stringResource(R.string.surah_fallback_name, nowPlaying.surah),
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -162,9 +191,14 @@ private fun Header(state: PlayerUiState, nowPlaying: NowPlaying, actions: NowPla
     }
 }
 
-/** The ayah itself — the heart of the screen. Long ayahs scroll inside their space. */
+/**
+ * The ayah itself — the heart of the screen, with the word pointer. Long ayahs scroll inside their
+ * space, following the recited line. While the translation is read, it comes forward and the Arabic
+ * steps back.
+ */
 @Composable
-private fun AyahText(arabic: String, translation: String?, modifier: Modifier = Modifier) {
+private fun AyahText(arabic: String, translation: String?, pointer: WordPointer, modifier: Modifier = Modifier) {
+    val translating = pointer == WordPointer.Translating
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Column(
             modifier = Modifier
@@ -172,11 +206,12 @@ private fun AyahText(arabic: String, translation: String?, modifier: Modifier = 
                 .testTag("player_ayah"),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
+            RecitedArabicText(
                 text = arabic,
+                pointer = pointer,
                 style = QItTheme.arabic.display,
-                color = QItTheme.colors.arabicText,
                 textAlign = TextAlign.Center,
+                keepCurrentLineInView = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             translation?.let {
@@ -184,105 +219,10 @@ private fun AyahText(arabic: String, translation: String?, modifier: Modifier = 
                 Text(
                     text = it,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = QItTheme.colors.translationText,
+                    color = if (translating) QItTheme.colors.currentWord else QItTheme.colors.translationText,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
                 )
-            }
-        }
-    }
-}
-
-/** Where in the surah: drag to any ayah; the position label follows the thumb while dragging. */
-@Composable
-private fun AyahSeekBar(nowPlaying: NowPlaying, onSeekToAyah: (Int) -> Unit) {
-    var dragged by remember { mutableStateOf<Float?>(null) }
-    val shownAyah = dragged?.roundToInt() ?: max(nowPlaying.ayah, 1)
-    val seekDescription = stringResource(R.string.player_cd_seek)
-    Column(Modifier.padding(top = QItTheme.spacing.md)) {
-        Slider(
-            value = dragged ?: max(nowPlaying.ayah, 1).toFloat(),
-            onValueChange = { dragged = it },
-            onValueChangeFinished = {
-                dragged?.let { onSeekToAyah(it.roundToInt()) }
-                dragged = null
-            },
-            valueRange = 1f..nowPlaying.ayahCount.toFloat(),
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics { contentDescription = seekDescription },
-        )
-        Row {
-            Text(shownAyah.toString(), style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
-            Text(nowPlaying.ayahCount.toString(), style = MaterialTheme.typography.labelMedium)
-        }
-    }
-}
-
-@Composable
-private fun Transport(nowPlaying: NowPlaying, actions: NowPlayingActions) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = QItTheme.spacing.sm),
-        horizontalArrangement = Arrangement.spacedBy(QItTheme.spacing.xl, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(onClick = actions.onPrevious, modifier = Modifier.size(PlayerTokens.CardPlayButtonSize)) {
-            Icon(
-                Icons.Rounded.SkipPrevious,
-                contentDescription = stringResource(R.string.cd_previous_ayah),
-                modifier = Modifier.size(QItTheme.sizes.iconLarge),
-            )
-        }
-        Box(contentAlignment = Alignment.Center) {
-            FilledIconButton(
-                onClick = actions.onTogglePlayPause,
-                modifier = Modifier.size(PlayerTokens.PlayButtonSize),
-            ) {
-                Icon(
-                    imageVector = if (nowPlaying.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                    contentDescription = stringResource(
-                        if (nowPlaying.isPlaying) R.string.cd_pause else R.string.cd_play,
-                    ),
-                    modifier = Modifier.size(PlayerTokens.PlayButtonIconSize),
-                )
-            }
-            if (nowPlaying.isBuffering) {
-                CircularProgressIndicator(
-                    strokeWidth = QItTheme.sizes.strokeThin,
-                    modifier = Modifier
-                        .size(PlayerTokens.PlayButtonSize)
-                        .testTag("player_buffering"),
-                )
-            }
-        }
-        IconButton(onClick = actions.onNext, modifier = Modifier.size(PlayerTokens.CardPlayButtonSize)) {
-            Icon(
-                Icons.Rounded.SkipNext,
-                contentDescription = stringResource(R.string.cd_next_ayah),
-                modifier = Modifier.size(QItTheme.sizes.iconLarge),
-            )
-        }
-    }
-}
-
-@Composable
-private fun ModeSelector(mode: RecitationMode, onModeChange: (RecitationMode) -> Unit) {
-    val modes = RecitationMode.entries
-    val modeDescription = stringResource(R.string.player_cd_mode)
-    SingleChoiceSegmentedButtonRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics { contentDescription = modeDescription },
-    ) {
-        modes.forEachIndexed { index, option ->
-            SegmentedButton(
-                selected = option == mode,
-                onClick = { if (option != mode) onModeChange(option) },
-                shape = SegmentedButtonDefaults.itemShape(index, modes.size),
-            ) {
-                Text(modeLabel(option), maxLines = 1)
             }
         }
     }

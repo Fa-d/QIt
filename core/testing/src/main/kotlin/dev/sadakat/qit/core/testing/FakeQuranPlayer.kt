@@ -3,18 +3,20 @@ package dev.sadakat.qit.core.testing
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.player.NowPlaying
+import dev.sadakat.qit.core.domain.player.PlaybackProgress
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.player.QuranPlayer
 import dev.sadakat.qit.core.domain.player.RepeatSetting
 import dev.sadakat.qit.core.domain.player.SleepOption
 import dev.sadakat.qit.core.domain.player.SleepTimerStatus
+import dev.sadakat.qit.core.domain.player.WordPointer
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
  * [QuranPlayer] that records commands and simulates the resulting state: [play] starts at the
  * requested ayah (with repeat off), [nextAyah]/[previousAyah] move by one, [togglePlayPause] flips
- * `isPlaying`, [setRepeat]/[setSpeed] show up in [nowPlaying], and the sleep timer reports a
- * countdown that tests can drive through [sleepTimer].
+ * `isPlaying`, [setRepeat]/[setSpeed] show up in [nowPlaying], [seekTo] moves [progress], and the
+ * sleep timer reports a countdown that tests can drive through [sleepTimer].
  */
 class FakeQuranPlayer : QuranPlayer {
 
@@ -23,8 +25,11 @@ class FakeQuranPlayer : QuranPlayer {
     override val nowPlaying = MutableStateFlow<NowPlaying?>(null)
     override val error = MutableStateFlow<String?>(null)
     override val sleepTimer = MutableStateFlow<SleepTimerStatus>(SleepTimerStatus.Off)
+    override val progress = MutableStateFlow(PlaybackProgress.START)
+    override val pointer = MutableStateFlow<WordPointer>(WordPointer.Off)
 
     val playCalls = mutableListOf<PlayCall>()
+    val seekCalls = mutableListOf<Long>()
     var restoreCalls = 0
         private set
 
@@ -55,9 +60,14 @@ class FakeQuranPlayer : QuranPlayer {
             nowPlaying.value?.let { it.copy(ayah = (it.ayah - 1).coerceAtLeast(0), track = Track.ARABIC) }
     }
 
+    override fun seekTo(surahPositionMs: Long) {
+        seekCalls += surahPositionMs
+        progress.value = progress.value.copy(surahPositionMs = surahPositionMs)
+    }
+
     override fun stop() {
         nowPlaying.value = null
-        cancelSleepTimer()
+        setSleepTimer(null)
     }
 
     override fun restoreLast(playWhenReady: Boolean) {
@@ -73,17 +83,13 @@ class FakeQuranPlayer : QuranPlayer {
         nowPlaying.value = nowPlaying.value?.copy(speed = speed)
     }
 
-    override fun startSleepTimer(option: SleepOption) {
+    override fun setSleepTimer(option: SleepOption?) {
         sleepOption = option
         sleepTimer.value = when (option) {
+            null -> SleepTimerStatus.Off
             is SleepOption.Minutes -> SleepTimerStatus.Counting(option.minutes * MS_PER_MINUTE)
             SleepOption.EndOfSurah -> SleepTimerStatus.EndOfSurah
         }
-    }
-
-    override fun cancelSleepTimer() {
-        sleepOption = null
-        sleepTimer.value = SleepTimerStatus.Off
     }
 
     private companion object {

@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.FormatSize
+import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -39,6 +40,7 @@ import dev.sadakat.qit.core.designsystem.QItTheme
 @Composable
 fun HomeRoute(
     onOpenReader: (surah: Int, ayah: Int) -> Unit,
+    onOpenProgress: () -> Unit,
     onOpenReadingSettings: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
@@ -49,6 +51,7 @@ fun HomeRoute(
         onQueryChange = viewModel::onQueryChange,
         onBrowseChange = viewModel::onBrowseChange,
         onOpenReader = onOpenReader,
+        onOpenProgress = onOpenProgress,
         onContinuePlayPause = viewModel::onContinuePlayPause,
         onOpenReadingSettings = onOpenReadingSettings,
         modifier = modifier,
@@ -66,6 +69,7 @@ fun HomeScreen(
     onQueryChange: (String) -> Unit,
     onBrowseChange: (BrowseMode) -> Unit,
     onOpenReader: (surah: Int, ayah: Int) -> Unit,
+    onOpenProgress: () -> Unit,
     onContinuePlayPause: () -> Unit,
     onOpenReadingSettings: () -> Unit,
     modifier: Modifier = Modifier,
@@ -79,6 +83,12 @@ fun HomeScreen(
         LargeTopAppBar(
             title = { Text(stringResource(R.string.home_title)) },
             actions = {
+                IconButton(onClick = onOpenProgress) {
+                    Icon(
+                        Icons.Rounded.Insights,
+                        contentDescription = stringResource(R.string.home_cd_progress),
+                    )
+                }
                 IconButton(onClick = onOpenReadingSettings) {
                     Icon(
                         Icons.Rounded.FormatSize,

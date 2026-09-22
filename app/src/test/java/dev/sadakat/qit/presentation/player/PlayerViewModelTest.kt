@@ -5,10 +5,13 @@ import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.player.NowPlaying
+import dev.sadakat.qit.core.domain.player.PlaybackProgress
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.player.RepeatSetting
 import dev.sadakat.qit.core.domain.player.SleepOption
 import dev.sadakat.qit.core.domain.player.SleepTimerStatus
+import dev.sadakat.qit.core.domain.player.WordPointer
+import dev.sadakat.qit.core.testing.FakeAudioTimings
 import dev.sadakat.qit.core.testing.FakeQuranPlayer
 import dev.sadakat.qit.core.testing.FakeQuranSettings
 import dev.sadakat.qit.core.testing.FakeQuranText
@@ -30,7 +33,9 @@ class PlayerViewModelTest {
     private val player = FakeQuranPlayer()
     private val settings = FakeQuranSettings()
 
-    private fun viewModel() = PlayerViewModel(player, quranText, settings)
+    private val timings = FakeAudioTimings()
+
+    private fun viewModel() = PlayerViewModel(player, quranText, settings, timings)
 
     private fun playing(surah: Int = 2, ayah: Int = 255, mode: RecitationMode = RecitationMode.ARABIC_ENGLISH) =
         NowPlaying(surah, ayah, Track.ARABIC, mode, isPlaying = true, isBuffering = false)
@@ -95,16 +100,6 @@ class PlayerViewModelTest {
     }
 
     @Test
-    fun `seeking plays the same surah from that ayah in the same mode`() = runTest {
-        val viewModel = viewModel()
-        player.nowPlaying.value = playing(ayah = 5)
-
-        viewModel.seekToAyah(40)
-
-        assertEquals(FakeQuranPlayer.PlayCall(2, 40, RecitationMode.ARABIC_ENGLISH), player.playCalls.last())
-    }
-
-    @Test
     fun `changing the mode remembers it and continues the same ayah in it`() = runTest {
         val viewModel = viewModel()
         player.nowPlaying.value = playing(ayah = 7)
@@ -116,9 +111,8 @@ class PlayerViewModelTest {
     }
 
     @Test
-    fun `seeking and mode changes do nothing when nothing is queued`() = runTest {
+    fun `mode changes do nothing when nothing is queued`() = runTest {
         val viewModel = viewModel()
-        viewModel.seekToAyah(3)
         viewModel.setMode(RecitationMode.ARABIC_ONLY)
         assertEquals(emptyList<FakeQuranPlayer.PlayCall>(), player.playCalls)
     }
@@ -159,5 +153,64 @@ class PlayerViewModelTest {
             assertEquals("Can't reach the audio.", awaitWhere { it.error != null }.error)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `the pointer mirrors the player's`() = runTest {
+        val viewModel = viewModel()
+        viewModel.pointer.test {
+            assertEquals(WordPointer.Off, awaitItem())
+            player.pointer.value = WordPointer.Reciting(3)
+            assertEquals(WordPointer.Reciting(3), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `progress mirrors the player`() = runTest {
+        val viewModel = viewModel()
+        viewModel.progress.test {
+            assertEquals(PlaybackProgress.START, awaitItem())
+            player.progress.value = PlaybackProgress(1, 2, 3)
+            assertEquals(PlaybackProgress(1, 2, 3), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `seeking the surah goes to the player`() {
+        viewModel().seekTo(42_000)
+
+        assertEquals(listOf(42_000L), player.seekCalls)
+    }
+
+    @Test
+    fun `knows where each ayah starts in the surah, to name the ayah at a time`() = runTest {
+        timings.defaultDurationMs = 1_000 // every file 1 s: Al-Fatiha in Arabic is 7 s, no basmala
+        player.nowPlaying.value = playing(surah = 1, ayah = 1, mode = RecitationMode.ARABIC_ONLY)
+        viewModel().uiState.test {
+            val state = awaitWhere { it.ayahStartsMs.isNotEmpty() }
+            assertEquals(listOf(0L, 1_000L, 2_000L, 3_000L, 4_000L, 5_000L, 6_000L), state.ayahStartsMs)
+            assertEquals(4, state.ayahAt(3_500))
+            assertEquals(7, state.ayahAt(99_000))
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `with a basmala and a translation, an ayah starts at its arabic`() = runTest {
+        timings.defaultDurationMs = 1_000 // Al-Ikhlaas + English: 2 basmala files, then ar/en per ayah
+        player.nowPlaying.value = playing(surah = 112, ayah = 1, mode = RecitationMode.ARABIC_ENGLISH)
+        viewModel().uiState.test {
+            val state = awaitWhere { it.ayahStartsMs.isNotEmpty() }
+            assertEquals(listOf(2_000L, 4_000L, 6_000L, 8_000L), state.ayahStartsMs)
+            assertEquals(0, state.ayahAt(1_500)) // the basmala
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `no ayah to name while the lengths are unknown`() {
+        assertEquals(null, PlayerUiState().ayahAt(3_500))
     }
 }

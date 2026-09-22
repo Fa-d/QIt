@@ -197,6 +197,17 @@ fun ReadingSettingsContent(
                 onCheckedChange = onDynamicColorChange,
             )
         }
+        // The word pointer's timings are CC BY: credit them where the reading is set up.
+        Text(
+            text = stringResource(R.string.word_timings_credit),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(
+                top = QItTheme.spacing.lg,
+                start = QItTheme.spacing.screenGutter,
+                end = QItTheme.spacing.screenGutter,
+            ),
+        )
         Spacer(Modifier.height(QItTheme.spacing.xl))
     }
 }
