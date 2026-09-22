@@ -1,5 +1,6 @@
 package dev.sadakat.qit.core.domain.player
 
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
@@ -16,6 +17,8 @@ data class NowPlaying(
     val isBuffering: Boolean,
     val speed: PlaybackSpeed = PlaybackSpeed.X1,
     val repeat: RepeatSetting = RepeatSetting.Off,
+    /** Who reads the Bangla of the queued surah; matters only in [RecitationMode.ARABIC_BANGLA]. */
+    val voice: BanglaVoice = BanglaVoice.DEFAULT,
 ) {
     /** Ayahs in the playing surah. */
     val ayahCount: Int get() = QuranMeta.ayahCount(surah)
@@ -55,7 +58,10 @@ interface QuranPlayer {
     /** Last playback error (no network for an undownloaded surah, ...). Cleared when playback resumes. */
     val error: StateFlow<String?>
 
-    /** Replaces the queue with [surah] in [mode] and starts at [fromAyah] (0 = basmala). */
+    /**
+     * Replaces the queue with [surah] in [mode] and starts at [fromAyah] (0 = basmala). Arabic + Bangla
+     * uses the [dev.sadakat.qit.core.domain.repository.QuranSettings.banglaVoice] stored at the time.
+     */
     fun play(surah: Int, fromAyah: Int = 1, mode: RecitationMode)
 
     fun togglePlayPause()

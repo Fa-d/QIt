@@ -1,6 +1,7 @@
 package dev.sadakat.qit.core.domain.repository
 
 import dev.sadakat.qit.core.domain.model.AyahRef
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
@@ -15,6 +16,11 @@ interface QuranSettings {
     val mode: Flow<RecitationMode>
 
     suspend fun setMode(mode: RecitationMode)
+
+    /** Who reads the Bangla (with their recording's Arabic) in Arabic + Bangla; defaults to [BanglaVoice.DEFAULT]. */
+    val banglaVoice: Flow<BanglaVoice>
+
+    suspend fun setBanglaVoice(voice: BanglaVoice)
 
     /** Where playback last was; null before anything has played. */
     val lastPosition: Flow<LastPosition?>

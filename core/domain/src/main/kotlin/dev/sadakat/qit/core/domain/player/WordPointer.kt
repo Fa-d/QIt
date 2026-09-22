@@ -1,7 +1,6 @@
 package dev.sadakat.qit.core.domain.player
 
 import dev.sadakat.qit.core.domain.audio.WordTimings
-import dev.sadakat.qit.core.domain.model.Track
 
 /** Where the word pointer is in the playing ayah's text. */
 sealed interface WordPointer {
@@ -23,7 +22,7 @@ sealed interface WordPointer {
         fun of(nowPlaying: NowPlaying?, progress: PlaybackProgress, timings: Map<Int, WordTimings>): WordPointer =
             when {
                 nowPlaying == null -> Off
-                nowPlaying.track != Track.ARABIC -> Translating
+                !nowPlaying.track.isArabic -> Translating
                 else -> timings[nowPlaying.ayah]?.let { Reciting(it.wordAt(progress.itemPositionMs)) } ?: Off
             }
     }

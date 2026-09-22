@@ -38,6 +38,15 @@ object QuranMeta {
         return FIRST_AYAH[surah - 1] + ayah - 1
     }
 
+    /** Inverse of [globalAyah]: the surah and verse of global ayah [globalAyah] (1..6236). */
+    fun ayahRef(globalAyah: Int): AyahRef {
+        require(globalAyah in 1..TOTAL_AYAHS) { "Invalid global ayah $globalAyah" }
+        val found = FIRST_AYAH.binarySearch(globalAyah)
+        // Not a surah's first ayah: binarySearch returns -(insertion point) - 1, one past its surah.
+        val surahIndex = if (found >= 0) found else -(found + 1) - 1
+        return AyahRef(surahIndex + 1, globalAyah - FIRST_AYAH[surahIndex] + 1)
+    }
+
     /** Every surah except Al-Fatiha (whose verse 1 is the basmala) and At-Tawbah opens with a basmala. */
     fun hasBasmalaPrefix(surah: Int): Boolean = surah != AL_FATIHA && surah != AT_TAWBAH
 
