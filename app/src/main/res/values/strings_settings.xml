@@ -1,4 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Reading settings -->
+    <string name="reading_settings_title">Reading</string>
+    <string name="arabic_text_size">Arabic text size</string>
+    <string name="arabic_size_small">A</string>
+    <string name="arabic_size_large">A</string>
+    <string name="arabic_size_preview">بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ</string>
+    <string name="show_translation">Show translation</string>
+    <string name="follow_along">Follow along</string>
+    <string name="follow_along_supporting">Keep the reciting ayah on screen</string>
+    <string name="theme">Theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="wallpaper_colors">Wallpaper colors</string>
+    <string name="wallpaper_colors_supporting">Use your wallpaper\'s colors instead of QIt\'s</string>
 </resources>

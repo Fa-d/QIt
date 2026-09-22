@@ -2,6 +2,7 @@ package dev.sadakat.qit.presentation.reader
 
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
+import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.player.NowPlaying
@@ -72,6 +73,27 @@ class SurahReaderViewModelTest {
             player.nowPlaying.value = NowPlaying(3, 1, Track.ARABIC, RecitationMode.ARABIC_BANGLA, true, false)
             assertNull(awaitWhere { it.playingAyah == null && it.surah?.number == 2 }.playingAyah)
 
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `reading prefs reach the reader state`() = runTest {
+        settings.readingPrefs.value = ReadingPrefs(showTranslation = false, followAlong = false)
+        viewModel().uiState.test {
+            val state = awaitWhere { it.surah != null }
+            assertFalse(state.showTranslation)
+            assertFalse(state.followAlong)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `translations are shown and the list follows along by default`() = runTest {
+        viewModel().uiState.test {
+            val state = awaitWhere { it.surah != null }
+            assertTrue(state.showTranslation)
+            assertTrue(state.followAlong)
             cancelAndIgnoreRemainingEvents()
         }
     }

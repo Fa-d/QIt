@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.core.domain.model.Ayah
 import dev.sadakat.qit.core.domain.model.QuranMeta
+import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Surah
 import dev.sadakat.qit.core.domain.player.QuranPlayer
@@ -41,6 +42,9 @@ data class SurahReaderUiState(
     val playingAyah: Int? = null,
     /** Ayah to scroll to when the reader opens; 0 = start from the top. */
     val initialAyah: Int = 0,
+    /** Reading comfort prefs: whether translations are drawn and the list mirrors the recitation. */
+    val showTranslation: Boolean = true,
+    val followAlong: Boolean = true,
     val message: ReaderMessage? = null,
 )
 
@@ -78,11 +82,11 @@ class SurahReaderViewModel @Inject constructor(
 
     val uiState: StateFlow<SurahReaderUiState> = combine(
         load,
-        settings.mode,
+        combine(settings.mode, settings.readingPrefs) { mode, prefs -> mode to prefs },
         downloads.states,
         player.nowPlaying,
         message,
-    ) { load, mode, states, nowPlaying, message ->
+    ) { load, (mode, prefs), states, nowPlaying, message ->
         SurahReaderUiState(
             surah = load.surah,
             ayahs = load.ayahs,
@@ -91,6 +95,8 @@ class SurahReaderViewModel @Inject constructor(
             downloadState = states.stateOf(surahNumber, mode.tracks),
             playingAyah = nowPlaying?.takeIf { it.surah == surahNumber }?.ayah,
             initialAyah = initialAyah,
+            showTranslation = prefs.showTranslation,
+            followAlong = prefs.followAlong,
             message = message,
         )
     }.stateIn(
