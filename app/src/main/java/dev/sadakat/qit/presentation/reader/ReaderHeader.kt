@@ -1,4 +1,3 @@
-// kit-migration: pending (still builds Material containers itself; move it onto the :core:ui kit)
 package dev.sadakat.qit.presentation.reader
 
 import androidx.compose.foundation.layout.Column
@@ -36,6 +35,7 @@ import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Revelation
 import dev.sadakat.qit.core.domain.model.Surah
 import dev.sadakat.qit.core.domain.model.SurahListening
+import dev.sadakat.qit.core.ui.kit.QItSegmentedToggle
 import dev.sadakat.qit.presentation.components.NumberBadge
 import kotlin.math.roundToInt
 
@@ -171,22 +171,13 @@ private const val PERCENT = 100
 /** The labelled recitation-mode selector: Arabic, with or without a translation after it. */
 @Composable
 private fun ModeSelector(mode: RecitationMode, onModeChange: (RecitationMode) -> Unit, modifier: Modifier = Modifier) {
-    SingleChoiceSegmentedButtonRow(modifier = modifier) {
-        RecitationMode.entries.forEachIndexed { index, option ->
-            SegmentedButton(
-                selected = option == mode,
-                onClick = { onModeChange(option) },
-                shape = SegmentedButtonDefaults.itemShape(index = index, count = RecitationMode.entries.size),
-                label = {
-                    Text(
-                        text = stringResource(option.labelRes()),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-            )
-        }
-    }
+    QItSegmentedToggle(
+        options = RecitationMode.entries,
+        selected = mode,
+        onSelect = onModeChange,
+        label = { stringResource(it.labelRes()) },
+        modifier = modifier,
+    )
 }
 
 private fun RecitationMode.labelRes(): Int = when (this) {

@@ -1,4 +1,3 @@
-// kit-migration: pending (still builds Material containers itself; move it onto the :core:ui kit)
 package dev.sadakat.qit.presentation.reader
 
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -43,7 +43,14 @@ import dev.sadakat.qit.core.designsystem.component.ReaderTokens
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Surah
 import dev.sadakat.qit.core.domain.player.WordPointer
+import dev.sadakat.qit.core.ui.kit.QItAlertDialog
+import dev.sadakat.qit.core.ui.kit.QItPage
+import dev.sadakat.qit.core.ui.kit.QItScaffold
+import dev.sadakat.qit.core.ui.kit.QItTopBarScrollKind
+import dev.sadakat.qit.core.ui.kit.rememberQItTopBarScroll
+import dev.sadakat.qit.presentation.components.LoadError
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /** Connects [SurahReaderScreen] to its [SurahReaderViewModel]. */
 @Composable
@@ -68,13 +75,30 @@ fun SurahReaderRoute(
         onSendToWatch = viewModel::sendToWatch,
         onModeChange = viewModel::setMode,
         onConsumeMessage = viewModel::consumeMessage,
-        // Until this screen moves onto the kit: keep clear of the mini player and the status bar.
-        modifier = modifier.padding(contentPadding).statusBarsPadding(),
+        ayahCallbacks = AyahCallbacks(
+            onLongPress = viewModel::showAyahActions,
+            onDismissActions = viewModel::dismissAyahActions,
+            onRepeat = viewModel::repeatAyah,
+            onWordClick = viewModel::playFromWord,
+        ),
+        onRetry = viewModel::retry,
+        modifier = modifier,
+        contentPadding = contentPadding,
     )
 }
 
-/** One surah, ayah by ayah: Arabic text, the mode's translation and the reading actions. */
-@OptIn(ExperimentalMaterial3Api::class)
+/** What the reader does with one ayah beyond playing it: its options and its words. */
+class AyahCallbacks(
+    val onLongPress: (ayah: Int) -> Unit = {},
+    val onDismissActions: () -> Unit = {},
+    val onRepeat: (ayah: Int) -> Unit = {},
+    val onWordClick: (ayah: Int, word: Int) -> Unit = { _, _ -> },
+)
+
+/**
+ * One surah, ayah by ayah: Arabic text, the mode's translation and the reading actions. The page
+ * runs behind the bars, and is never washed or tinted in any look: it is the Quran's page.
+ */
 @Composable
 fun SurahReaderScreen(
     state: SurahReaderUiState,
@@ -89,6 +113,9 @@ fun SurahReaderScreen(
     onModeChange: (RecitationMode) -> Unit,
     onConsumeMessage: () -> Unit,
     modifier: Modifier = Modifier,
+    ayahCallbacks: AyahCallbacks = AyahCallbacks(),
+    onRetry: () -> Unit = {},
+    contentPadding: PaddingValues = PaddingValues(),
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val messageText = state.message?.let { message ->
@@ -120,16 +147,47 @@ fun SurahReaderScreen(
         )
     }
 
-    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
-    Box(modifier = modifier.fillMaxSize()) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .nestedScroll(scrollBehavior.nestedScrollConnection),
-        ) {
+    val scope = rememberCoroutineScope()
+    val copiedText = stringResource(R.string.ayah_copied)
+    val share = rememberAyahSharing(state, onCopy = { scope.launch { snackbarHostState.showSnackbar(copiedText) } })
+    state.ayahActions?.let { actions ->
+        val surah = state.surah
+        AyahActionsSheet(
+            ayah = actions,
+            title = stringResource(
+                R.string.ayah_actions_title,
+                surah?.nameEnglish.orEmpty(),
+                surah?.number ?: 0,
+                actions.ayah,
+            ),
+            actions = AyahSheetActions(
+                onPlay = {
+                    ayahCallbacks.onDismissActions()
+                    onAyahClick(actions.ayah)
+                },
+                onRepeat = {
+                    ayahCallbacks.onDismissActions()
+                    ayahCallbacks.onRepeat(actions.ayah)
+                },
+                onCopy = {
+                    ayahCallbacks.onDismissActions()
+                    share.copy(actions.ayah)
+                },
+                onShare = {
+                    ayahCallbacks.onDismissActions()
+                    share.share(actions.ayah)
+                },
+            ),
+            onDismiss = ayahCallbacks.onDismissActions,
+        )
+    }
+
+    val scroll = rememberQItTopBarScroll(QItTopBarScrollKind.HIDE_ON_SCROLL)
+    QItScaffold(
+        topBar = {
             ReaderTopBar(
                 surah = state.surah,
-                scrollBehavior = scrollBehavior,
+                scroll = scroll,
                 onBack = onBack,
                 onOpenReadingSettings = onOpenReadingSettings,
                 downloadState = state.downloadState,
@@ -137,22 +195,39 @@ fun SurahReaderScreen(
                 onRemoveClick = { removeDialogPending = true },
                 onSendToWatch = onSendToWatch,
             )
-            when {
-                state.loadFailed -> ReaderLoadError(Modifier.weight(1f))
+        },
+        modifier = modifier.nestedScroll(scroll.nestedScrollConnection),
+        contentPadding = contentPadding,
+        page = QItPage.READING,
+        overlay = { padding ->
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = padding.calculateBottomPadding()),
+            )
+        },
+    ) { padding ->
+        when {
+            state.loadFailed -> LoadError(
+                message = stringResource(R.string.load_error),
+                onRetry = onRetry,
+                modifier = Modifier.fillMaxSize().padding(padding),
+            )
 
-                state.surah == null -> ReaderLoading(Modifier.weight(1f))
+            state.surah == null -> ReaderLoading(Modifier.fillMaxSize().padding(padding))
 
-                else -> ReaderContent(
-                    state = state,
-                    pointer = pointer,
-                    onAyahClick = onAyahClick,
-                    onPlaySurah = onPlaySurah,
-                    onModeChange = onModeChange,
-                    modifier = Modifier.weight(1f),
-                )
-            }
+            else -> ReaderContent(
+                state = state,
+                pointer = pointer,
+                onAyahClick = onAyahClick,
+                onPlaySurah = onPlaySurah,
+                onModeChange = onModeChange,
+                ayahCallbacks = ayahCallbacks,
+                share = share,
+                padding = padding,
+            )
         }
-        SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
     }
 }
 
@@ -164,6 +239,9 @@ private fun ReaderContent(
     onAyahClick: (Int) -> Unit,
     onPlaySurah: () -> Unit,
     onModeChange: (RecitationMode) -> Unit,
+    ayahCallbacks: AyahCallbacks,
+    share: AyahSharing,
+    padding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
     val surah: Surah = state.surah ?: return
@@ -194,9 +272,10 @@ private fun ReaderContent(
                 .fillMaxSize()
                 .testTag("ayah_list")
                 .nestedScroll(follow.userDragObserver),
+            // The list runs behind the top bar and the mini player; only its items keep clear.
             contentPadding = PaddingValues(
-                top = QItTheme.spacing.sm,
-                bottom = QItTheme.spacing.xxl,
+                top = padding.calculateTopPadding() + QItTheme.spacing.sm,
+                bottom = padding.calculateBottomPadding() + QItTheme.spacing.xxl,
             ),
             verticalArrangement = Arrangement.spacedBy(QItTheme.spacing.sm),
         ) {
@@ -234,6 +313,16 @@ private fun ReaderContent(
                             follow.resume()
                             onAyahClick(ayah.number)
                         },
+                        onLongClick = { ayahCallbacks.onLongPress(ayah.number) },
+                        onWordClick = { word ->
+                            follow.resume()
+                            ayahCallbacks.onWordClick(ayah.number, word)
+                        },
+                        accessibilityActions = ayahAccessibilityActions(
+                            onRepeat = { ayahCallbacks.onRepeat(ayah.number) },
+                            onCopy = { share.copy(ayah.number) },
+                            onShare = { share.share(ayah.number) },
+                        ),
                         modifier = Modifier.widthIn(max = ReaderTokens.MaxReadingWidth),
                     )
                 }
@@ -245,33 +334,23 @@ private fun ReaderContent(
             playingAyah = state.playingAyah,
             headerCount = READER_HEADER_COUNT,
             enabled = state.followAlong,
-            modifier = Modifier.align(Alignment.BottomCenter),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = padding.calculateBottomPadding()),
         )
     }
 }
 
 @Composable
 private fun ReaderLoading(modifier: Modifier = Modifier) {
-    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
         CircularProgressIndicator()
     }
 }
 
 @Composable
-private fun ReaderLoadError(modifier: Modifier = Modifier) {
-    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Text(
-            text = stringResource(R.string.load_error),
-            style = MaterialTheme.typography.bodyLarge,
-            color = QItTheme.colors.error,
-            modifier = Modifier.padding(QItTheme.spacing.lg),
-        )
-    }
-}
-
-@Composable
 private fun RemoveDownloadDialog(surahName: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
+    QItAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.remove_download_title)) },
         text = { Text(stringResource(R.string.remove_download_text, surahName)) },
