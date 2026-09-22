@@ -67,6 +67,18 @@ class StripBasmalaTest(unittest.TestCase):
             "قٓ وَٱلْقُرْآنِ",
         )
 
+    def test_shadda_variant_removed(self):
+        # 95:1 and 97:1 spell the first word with a shadda: "بِّسْمِ"
+        variant = "بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
+        self.assertEqual(
+            bqt.strip_basmala(variant + " وَٱلتِّينِ وَٱلزَّيْتُونِ", BASMALA, surah=95, ayah=1),
+            "وَٱلتِّينِ وَٱلزَّيْتُونِ",
+        )
+
+    def test_other_opening_words_untouched(self):
+        text = "بِٱسْمِ رَبِّكَ ٱلَّذِى خَلَقَ"  # letters differ from the basmala
+        self.assertEqual(bqt.strip_basmala(text, BASMALA, surah=96, ayah=1), text)
+
     def test_surah_1_verse_1_kept_intact(self):
         self.assertEqual(bqt.strip_basmala(BASMALA, BASMALA, surah=1, ayah=1), BASMALA)
 
@@ -225,6 +237,13 @@ class CheckBasmalaStrippedTest(unittest.TestCase):
         rows = synthetic_rows()
         rows[2][0]["ar"] = BASMALA + " الم"
         with self.assertRaisesRegex(ValueError, "surah 3"):
+            bqt.check_basmala_stripped(rows)
+
+    def test_remaining_shadda_variant_rejected(self):
+        rows = synthetic_rows()
+        rows[0][0]["ar"] = BASMALA
+        rows[96][0]["ar"] = "بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ إِنَّآ أَنزَلْنَٰهُ"
+        with self.assertRaisesRegex(ValueError, "surah 97"):
             bqt.check_basmala_stripped(rows)
 
     def test_empty_first_verse_rejected(self):

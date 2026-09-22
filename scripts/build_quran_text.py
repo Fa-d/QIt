@@ -16,6 +16,7 @@ functions (see scripts/test_build_quran_text.py).
 """
 import json
 import os
+import unicodedata
 import urllib.request
 
 BASE = "https://api.alquran.cloud/v1"
@@ -42,20 +43,34 @@ def strip_bom(text):
     return (text[1:] if text.startswith(BOM) else text).strip()
 
 
+def skeleton(text):
+    """The letters of [text] without harakat, shadda or other combining marks, for tolerant comparison."""
+    return "".join(ch for ch in unicodedata.normalize("NFC", text) if not unicodedata.category(ch).startswith("M"))
+
+
+def starts_with_basmala(text, basmala):
+    """Whether [text] opens with the basmala's four words, whatever their diacritics.
+
+    quran-uthmani spells the basmala differently in places (95:1 and 97:1 read "بِّسْمِ", with a
+    shadda), so comparing letters only is what catches every variant.
+    """
+    expected = [skeleton(word) for word in basmala.split()]
+    return [skeleton(word) for word in text.split()[:len(expected)]] == expected
+
+
 def strip_basmala(text, basmala, surah, ayah):
     """Strip the basmala prefix from a surah-opening verse of quran-uthmani.
 
     Surah 1's opening is the basmala itself and surah 9 has none, so both stay
     untouched; only verse 1 is considered. Falls back to dropping the first
-    four words when an exact prefix match fails on small diacritic differences.
+    four words when an exact prefix match fails on diacritic differences.
     """
     if surah in (1, 9) or ayah != 1:
         return text
     if text.startswith(basmala):
         return text[len(basmala):].strip()
-    words = text.split()
-    if words and words[0].startswith(BASMALA_WORD):
-        return " ".join(words[4:]).strip()
+    if starts_with_basmala(text, basmala):
+        return " ".join(text.split()[len(basmala.split()):]).strip()
     return text
 
 
@@ -135,13 +150,14 @@ def validate(surahs, per_surah_rows):
 
 def check_basmala_stripped(per_surah_rows):
     """Post-condition: verse 1 of surahs 2-114 (except 9) carries no basmala and is non-empty."""
+    basmala = per_surah_rows[0][0]["ar"]
     for i, rows in enumerate(per_surah_rows, 1):
         if i in (1, 9):
             continue
         text = rows[0]["ar"]
         if not text:
             raise ValueError(f"surah {i}: verse 1 empty after basmala strip")
-        if text.startswith(BASMALA_WORD):
+        if text.startswith(BASMALA_WORD) or starts_with_basmala(text, basmala):
             raise ValueError(f"surah {i}: verse 1 still starts with the basmala: {text[:30]!r}")
 
 
