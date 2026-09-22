@@ -83,13 +83,23 @@ def start_server():
             return False
     if up():
         return
-    subprocess.Popen(["whisper-server", "-m", WHISPER_MODEL, "-l", "bn", "--port", str(PORT), "-t", "8",
-                      "-bs", "5", "-bo", "5", "-nt"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    for _ in range(180):
-        time.sleep(1)
+    import fcntl
+    with open(os.path.join(tempfile.gettempdir(), "qit-whisper-server.lock"), "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)  # parallel workers: only the first starts a server
         if up():
             return
+        _launch_server()
+        for _ in range(180):
+            time.sleep(1)
+            if up():
+                return
     raise RuntimeError("whisper-server did not start")
+
+
+def _launch_server():
+    subprocess.Popen(["whisper-server", "-m", WHISPER_MODEL, "-l", "bn", "--port", str(PORT), "-t", "8",
+                      "-bs", "5", "-bo", "5", "-nt"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                     start_new_session=True)
 
 
 def _transcribe(wav):
