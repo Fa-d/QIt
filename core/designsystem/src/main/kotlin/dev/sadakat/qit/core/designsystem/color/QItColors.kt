@@ -2,6 +2,7 @@ package dev.sadakat.qit.core.designsystem.color
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
+import dev.sadakat.qit.core.designsystem.ref.QItPaletteSet
 import dev.sadakat.qit.core.designsystem.ref.QItPalettes
 
 /**
@@ -85,110 +86,126 @@ private val neutralVariant = QItPalettes.neutralVariant
 private val error = QItPalettes.error
 
 /** Paper and ink: warm light surfaces, deep green primary, gold accents. */
-fun lightQItColors(): QItColors = QItColors(
-    primary = primary[40],
-    onPrimary = primary[100],
-    primaryContainer = primary[90],
-    onPrimaryContainer = primary[10],
-    inversePrimary = primary[80],
-    secondary = secondary[40],
-    onSecondary = secondary[100],
-    secondaryContainer = secondary[90],
-    onSecondaryContainer = secondary[10],
-    tertiary = tertiary[40],
-    onTertiary = tertiary[100],
-    tertiaryContainer = tertiary[90],
-    onTertiaryContainer = tertiary[10],
-    background = neutral[98],
-    onBackground = neutral[10],
-    surface = neutral[98],
-    onSurface = neutral[10],
-    surfaceVariant = neutralVariant[90],
-    onSurfaceVariant = neutralVariant[30],
-    surfaceDim = neutral[87],
-    surfaceBright = neutral[98],
-    surfaceContainerLowest = neutral[100],
-    surfaceContainerLow = neutral[96],
-    surfaceContainer = neutral[94],
-    surfaceContainerHigh = neutral[92],
-    surfaceContainerHighest = neutral[90],
-    inverseSurface = neutral[20],
-    inverseOnSurface = neutral[95],
-    outline = neutralVariant[50],
-    outlineVariant = neutralVariant[80],
-    scrim = neutral[0],
-    error = error[40],
-    onError = error[100],
-    errorContainer = error[90],
-    onErrorContainer = error[10],
-    arabicText = neutral[10],
-    translationText = neutralVariant[30],
-    playingAyahHighlight = tertiary[92],
-    onPlayingAyahHighlight = tertiary[10],
-    currentWordHighlight = primary[35],
-    onCurrentWordHighlight = primary[100],
-    upcomingWord = neutral[40],
-    upcomingWordOnHighlight = tertiary[40],
-    currentWord = primary[30],
-    currentWordOnHighlight = primary[30],
-    ornament = tertiary[50],
-    progressTrack = secondary[90],
-    divider = neutralVariant[90],
-    isDark = false,
-)
+fun lightQItColors(palettes: QItPaletteSet = QItPaletteSet.Mushaf): QItColors {
+    val primary = palettes.primary
+    val secondary = palettes.secondary
+    val tertiary = palettes.tertiary
+    val neutral = palettes.neutral
+    val neutralVariant = palettes.neutralVariant
+    val error = palettes.error
+    return QItColors(
+        primary = primary[40],
+        onPrimary = primary[100],
+        primaryContainer = primary[90],
+        onPrimaryContainer = primary[10],
+        inversePrimary = primary[80],
+        secondary = secondary[40],
+        onSecondary = secondary[100],
+        secondaryContainer = secondary[90],
+        onSecondaryContainer = secondary[10],
+        tertiary = tertiary[40],
+        onTertiary = tertiary[100],
+        tertiaryContainer = tertiary[90],
+        onTertiaryContainer = tertiary[10],
+        background = neutral[98],
+        onBackground = neutral[10],
+        surface = neutral[98],
+        onSurface = neutral[10],
+        surfaceVariant = neutralVariant[90],
+        onSurfaceVariant = neutralVariant[30],
+        surfaceDim = neutral[87],
+        surfaceBright = neutral[98],
+        surfaceContainerLowest = neutral[100],
+        surfaceContainerLow = neutral[96],
+        surfaceContainer = neutral[94],
+        surfaceContainerHigh = neutral[92],
+        surfaceContainerHighest = neutral[90],
+        inverseSurface = neutral[20],
+        inverseOnSurface = neutral[95],
+        outline = neutralVariant[50],
+        outlineVariant = neutralVariant[80],
+        scrim = neutral[0],
+        error = error[40],
+        onError = error[100],
+        errorContainer = error[90],
+        onErrorContainer = error[10],
+        arabicText = neutral[10],
+        translationText = neutralVariant[30],
+        playingAyahHighlight = tertiary[92],
+        onPlayingAyahHighlight = tertiary[10],
+        currentWordHighlight = primary[35],
+        onCurrentWordHighlight = primary[100],
+        upcomingWord = neutral[40],
+        upcomingWordOnHighlight = tertiary[40],
+        currentWord = primary[30],
+        currentWordOnHighlight = primary[30],
+        ornament = tertiary[50],
+        progressTrack = secondary[90],
+        divider = neutralVariant[90],
+        isDark = false,
+    )
+}
 
 /** Night mushaf: warm dark surfaces, light green primary, bright gold accents. */
-fun darkQItColors(): QItColors = QItColors(
-    primary = primary[80],
-    onPrimary = primary[20],
-    primaryContainer = primary[30],
-    onPrimaryContainer = primary[90],
-    inversePrimary = primary[40],
-    secondary = secondary[80],
-    onSecondary = secondary[20],
-    secondaryContainer = secondary[30],
-    onSecondaryContainer = secondary[90],
-    tertiary = tertiary[80],
-    onTertiary = tertiary[20],
-    tertiaryContainer = tertiary[30],
-    onTertiaryContainer = tertiary[90],
-    background = neutral[6],
-    onBackground = neutral[90],
-    surface = neutral[6],
-    onSurface = neutral[90],
-    surfaceVariant = neutralVariant[30],
-    onSurfaceVariant = neutralVariant[80],
-    surfaceDim = neutral[6],
-    surfaceBright = neutral[24],
-    surfaceContainerLowest = neutral[4],
-    surfaceContainerLow = neutral[10],
-    surfaceContainer = neutral[12],
-    surfaceContainerHigh = neutral[17],
-    surfaceContainerHighest = neutral[22],
-    inverseSurface = neutral[90],
-    inverseOnSurface = neutral[20],
-    outline = neutralVariant[60],
-    outlineVariant = neutralVariant[30],
-    scrim = neutral[0],
-    error = error[80],
-    onError = error[20],
-    errorContainer = error[30],
-    onErrorContainer = error[90],
-    arabicText = neutral[90],
-    translationText = neutralVariant[80],
-    playingAyahHighlight = tertiary[20],
-    onPlayingAyahHighlight = tertiary[90],
-    currentWordHighlight = primary[80],
-    onCurrentWordHighlight = primary[20],
-    upcomingWord = neutral[60],
-    upcomingWordOnHighlight = tertiary[70],
-    currentWord = primary[80],
-    currentWordOnHighlight = primary[90],
-    ornament = tertiary[70],
-    progressTrack = secondary[30],
-    divider = neutralVariant[20],
-    isDark = true,
-)
+fun darkQItColors(palettes: QItPaletteSet = QItPaletteSet.Mushaf): QItColors {
+    val primary = palettes.primary
+    val secondary = palettes.secondary
+    val tertiary = palettes.tertiary
+    val neutral = palettes.neutral
+    val neutralVariant = palettes.neutralVariant
+    val error = palettes.error
+    return QItColors(
+        primary = primary[80],
+        onPrimary = primary[20],
+        primaryContainer = primary[30],
+        onPrimaryContainer = primary[90],
+        inversePrimary = primary[40],
+        secondary = secondary[80],
+        onSecondary = secondary[20],
+        secondaryContainer = secondary[30],
+        onSecondaryContainer = secondary[90],
+        tertiary = tertiary[80],
+        onTertiary = tertiary[20],
+        tertiaryContainer = tertiary[30],
+        onTertiaryContainer = tertiary[90],
+        background = neutral[6],
+        onBackground = neutral[90],
+        surface = neutral[6],
+        onSurface = neutral[90],
+        surfaceVariant = neutralVariant[30],
+        onSurfaceVariant = neutralVariant[80],
+        surfaceDim = neutral[6],
+        surfaceBright = neutral[24],
+        surfaceContainerLowest = neutral[4],
+        surfaceContainerLow = neutral[10],
+        surfaceContainer = neutral[12],
+        surfaceContainerHigh = neutral[17],
+        surfaceContainerHighest = neutral[22],
+        inverseSurface = neutral[90],
+        inverseOnSurface = neutral[20],
+        outline = neutralVariant[60],
+        outlineVariant = neutralVariant[30],
+        scrim = neutral[0],
+        error = error[80],
+        onError = error[20],
+        errorContainer = error[30],
+        onErrorContainer = error[90],
+        arabicText = neutral[90],
+        translationText = neutralVariant[80],
+        playingAyahHighlight = tertiary[20],
+        onPlayingAyahHighlight = tertiary[90],
+        currentWordHighlight = primary[80],
+        onCurrentWordHighlight = primary[20],
+        upcomingWord = neutral[60],
+        upcomingWordOnHighlight = tertiary[70],
+        currentWord = primary[80],
+        currentWordOnHighlight = primary[90],
+        ornament = tertiary[70],
+        progressTrack = secondary[30],
+        divider = neutralVariant[20],
+        isDark = true,
+    )
+}
 
 /**
  * The watch: the night scheme on a pure black background (OLED pixels off), with the brighter tones
@@ -206,3 +223,52 @@ fun watchQItColors(): QItColors = darkQItColors().copy(
     arabicText = neutral[95],
     ornament = tertiary[80],
 )
+
+/**
+ * The sepia page: a light scheme whose page, ink and outline roles come from the sepia palettes —
+ * a warm low-glare paper — while every accent (the color families, error, the highlights, the
+ * ornament, progress) keeps the scheme it is laid over.
+ */
+fun QItColors.withSepiaPage(): QItColors {
+    val sepia = QItPalettes.sepiaNeutral
+    val sepiaVariant = QItPalettes.sepiaNeutralVariant
+    return copy(
+        background = sepia[94],
+        surface = sepia[94],
+        surfaceBright = sepia[94],
+        surfaceDim = sepia[85],
+        surfaceContainerLowest = sepia[96],
+        surfaceContainerLow = sepia[92],
+        surfaceContainer = sepia[90],
+        surfaceContainerHigh = sepia[87],
+        surfaceContainerHighest = sepia[85],
+        surfaceVariant = sepiaVariant[88],
+        onSurface = sepia[12],
+        onBackground = sepia[12],
+        arabicText = sepia[12],
+        onSurfaceVariant = sepiaVariant[30],
+        translationText = sepiaVariant[30],
+        upcomingWord = sepia[40],
+        outline = sepiaVariant[50],
+        outlineVariant = sepiaVariant[80],
+        divider = sepiaVariant[87],
+        inverseSurface = sepia[20],
+        inverseOnSurface = sepia[95],
+    )
+}
+
+/**
+ * Material 3 Expressive's darker on-container ink: in light schemes the on-container roles take
+ * tone 30 instead of 10, so text stays readable on the style's colorful filled containers. A dark
+ * scheme is left unchanged.
+ */
+fun QItColors.withExpressiveContainers(palettes: QItPaletteSet): QItColors = if (isDark) {
+    this
+} else {
+    copy(
+        onPrimaryContainer = palettes.primary[30],
+        onSecondaryContainer = palettes.secondary[30],
+        onTertiaryContainer = palettes.tertiary[30],
+        onErrorContainer = palettes.error[30],
+    )
+}
