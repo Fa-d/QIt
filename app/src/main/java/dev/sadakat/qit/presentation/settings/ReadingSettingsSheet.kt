@@ -45,8 +45,8 @@ import dev.sadakat.qit.core.domain.model.WordByWord
 import kotlin.math.roundToInt
 
 /**
- * The reading-comfort sheet (Arabic size, translation, follow-along, word by word, theme), opened
- * from the home screen and the reader. Contract for the screens that host it.
+ * The reading-comfort sheet (Arabic size, translation, follow-along, Bangla voice, word by word,
+ * theme), opened from the home screen and the reader. Contract for the screens that host it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
