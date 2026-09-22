@@ -173,11 +173,17 @@ internal fun QItColors.withDynamicColors(scheme: ColorScheme): QItColors = copy(
     translationText = scheme.onSurfaceVariant,
     playingAyahHighlight = scheme.tertiaryContainer,
     onPlayingAyahHighlight = scheme.onTertiaryContainer,
-    currentWord = scheme.primary,
+    currentWordHighlight = scheme.primary,
+    onCurrentWordHighlight = scheme.onPrimary,
     upcomingWord = scheme.onSurfaceVariant,
+    // Quieter than the recited words, which are onTertiaryContainer in full.
+    upcomingWordOnHighlight = scheme.onTertiaryContainer.copy(alpha = UPCOMING_ON_HIGHLIGHT_ALPHA),
+    currentWord = scheme.primary,
     currentWordOnHighlight = scheme.primary,
-    upcomingWordOnHighlight = scheme.onTertiaryContainer,
     ornament = scheme.tertiary,
     progressTrack = scheme.secondaryContainer,
     divider = scheme.outlineVariant,
 )
+
+/** Upcoming words on the wallpaper's highlight: its full ink, faded, as the brand schemes do with a lighter tone. */
+private const val UPCOMING_ON_HIGHLIGHT_ALPHA = 0.7f

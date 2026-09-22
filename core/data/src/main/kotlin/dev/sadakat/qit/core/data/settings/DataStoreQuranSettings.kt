@@ -12,6 +12,7 @@ import dev.sadakat.qit.core.domain.model.AyahRef
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.ThemeMode
+import dev.sadakat.qit.core.domain.model.WordByWord
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.repository.LastPosition
 import dev.sadakat.qit.core.domain.repository.QuranSettings
@@ -57,6 +58,7 @@ class DataStoreQuranSettings(private val context: Context) : QuranSettings {
             preferences[ARABIC_TEXT_SIZE] = prefs.arabicTextSize.name
             preferences[SHOW_TRANSLATION] = prefs.showTranslation
             preferences[FOLLOW_ALONG] = prefs.followAlong
+            preferences[WORD_BY_WORD] = prefs.wordByWord.name
             preferences[THEME_MODE] = prefs.themeMode.name
             preferences[DYNAMIC_COLOR] = prefs.dynamicColor
         }
@@ -77,6 +79,7 @@ class DataStoreQuranSettings(private val context: Context) : QuranSettings {
             arabicTextSize = this[ARABIC_TEXT_SIZE]?.let { enumOrNull<ArabicTextSize>(it) } ?: defaults.arabicTextSize,
             showTranslation = this[SHOW_TRANSLATION] ?: defaults.showTranslation,
             followAlong = this[FOLLOW_ALONG] ?: defaults.followAlong,
+            wordByWord = this[WORD_BY_WORD]?.let { enumOrNull<WordByWord>(it) } ?: defaults.wordByWord,
             themeMode = this[THEME_MODE]?.let { enumOrNull<ThemeMode>(it) } ?: defaults.themeMode,
             dynamicColor = this[DYNAMIC_COLOR] ?: defaults.dynamicColor,
         )
@@ -90,6 +93,7 @@ class DataStoreQuranSettings(private val context: Context) : QuranSettings {
         val ARABIC_TEXT_SIZE = stringPreferencesKey("arabic_text_size")
         val SHOW_TRANSLATION = booleanPreferencesKey("show_translation")
         val FOLLOW_ALONG = booleanPreferencesKey("follow_along")
+        val WORD_BY_WORD = stringPreferencesKey("word_by_word")
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val PLAYBACK_SPEED = stringPreferencesKey("playback_speed")

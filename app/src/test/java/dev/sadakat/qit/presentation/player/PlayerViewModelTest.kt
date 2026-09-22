@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
+import dev.sadakat.qit.core.domain.model.WordByWord
 import dev.sadakat.qit.core.domain.player.NowPlaying
 import dev.sadakat.qit.core.domain.player.PlaybackProgress
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
@@ -15,6 +16,7 @@ import dev.sadakat.qit.core.testing.FakeAudioTimings
 import dev.sadakat.qit.core.testing.FakeQuranPlayer
 import dev.sadakat.qit.core.testing.FakeQuranSettings
 import dev.sadakat.qit.core.testing.FakeQuranText
+import dev.sadakat.qit.core.testing.FakeWordMeanings
 import dev.sadakat.qit.core.testing.MainDispatcherRule
 import dev.sadakat.qit.core.testing.TestQuran
 import dev.sadakat.qit.presentation.awaitWhere
@@ -34,8 +36,11 @@ class PlayerViewModelTest {
     private val settings = FakeQuranSettings()
 
     private val timings = FakeAudioTimings()
+    private val wordMeanings = FakeWordMeanings(
+        bySurah = mapOf(2 to mapOf(0 to listOf("In (the) name"), 255 to listOf("Allah", "(there is) no"))),
+    )
 
-    private fun viewModel() = PlayerViewModel(player, quranText, settings, timings)
+    private fun viewModel() = PlayerViewModel(player, quranText, settings, timings, wordMeanings)
 
     private fun playing(surah: Int = 2, ayah: Int = 255, mode: RecitationMode = RecitationMode.ARABIC_ENGLISH) =
         NowPlaying(surah, ayah, Track.ARABIC, mode, isPlaying = true, isBuffering = false)
@@ -151,6 +156,25 @@ class PlayerViewModelTest {
             player.error.value = null
             player.error.value = "Can't reach the audio."
             assertEquals("Can't reach the audio.", awaitWhere { it.error != null }.error)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `the playing ayah's word meanings are shown while word by word is on`() = runTest {
+        viewModel().uiState.test {
+            player.nowPlaying.value = playing()
+            assertEquals(emptyList<String>(), awaitWhere { it.ayahArabic != null }.ayahMeanings)
+
+            settings.readingPrefs.value = ReadingPrefs(wordByWord = WordByWord.ENGLISH)
+            assertEquals(listOf("Allah", "(there is) no"), awaitWhere { it.ayahMeanings.isNotEmpty() }.ayahMeanings)
+
+            // The basmala has its meanings too, though it has no ayah text of its own.
+            player.nowPlaying.value = playing(ayah = 0)
+            assertEquals(listOf("In (the) name"), awaitWhere { it.nowPlaying?.ayah == 0 }.ayahMeanings)
+
+            settings.readingPrefs.value = ReadingPrefs(wordByWord = WordByWord.OFF)
+            assertEquals(emptyList<String>(), awaitWhere { it.ayahMeanings.isEmpty() }.ayahMeanings)
             cancelAndIgnoreRemainingEvents()
         }
     }

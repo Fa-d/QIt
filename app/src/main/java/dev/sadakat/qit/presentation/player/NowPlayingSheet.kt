@@ -1,5 +1,9 @@
 package dev.sadakat.qit.presentation.player
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -123,6 +127,7 @@ fun NowPlayingContent(
             arabic = state.ayahArabic ?: stringResource(R.string.basmala),
             translation = state.ayahTranslation,
             pointer = pointer,
+            meanings = state.ayahMeanings,
             modifier = Modifier.weight(1f),
         )
         SurahTimeBar(nowPlaying, progress, ayahAt = state::ayahAt, onSeek = actions.onSeek)
@@ -193,11 +198,17 @@ private fun Header(state: PlayerUiState, nowPlaying: NowPlaying, actions: NowPla
 
 /**
  * The ayah itself — the heart of the screen, with the word pointer. Long ayahs scroll inside their
- * space, following the recited line. While the translation is read, it comes forward and the Arabic
- * steps back.
+ * space, following the recited line. With word by word on, the meaning of the word being recited is
+ * shown under the Arabic. While the translation is read, it comes forward and the Arabic steps back.
  */
 @Composable
-private fun AyahText(arabic: String, translation: String?, pointer: WordPointer, modifier: Modifier = Modifier) {
+private fun AyahText(
+    arabic: String,
+    translation: String?,
+    pointer: WordPointer,
+    meanings: List<String>,
+    modifier: Modifier = Modifier,
+) {
     val translating = pointer == WordPointer.Translating
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Column(
@@ -214,6 +225,7 @@ private fun AyahText(arabic: String, translation: String?, pointer: WordPointer,
                 keepCurrentLineInView = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (meanings.isNotEmpty()) CurrentWordMeaning(meanings, pointer)
             translation?.let {
                 Spacer(Modifier.height(QItTheme.spacing.md))
                 Text(
@@ -225,5 +237,36 @@ private fun AyahText(arabic: String, translation: String?, pointer: WordPointer,
                 )
             }
         }
+    }
+}
+
+/**
+ * The meaning of the word being recited, one line under the Arabic. The line keeps its place while
+ * no word is (the translation playing, a pause), so the ayah never shifts under the reader.
+ */
+@Composable
+private fun CurrentWordMeaning(meanings: List<String>, pointer: WordPointer) {
+    val meaning = (pointer as? WordPointer.Reciting)?.let { meanings.getOrNull(it.word) }
+    val motion = QItTheme.motion
+    AnimatedContent(
+        targetState = meaning,
+        transitionSpec = { fadeIn(motion.enter()) togetherWith fadeOut(motion.exit()) },
+        contentAlignment = Alignment.Center,
+        label = "currentWordMeaning",
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = QItTheme.spacing.sm)
+            .testTag("player_word_meaning"),
+    ) { shown ->
+        Text(
+            text = shown.orEmpty(),
+            style = MaterialTheme.typography.titleMedium,
+            color = QItTheme.colors.primary,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            minLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }

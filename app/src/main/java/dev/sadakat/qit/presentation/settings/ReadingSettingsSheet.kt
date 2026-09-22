@@ -38,11 +38,12 @@ import dev.sadakat.qit.R
 import dev.sadakat.qit.core.designsystem.QItTheme
 import dev.sadakat.qit.core.domain.model.ArabicTextSize
 import dev.sadakat.qit.core.domain.model.ThemeMode
+import dev.sadakat.qit.core.domain.model.WordByWord
 import kotlin.math.roundToInt
 
 /**
- * The reading-comfort sheet (Arabic size, translation, follow-along, theme), opened from the home
- * screen and the reader. Contract for the screens that host it.
+ * The reading-comfort sheet (Arabic size, translation, follow-along, word by word, theme), opened
+ * from the home screen and the reader. Contract for the screens that host it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +61,7 @@ fun ReadingSettingsSheet(
             onArabicTextSizeChange = viewModel::setArabicTextSize,
             onShowTranslationChange = viewModel::setShowTranslation,
             onFollowAlongChange = viewModel::setFollowAlong,
+            onWordByWordChange = viewModel::setWordByWord,
             onThemeModeChange = viewModel::setThemeMode,
             onDynamicColorChange = viewModel::setDynamicColor,
         )
@@ -68,8 +70,8 @@ fun ReadingSettingsSheet(
 
 /**
  * The sheet's stateless content: the Arabic text size with a live preview, the translation and
- * follow-along switches, the theme and (where supported) wallpaper colors. Kept separate from the
- * sheet so tests and goldens render it without a window.
+ * follow-along switches, the word-by-word language, the theme and (where supported) wallpaper
+ * colors. Kept separate from the sheet so tests and goldens render it without a window.
  */
 @Composable
 fun ReadingSettingsContent(
@@ -78,6 +80,7 @@ fun ReadingSettingsContent(
     onArabicTextSizeChange: (ArabicTextSize) -> Unit,
     onShowTranslationChange: (Boolean) -> Unit,
     onFollowAlongChange: (Boolean) -> Unit,
+    onWordByWordChange: (WordByWord) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onDynamicColorChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -164,30 +167,31 @@ fun ReadingSettingsContent(
             onCheckedChange = onFollowAlongChange,
         )
 
+        SectionLabel(textRes = R.string.word_by_word)
+        Text(
+            text = stringResource(R.string.word_by_word_supporting),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(
+                bottom = QItTheme.spacing.sm,
+                start = QItTheme.spacing.screenGutter,
+                end = QItTheme.spacing.screenGutter,
+            ),
+        )
+        ChoiceRow(
+            options = WordByWord.entries,
+            selected = prefs.wordByWord,
+            label = { it.labelRes() },
+            onSelect = onWordByWordChange,
+        )
+
         SectionLabel(textRes = R.string.theme)
-        SingleChoiceSegmentedButtonRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(
-                    start = QItTheme.spacing.screenGutter,
-                    end = QItTheme.spacing.screenGutter,
-                ),
-        ) {
-            ThemeMode.entries.forEachIndexed { index, option ->
-                SegmentedButton(
-                    selected = option == prefs.themeMode,
-                    onClick = { onThemeModeChange(option) },
-                    shape = SegmentedButtonDefaults.itemShape(index = index, count = ThemeMode.entries.size),
-                    label = {
-                        Text(
-                            text = stringResource(option.labelRes()),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                )
-            }
-        }
+        ChoiceRow(
+            options = ThemeMode.entries,
+            selected = prefs.themeMode,
+            label = { it.labelRes() },
+            onSelect = onThemeModeChange,
+        )
 
         if (showDynamicColor) {
             SettingSwitchRow(
@@ -229,6 +233,34 @@ private fun SectionLabel(textRes: Int) {
     )
 }
 
+/** One choice among a few [options], as a row of segmented buttons labelled by [label]'s string. */
+@Composable
+private fun <T> ChoiceRow(options: List<T>, selected: T, label: (T) -> Int, onSelect: (T) -> Unit) {
+    SingleChoiceSegmentedButtonRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                start = QItTheme.spacing.screenGutter,
+                end = QItTheme.spacing.screenGutter,
+            ),
+    ) {
+        options.forEachIndexed { index, option ->
+            SegmentedButton(
+                selected = option == selected,
+                onClick = { onSelect(option) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                label = {
+                    Text(
+                        text = stringResource(label(option)),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+            )
+        }
+    }
+}
+
 /** A settings row that reads as one switch: the whole row toggles, the switch only shows state. */
 @Composable
 private fun SettingSwitchRow(
@@ -257,6 +289,12 @@ private fun SettingSwitchRow(
                 onValueChange = onCheckedChange,
             ),
     )
+}
+
+private fun WordByWord.labelRes(): Int = when (this) {
+    WordByWord.OFF -> R.string.word_by_word_off
+    WordByWord.ENGLISH -> R.string.word_by_word_english
+    WordByWord.BANGLA -> R.string.word_by_word_bangla
 }
 
 private fun ThemeMode.labelRes(): Int = when (this) {

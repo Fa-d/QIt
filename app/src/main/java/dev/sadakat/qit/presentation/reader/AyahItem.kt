@@ -38,6 +38,7 @@ import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.player.WordPointer
 import dev.sadakat.qit.presentation.components.NumberBadge
 import dev.sadakat.qit.presentation.components.RecitedArabicText
+import dev.sadakat.qit.presentation.components.WordByWordText
 
 /** Semantics flag marking the ayah that is currently playing. */
 val AyahIsPlaying = SemanticsPropertyKey<Boolean>("AyahIsPlaying")
@@ -47,9 +48,9 @@ var SemanticsPropertyReceiver.ayahIsPlaying by AyahIsPlaying
 /**
  * One ayah of the reader: its number in the octagram (with how many times it was heard under it),
  * the Arabic (right-aligned, sized by the reading setting) and the mode's translation when one is
- * shown. The reciting ayah is highlighted and carries the word [pointer]; with [followWords] its
- * recited line is kept on screen. A deep link pulses the same gold wash once so the eye finds the
- * landed-on ayah.
+ * shown. With [wordMeanings] the Arabic is laid out word by word, each word over its meaning. The
+ * reciting ayah is highlighted and carries the word [pointer]; with [followWords] its recited line
+ * is kept on screen. A deep link pulses the same gold wash once so the eye finds the landed-on ayah.
  */
 @Composable
 fun AyahItem(
@@ -62,6 +63,7 @@ fun AyahItem(
     pointer: WordPointer = WordPointer.Off,
     heardTimes: Int = 0,
     followWords: Boolean = false,
+    wordMeanings: List<String>? = null,
 ) {
     val colors = QItTheme.colors
     val motion = QItTheme.motion
@@ -117,16 +119,13 @@ fun AyahItem(
             }
             Spacer(Modifier.width(QItTheme.spacing.md))
             Column(Modifier.weight(1f)) {
-                RecitedArabicText(
-                    text = ayah.arabic,
+                AyahArabic(
+                    arabic = ayah.arabic,
+                    wordMeanings = wordMeanings,
                     pointer = if (isPlaying) pointer else WordPointer.Off,
-                    style = QItTheme.arabic.body,
-                    recitedColor = arabicColor,
-                    onHighlight = isPlaying,
-                    keepCurrentLineInView = isPlaying && followWords,
-                    // Right, not End: the Arabic styles set an RTL text direction, where End is the left edge.
-                    textAlign = TextAlign.Right,
-                    modifier = Modifier.fillMaxWidth(),
+                    isPlaying = isPlaying,
+                    color = arabicColor,
+                    followWords = isPlaying && followWords,
                 )
                 translationTrack?.let { track ->
                     ayah.translation(track)?.let { translation ->
@@ -142,6 +141,42 @@ fun AyahItem(
                 }
             }
         }
+    }
+}
+
+/** The ayah's Arabic: word by word over [wordMeanings] when there are any, else as one flowing text. */
+@Composable
+private fun AyahArabic(
+    arabic: String,
+    wordMeanings: List<String>?,
+    pointer: WordPointer,
+    isPlaying: Boolean,
+    color: Color,
+    followWords: Boolean,
+) {
+    if (wordMeanings != null) {
+        WordByWordText(
+            text = arabic,
+            meanings = wordMeanings,
+            pointer = pointer,
+            style = QItTheme.arabic.body,
+            recitedColor = color,
+            onHighlight = isPlaying,
+            keepCurrentWordInView = followWords,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    } else {
+        RecitedArabicText(
+            text = arabic,
+            pointer = pointer,
+            style = QItTheme.arabic.body,
+            recitedColor = color,
+            onHighlight = isPlaying,
+            keepCurrentLineInView = followWords,
+            // Right, not End: the Arabic styles set an RTL text direction, where End is the left edge.
+            textAlign = TextAlign.Right,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

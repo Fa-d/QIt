@@ -40,6 +40,11 @@ class PlayerScreenshotTest {
     fun fullDark() = composeRule.snapshot("player_full_dark", darkTheme = true) { Full(state()) }
 
     @Test
+    fun fullWordByWord() = composeRule.snapshot("player_full_word_by_word") {
+        Full(state().copy(ayahMeanings = KAHF_10_BANGLA))
+    }
+
+    @Test
     @Config(fontScale = 1.3f)
     fun fullLargeText() = composeRule.snapshot("player_full_stress", arabicScale = 1.75f) {
         val busy =
@@ -101,6 +106,13 @@ class PlayerScreenshotTest {
             onSleepTimerChange = {},
             onOpenReader = { _, _ -> },
             onStop = {},
+        )
+
+        /** 18:10 word by word in Bangla; the pointer is on ٱلْكَهْفِ, "the cave". */
+        val KAHF_10_BANGLA = listOf(
+            "যখন", "আশ্রয় নিয়েছিলো", "যুবকরা", "মধ্যে", "গুহার", "তখন তারা বলেছিলো", "\"হে আমাদের রব",
+            "আমাদের দাও", "থেকে", "তোমার পক্ষ", "অনুগ্রহ", "এবং ব্যবস্হা করে দাও", "জন্যে আমাদের", "থেকে",
+            "আমাদের কাজ", "সুষ্ঠ ভাবে\"",
         )
 
         /** 3:12 into Al-Kahf (Arabic + English, 17:17 in all). */

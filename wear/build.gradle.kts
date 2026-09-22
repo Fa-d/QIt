@@ -39,6 +39,11 @@ android {
     buildFeatures {
         compose = true
     }
+    // The watch never shows word-by-word meanings: aapt keeps the quran/words assets (4 MB) out of
+    // its APK (the phone bundles them).
+    androidResources {
+        ignoreAssetsPatterns += "<dir>words"
+    }
     lint {
         checkReleaseBuilds = false
         abortOnError = true

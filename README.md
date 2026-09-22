@@ -15,13 +15,16 @@ Few features, each one made for listening:
   tolerates spelling variation (Ikhlas/Ikhlaas, Yasin/Yaseen, undiacriticed Arabic).
 - **Reader** — Uthmani Arabic with Saheeh International (English) and Muhiuddin Khan (Bangla) text;
   tap an ayah to play from there. The reciting ayah is highlighted and followed on screen, with a
-  **word pointer**: the word Alafasy is reciting is lit, words behind in full ink, words ahead
-  quieter, and in long ayahs the recited line stays on screen. Scroll away to read elsewhere and a
-  "jump to reciting ayah" chip brings you back. Each heard ayah shows how often it was heard.
+  **word pointer**: the word Alafasy is reciting sits on a solid pill, words behind in full ink,
+  words ahead quieter, and in long ayahs the recited line stays on screen. **Word by word** (English
+  or Bangla, in the reading settings) lays each ayah out word by word with each word's meaning under
+  it, lit together with the word as it is recited. Scroll away to read elsewhere and a "jump to
+  reciting ayah" chip brings you back. Each heard ayah shows how often it was heard.
 - **Ayah-by-ayah recitation** — three modes: Arabic only, Arabic + English, Arabic + Bangla. Surahs
   open with the basmala; the position is saved so you can continue where you left off.
 - **Mini player and full player** — the mini player shows what plays and how far through the surah;
-  swipe it up for the full player: the ayah large with the word pointer and its translation, one
+  swipe it up for the full player: the ayah large with the word pointer (and, word by word, the
+  meaning of the word being recited) and its translation, one
   bar for the whole surah (time gone and left; drag anywhere, it names the ayah under the thumb),
   the transport with repeat and speed at its sides, and the recitation mode and sleep timer:
   - **Repeat for memorizing** — each ayah N times (or the current one forever), or a range of ayahs
@@ -72,6 +75,13 @@ it was aligned on). `scripts/build_audio_timing.py` maps its word indices onto t
 `core/data/src/main/assets/quran/timing/ar.alafasy/001..114.json`. It also measures every Arabic,
 English and Bangla file with `ffprobe` over the local `quran_audio/` folder into
 `assets/quran/audio/durations.json`, which lets the player treat a surah as one recording.
+
+## Word-by-word meanings
+
+The meaning shown under each Arabic word (English and Bangla) comes from the [quran.com](https://quran.com)
+API v4 (Quran.com / Quran Foundation), whose word-by-word translations are bundled offline:
+`scripts/build_word_meanings.py` fetches both languages, aligns quran.com's words onto the bundled
+text (only 37:130 splits differently), and writes `core/data/src/main/assets/quran/words/en|bn/001..114.json`.
 
 ## Text sources
 
@@ -140,6 +150,8 @@ Dependencies point inward: `:app` and `:wear` → `:core:data` → `:core:domain
 | `scripts/split_bangla_verses.py` | Split the 114 Bangla surah files into per-verse mp3s by cross-correlation/DTW alignment |
 | `scripts/verify_quran_audio.sh` | Check counts, sizes and sha1 sums of the downloaded audio |
 | `scripts/build_audio_timing.py` | Map quran-align's word timings onto the text and measure every audio file (`timing/ar.alafasy/*.json`, `audio/durations.json`) |
+| `scripts/build_word_meanings.py` | Fetch quran.com's word-by-word translations and write the meaning assets (`words/en|bn/001..114.json`) |
 | `scripts/test_build_quran_text.py` | Unit tests for the text builder's pure functions |
 | `scripts/test_build_audio_timing.py` | Unit tests for the timing builder's pure functions |
+| `scripts/test_build_word_meanings.py` | Unit tests for the meaning builder's pure functions |
 | `scripts/install-git-hooks.sh` | Point git at `scripts/git-hooks/` (spotless + detekt before each commit) |

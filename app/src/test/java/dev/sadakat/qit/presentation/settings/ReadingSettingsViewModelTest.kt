@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import dev.sadakat.qit.core.domain.model.ArabicTextSize
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.ThemeMode
+import dev.sadakat.qit.core.domain.model.WordByWord
 import dev.sadakat.qit.core.testing.FakeQuranSettings
 import dev.sadakat.qit.core.testing.MainDispatcherRule
 import dev.sadakat.qit.presentation.awaitWhere
@@ -51,6 +52,12 @@ class ReadingSettingsViewModelTest {
 
             viewModel.setFollowAlong(false)
             assertEquals(false, awaitWhere { !it.prefs.followAlong }.prefs.followAlong)
+
+            viewModel.setWordByWord(WordByWord.BANGLA)
+            assertEquals(
+                WordByWord.BANGLA,
+                awaitWhere { it.prefs.wordByWord == WordByWord.BANGLA }.prefs.wordByWord,
+            )
 
             viewModel.setThemeMode(ThemeMode.LIGHT)
             assertEquals(ThemeMode.LIGHT, awaitWhere { it.prefs.themeMode == ThemeMode.LIGHT }.prefs.themeMode)

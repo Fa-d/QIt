@@ -8,6 +8,7 @@ import dev.sadakat.qit.core.domain.model.AyahRef
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.ThemeMode
+import dev.sadakat.qit.core.domain.model.WordByWord
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.repository.LastPosition
 import kotlinx.coroutines.flow.first
@@ -84,6 +85,7 @@ class DataStoreQuranSettingsTest {
             arabicTextSize = ArabicTextSize.XLARGE,
             showTranslation = false,
             followAlong = false,
+            wordByWord = WordByWord.BANGLA,
             themeMode = ThemeMode.DARK,
             dynamicColor = true,
         )

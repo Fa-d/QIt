@@ -55,14 +55,19 @@ data class QItColors(
     /** Text on [playingAyahHighlight]. */
     val onPlayingAyahHighlight: Color,
     /**
-     * The word being recited (the word pointer). Words already recited stay [arabicText]; words
-     * still to come are [upcomingWord], quieter but readable.
+     * The word pointer: the word being recited sits on a solid [currentWordHighlight] in
+     * [onCurrentWordHighlight], so it stands out by lightness, not hue alone. Words already recited
+     * stay [arabicText]; words still to come are [upcomingWord], quieter but readable.
      */
-    val currentWord: Color,
+    val currentWordHighlight: Color,
+    val onCurrentWordHighlight: Color,
     val upcomingWord: Color,
-    /** [currentWord] and [upcomingWord] on [playingAyahHighlight]. */
-    val currentWordOnHighlight: Color,
+    /** [upcomingWord] on [playingAyahHighlight]. */
     val upcomingWordOnHighlight: Color,
+    /** The text being read aloud when it is not the Arabic: the translation while its audio plays. */
+    val currentWord: Color,
+    /** [currentWord] on [playingAyahHighlight]. */
+    val currentWordOnHighlight: Color,
     /** Gold line work: the octagram around surah and ayah numbers, section rules. */
     val ornament: Color,
     /** The unfilled part of progress bars and rings; the filled part is [primary]. */
@@ -120,10 +125,12 @@ fun lightQItColors(): QItColors = QItColors(
     translationText = neutralVariant[30],
     playingAyahHighlight = tertiary[92],
     onPlayingAyahHighlight = tertiary[10],
-    currentWord = primary[30],
+    currentWordHighlight = primary[35],
+    onCurrentWordHighlight = primary[100],
     upcomingWord = neutral[40],
-    currentWordOnHighlight = primary[30],
     upcomingWordOnHighlight = tertiary[40],
+    currentWord = primary[30],
+    currentWordOnHighlight = primary[30],
     ornament = tertiary[50],
     progressTrack = secondary[90],
     divider = neutralVariant[90],
@@ -171,10 +178,12 @@ fun darkQItColors(): QItColors = QItColors(
     translationText = neutralVariant[80],
     playingAyahHighlight = tertiary[20],
     onPlayingAyahHighlight = tertiary[90],
-    currentWord = primary[80],
+    currentWordHighlight = primary[80],
+    onCurrentWordHighlight = primary[20],
     upcomingWord = neutral[60],
-    currentWordOnHighlight = primary[90],
     upcomingWordOnHighlight = tertiary[70],
+    currentWord = primary[80],
+    currentWordOnHighlight = primary[90],
     ornament = tertiary[70],
     progressTrack = secondary[30],
     divider = neutralVariant[20],

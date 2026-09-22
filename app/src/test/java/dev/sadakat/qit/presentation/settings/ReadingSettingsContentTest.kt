@@ -12,6 +12,7 @@ import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -19,6 +20,7 @@ import dev.sadakat.qit.R
 import dev.sadakat.qit.core.domain.model.ArabicTextSize
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.ThemeMode
+import dev.sadakat.qit.core.domain.model.WordByWord
 import dev.sadakat.qit.ui.theme.QItAppTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -38,6 +40,7 @@ class ReadingSettingsContentTest {
     private var pickedSize: ArabicTextSize? = null
     private var showTranslation: Boolean? = null
     private var followAlong: Boolean? = null
+    private var wordByWord: WordByWord? = null
     private var pickedTheme: ThemeMode? = null
     private var dynamicColor: Boolean? = null
 
@@ -50,6 +53,7 @@ class ReadingSettingsContentTest {
                     onArabicTextSizeChange = { pickedSize = it },
                     onShowTranslationChange = { showTranslation = it },
                     onFollowAlongChange = { followAlong = it },
+                    onWordByWordChange = { wordByWord = it },
                     onThemeModeChange = { pickedTheme = it },
                     onDynamicColorChange = { dynamicColor = it },
                 )
@@ -85,9 +89,29 @@ class ReadingSettingsContentTest {
     }
 
     @Test
+    fun `the word-by-word segments report the picked language`() {
+        setContent()
+        composeRule.onNodeWithText(context.getString(R.string.word_by_word_bangla)).performScrollTo().performClick()
+        assertEquals(WordByWord.BANGLA, wordByWord)
+    }
+
+    @Test
+    fun `word by word is off until a language is picked`() {
+        setContent()
+        composeRule.onNodeWithText(context.getString(R.string.word_by_word_off)).assert(isSelected())
+    }
+
+    @Test
+    fun `the stored word-by-word language is selected`() {
+        setContent(prefs = ReadingPrefs(wordByWord = WordByWord.ENGLISH))
+        composeRule.onNodeWithText(context.getString(R.string.word_by_word_english)).assert(isSelected())
+        composeRule.onNodeWithText(context.getString(R.string.word_by_word_off)).assert(isNotSelected())
+    }
+
+    @Test
     fun `the theme segments report the picked mode`() {
         setContent()
-        composeRule.onNodeWithText(context.getString(R.string.theme_dark)).performClick()
+        composeRule.onNodeWithText(context.getString(R.string.theme_dark)).performScrollTo().performClick()
         assertEquals(ThemeMode.DARK, pickedTheme)
     }
 
@@ -110,6 +134,7 @@ class ReadingSettingsContentTest {
                     onArabicTextSizeChange = {},
                     onShowTranslationChange = {},
                     onFollowAlongChange = {},
+                    onWordByWordChange = {},
                     onThemeModeChange = {},
                     onDynamicColorChange = { dynamicColor = it },
                 )
@@ -118,7 +143,7 @@ class ReadingSettingsContentTest {
         composeRule.onNodeWithText(context.getString(R.string.wallpaper_colors)).assertDoesNotExist()
 
         composeRule.runOnIdle { showDynamicColor.value = true }
-        composeRule.onNodeWithText(context.getString(R.string.wallpaper_colors)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.wallpaper_colors)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(context.getString(R.string.wallpaper_colors)).performClick()
         assertEquals(true, dynamicColor)
     }
