@@ -127,7 +127,10 @@ fun KoverReportFiltersConfig.excludeGeneratedAndGlue() {
         )
         packages("hilt_aggregated_deps", "dagger")
         annotatedBy("androidx.compose.ui.tooling.preview.Preview")
-        // Thin system glue, exercised on devices rather than by unit tests.
+        // Android entry points (activities, services, the application) are thin system glue,
+        // exercised on devices rather than by unit tests. Matched by their Hilt annotation: Hilt
+        // rewrites their superclass at build time, so an inheritance filter misses them.
+        annotatedBy("dagger.hilt.android.AndroidEntryPoint", "dagger.hilt.android.HiltAndroidApp")
         inheritedFrom(
             "android.app.Activity",
             "android.app.Service",

@@ -3,4 +3,6 @@
     <!-- Mirrors of design tokens for the launcher icon (QItPalettes primary 30, tertiary 80). -->
     <color name="qit_icon_background">#FF195039</color>
     <color name="qit_icon_foreground">#FFEFC055</color>
+    <!-- QItPalettes primary 90, the watch's primary: the tile preview's edge button. -->
+    <color name="qit_tile_button">#FFB6EFD0</color>
 </resources>
