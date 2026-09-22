@@ -12,3 +12,7 @@ data object HomeDestination
  */
 @Serializable
 data class ReaderDestination(val surah: Int, val ayah: Int = 0)
+
+/** The Progress screen: which surahs and ayahs you've heard, and how often. */
+@Serializable
+data object ProgressDestination

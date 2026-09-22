@@ -50,6 +50,7 @@ class HomeScreenshotTest {
             onQueryChange = {},
             onBrowseChange = {},
             onOpenReader = { _, _ -> },
+            onOpenProgress = {},
             onContinuePlayPause = {},
             onOpenReadingSettings = {},
         )

@@ -23,17 +23,19 @@ import androidx.navigation.compose.rememberNavController
 import dev.sadakat.qit.core.designsystem.QItTheme
 import dev.sadakat.qit.presentation.home.HomeRoute
 import dev.sadakat.qit.presentation.navigation.HomeDestination
+import dev.sadakat.qit.presentation.navigation.ProgressDestination
 import dev.sadakat.qit.presentation.navigation.ReaderDestination
 import dev.sadakat.qit.presentation.player.MiniPlayer
 import dev.sadakat.qit.presentation.player.NowPlayingActions
 import dev.sadakat.qit.presentation.player.NowPlayingSheet
 import dev.sadakat.qit.presentation.player.PlayerViewModel
+import dev.sadakat.qit.presentation.progress.ProgressRoute
 import dev.sadakat.qit.presentation.reader.SurahReaderRoute
 import dev.sadakat.qit.presentation.settings.ReadingSettingsSheet
 
 /**
- * Root of the phone UI: home and the reader, the mini player pinned under both whenever something
- * is queued, the full player sliding up from it, and the reading settings sheet.
+ * Root of the phone UI: home, the reader and progress, the mini player pinned under them whenever
+ * something is queued, the full player sliding up from it, and the reading settings sheet.
  */
 @Composable
 fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = hiltViewModel()) {
@@ -78,12 +80,24 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
             modifier = Modifier.padding(padding),
         ) {
             composable<HomeDestination> {
-                HomeRoute(onOpenReader = openReader, onOpenReadingSettings = { showReadingSettings = true })
+                HomeRoute(
+                    onOpenReader = openReader,
+                    onOpenProgress = {
+                        navController.navigate(ProgressDestination) { launchSingleTop = true }
+                    },
+                    onOpenReadingSettings = { showReadingSettings = true },
+                )
             }
             composable<ReaderDestination> {
                 SurahReaderRoute(
                     onBack = { navController.popBackStack() },
                     onOpenReadingSettings = { showReadingSettings = true },
+                )
+            }
+            composable<ProgressDestination> {
+                ProgressRoute(
+                    onBack = { navController.popBackStack() },
+                    onOpenReader = openReader,
                 )
             }
         }

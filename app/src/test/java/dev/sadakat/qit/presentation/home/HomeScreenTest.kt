@@ -38,6 +38,7 @@ class HomeScreenTest {
     private val queries = mutableListOf<String>()
     private var browse: BrowseMode? = null
     private var playPauses = 0
+    private var openedProgress = false
 
     private fun setContent(state: HomeUiState) {
         composeRule.setContent {
@@ -47,6 +48,7 @@ class HomeScreenTest {
                     onQueryChange = { queries += it },
                     onBrowseChange = { browse = it },
                     onOpenReader = { surah, ayah -> opened += surah to ayah },
+                    onOpenProgress = { openedProgress = true },
                     onContinuePlayPause = { playPauses++ },
                     onOpenReadingSettings = {},
                 )
@@ -86,6 +88,15 @@ class HomeScreenTest {
 
         assertEquals(1, playPauses)
         assertEquals(listOf(2 to 255), opened)
+    }
+
+    @Test
+    fun `the insights action opens the listening progress`() {
+        setContent(loaded())
+
+        composeRule.onNodeWithContentDescription("Your listening").performClick()
+
+        assertEquals(true, openedProgress)
     }
 
     @Test
