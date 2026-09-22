@@ -2,26 +2,40 @@
 <resources>
     <string name="app_name">QIt</string>
 
-    <!-- Home / surah list -->
-    <string name="now_playing_chip">Now playing — %1$s %2$s</string>
+    <!-- Home hub -->
+    <string name="surahs">Surahs</string>
+    <string name="by_juz">By juz</string>
+    <string name="downloaded_surahs">Downloaded (%1$d)</string>
+    <string name="recitation">Recitation · %1$s</string>
+    <string name="now_playing">Now playing</string>
     <string name="continue_chip">Continue %1$s</string>
-    <string name="recitation_mode_hint">Recitation mode</string>
-    <string name="surah_label">%1$d. %2$s</string>
+    <string name="loading">Loading…</string>
+    <!-- Surah list -->
+    <string name="surah_label">%1$d · %2$s</string>
+    <string name="surah_fallback_name">Surah %1$d</string>
+    <string name="ayah_count">%1$d ayahs</string>
     <string name="ayah_count_secondary">%1$d ayahs · %2$s</string>
     <string name="download_state_downloaded">Downloaded</string>
     <string name="download_state_failed">Failed</string>
     <string name="download_progress">%1$d%%</string>
-    <string name="loading">Loading…</string>
+    <string name="downloaded_list_empty">Nothing downloaded yet. Open a surah to download its audio.</string>
+
+    <!-- Juz list -->
+    <string name="juz_label">Juz %1$d</string>
+    <string name="juz_start">%1$s %2$d:%3$d</string>
+
+    <!-- Recitation mode picker -->
+    <string name="recitation_header">Recitation</string>
 
     <!-- Surah -->
     <string name="surah_not_found">Surah not found</string>
-    <string name="ayah_count">%1$d ayahs</string>
-    <string name="mode_label">Mode: %1$s</string>
     <string name="play">Play</string>
     <string name="download">Download</string>
     <string name="downloading">Downloading %1$s</string>
     <string name="retry_download">Retry download</string>
     <string name="remove">Remove</string>
+    <string name="remove_download_title">Remove download?</string>
+    <string name="remove_download_text">Delete %1$s\'s audio files from the watch.</string>
 
     <!-- Now playing -->
     <string name="nothing_playing">Nothing playing</string>
@@ -32,4 +46,22 @@
     <string name="play_pause">Play or pause</string>
     <string name="pause">Pause</string>
     <string name="next_ayah">Next ayah</string>
+    <string name="cd_options">Playback options</string>
+
+    <!-- Playback options -->
+    <string name="speed_header">Speed</string>
+    <string name="speed_0_75">0.75×</string>
+    <string name="speed_1">1×</string>
+    <string name="speed_1_25">1.25×</string>
+    <string name="speed_1_5">1.5×</string>
+    <string name="repeat_header">Repeat ayah</string>
+    <string name="repeat_off">Off</string>
+    <string name="repeat_three_times">3 times</string>
+    <string name="repeat_forever">Forever</string>
+    <string name="sleep_header">Sleep timer</string>
+    <string name="sleep_off">Off</string>
+    <string name="sleep_minutes">%1$d min</string>
+    <string name="sleep_end_of_surah">End of surah</string>
+    <string name="sleep_remaining">%1$d min left</string>
+    <string name="sleep_stops_at_surah_end">Stops at the end of the surah</string>
 </resources>

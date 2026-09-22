@@ -20,7 +20,13 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
-/** One surah: play it, download its audio in the current mode, or remove it. */
+data class WearSurahUiState(
+    val surah: Surah? = null,
+    val mode: RecitationMode = RecitationMode.ARABIC_BANGLA,
+    val download: SurahDownloadState = SurahDownloadState.NotDownloaded,
+)
+
+/** One surah: play it (from a juz start if arrived that way), download its audio, or remove it. */
 @HiltViewModel
 class WearSurahViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
@@ -30,22 +36,19 @@ class WearSurahViewModel @Inject constructor(
     private val player: QuranPlayer,
 ) : ViewModel() {
 
-    data class UiState(
-        val surah: Surah? = null,
-        val mode: RecitationMode = RecitationMode.ARABIC_BANGLA,
-        val download: SurahDownloadState = SurahDownloadState.NotDownloaded,
-    )
-
     private val surahNumber: Int = savedStateHandle.get<Int>("number") ?: 0
+
+    /** The ayah to play from when the screen was opened from a juz; null plays from the basmala. */
+    private val fromAyah: Int? = savedStateHandle.get<Int>("from")
 
     private val surahFlow = flow { emit(runCatching { quranText.surah(surahNumber) }.getOrNull()) }
 
-    val uiState: StateFlow<UiState> = combine(
+    val uiState: StateFlow<WearSurahUiState> = combine(
         surahFlow,
         settings.mode,
         surahDownloads.states,
     ) { surah, mode, downloads ->
-        UiState(
+        WearSurahUiState(
             surah = surah,
             mode = mode,
             download = if (surah != null) {
@@ -54,13 +57,13 @@ class WearSurahViewModel @Inject constructor(
                 SurahDownloadState.NotDownloaded
             },
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UiState())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), WearSurahUiState())
 
-    /** Plays from the basmala (ayah 0) when the surah has one, else from ayah 1. */
+    /** Plays from the juz start if given, else the basmala (ayah 0) when the surah has one, else 1. */
     fun play() {
         val state = uiState.value
         val surah = state.surah ?: return
-        val fromAyah = if (QuranMeta.hasBasmalaPrefix(surah.number)) 0 else 1
+        val fromAyah = fromAyah ?: if (QuranMeta.hasBasmalaPrefix(surah.number)) 0 else 1
         player.play(surah.number, fromAyah, state.mode)
     }
 

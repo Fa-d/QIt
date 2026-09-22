@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.core.domain.player.NowPlaying
 import dev.sadakat.qit.core.domain.player.QuranPlayer
 import dev.sadakat.qit.core.domain.repository.QuranText
+import dev.sadakat.qit.wear.audio.StreamVolume
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -14,27 +15,38 @@ import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
-/** Now playing: what is queued, its Arabic text, and the playback controls. */
+/** What is queued, the current ayah's text, and everything the controls page shows. */
+data class WearNowPlayingUiState(
+    val surahNumber: Int? = null,
+    val surahName: String? = null,
+    val ayah: Int = 0,
+    val ayahText: String? = null,
+    /** The mode's translation of the current ayah; null in Arabic-only mode and for the basmala. */
+    val translation: String? = null,
+    val isPlaying: Boolean = false,
+    val isBuffering: Boolean = false,
+    val error: String? = null,
+    /** How far through the surah playback is, 0..1 (by ayah; the basmala is 0). */
+    val progress: Float = 0f,
+    /** Media volume as a 0..1 fraction, turned by the crown. */
+    val volume: Float = 1f,
+)
+
+/** Now playing: the ayah's Arabic and translation, the transport controls, and the crown volume. */
 @OptIn(ExperimentalCoroutinesApi::class) // mapLatest: cancel a stale ayah-text lookup.
 @HiltViewModel
-class NowPlayingViewModel @Inject constructor(private val quranText: QuranText, private val player: QuranPlayer) :
-    ViewModel() {
+class NowPlayingViewModel @Inject constructor(
+    private val quranText: QuranText,
+    private val player: QuranPlayer,
+    private val streamVolume: StreamVolume,
+) : ViewModel() {
 
-    data class UiState(
-        val surahNumber: Int? = null,
-        val surahName: String? = null,
-        val ayah: Int = 0,
-        val ayahText: String? = null,
-        val isPlaying: Boolean = false,
-        val isBuffering: Boolean = false,
-        val error: String? = null,
-    )
-
-    val uiState: StateFlow<UiState> = combine(
+    val uiState: StateFlow<WearNowPlayingUiState> = combine(
         player.nowPlaying.mapLatest(::toUiState),
         player.error,
-    ) { state, error -> state.copy(error = error) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UiState())
+        streamVolume.level,
+    ) { state, error, volume -> state.copy(error = error, volume = volume) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), WearNowPlayingUiState())
 
     fun previousAyah() = player.previousAyah()
 
@@ -42,22 +54,26 @@ class NowPlayingViewModel @Inject constructor(private val quranText: QuranText, 
 
     fun nextAyah() = player.nextAyah()
 
+    fun adjustVolume(steps: Int) = streamVolume.adjust(steps)
+
     /** Ayah 0 is the basmala prefix, which has no entry in [QuranText.ayahs]; the screen shows the basmala itself. */
-    private suspend fun toUiState(nowPlaying: NowPlaying?): UiState {
-        if (nowPlaying == null) return UiState()
+    private suspend fun toUiState(nowPlaying: NowPlaying?): WearNowPlayingUiState {
+        if (nowPlaying == null) return WearNowPlayingUiState()
         val surahName = runCatching { quranText.surah(nowPlaying.surah).nameEnglish }.getOrNull()
-        val ayahText = if (nowPlaying.ayah >= 1) {
-            runCatching { quranText.ayahs(nowPlaying.surah).getOrNull(nowPlaying.ayah - 1)?.arabic }.getOrNull()
+        val ayah = if (nowPlaying.ayah >= 1) {
+            runCatching { quranText.ayahs(nowPlaying.surah).getOrNull(nowPlaying.ayah - 1) }.getOrNull()
         } else {
             null
         }
-        return UiState(
+        return WearNowPlayingUiState(
             surahNumber = nowPlaying.surah,
             surahName = surahName,
             ayah = nowPlaying.ayah,
-            ayahText = ayahText,
+            ayahText = ayah?.arabic,
+            translation = nowPlaying.mode.translation?.let { track -> ayah?.translation(track) },
             isPlaying = nowPlaying.isPlaying,
             isBuffering = nowPlaying.isBuffering,
+            progress = nowPlaying.progress,
         )
     }
 }
