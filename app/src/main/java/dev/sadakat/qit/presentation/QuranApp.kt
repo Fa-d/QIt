@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -15,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -22,6 +24,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import dev.sadakat.qit.R
 import dev.sadakat.qit.core.designsystem.QItTheme
 import dev.sadakat.qit.presentation.home.HomeRoute
 import dev.sadakat.qit.presentation.navigation.HomeDestination
@@ -31,6 +34,7 @@ import dev.sadakat.qit.presentation.player.MiniPlayer
 import dev.sadakat.qit.presentation.player.NowPlayingActions
 import dev.sadakat.qit.presentation.player.NowPlayingSheet
 import dev.sadakat.qit.presentation.player.PlayerViewModel
+import dev.sadakat.qit.presentation.player.messageRes
 import dev.sadakat.qit.presentation.progress.ProgressRoute
 import dev.sadakat.qit.presentation.reader.SurahReaderRoute
 import dev.sadakat.qit.presentation.settings.ReadingSettingsSheet
@@ -54,9 +58,17 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
     }
 
     // Playback errors (no network for a streaming surah, ...) surface once, then are consumed.
-    LaunchedEffect(playerState.error) {
-        playerState.error?.let {
-            snackbarHostState.showSnackbar(it)
+    val playbackError = playerState.error
+    val playbackErrorMessage = playbackError?.let { stringResource(it.messageRes()) }
+    val retryLabel = stringResource(R.string.playback_retry)
+    LaunchedEffect(playbackError) {
+        playbackError?.let {
+            val result = snackbarHostState.showSnackbar(
+                message = playbackErrorMessage.orEmpty(),
+                actionLabel = retryLabel,
+                withDismissAction = true,
+            )
+            if (result == SnackbarResult.ActionPerformed) playerViewModel.retry()
             playerViewModel.consumeError()
         }
     }

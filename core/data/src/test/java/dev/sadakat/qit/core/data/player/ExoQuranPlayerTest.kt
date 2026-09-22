@@ -19,10 +19,12 @@ import androidx.media3.test.utils.robolectric.RobolectricUtil.runMainLooperUntil
 import androidx.media3.test.utils.robolectric.TestPlayerRunHelper
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import dev.sadakat.qit.core.domain.audio.WordTimings
 import dev.sadakat.qit.core.domain.model.AyahRef
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.player.NowPlaying
+import dev.sadakat.qit.core.domain.player.PlaybackError
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.player.RepeatSetting
 import dev.sadakat.qit.core.domain.repository.LastPosition
@@ -325,7 +327,7 @@ class ExoQuranPlayerTest {
     }
 
     @Test
-    fun `a playback error shows a short message that the next play clears`() {
+    fun `a playback error is reported until the next play clears it`() {
         val failing = newPlayer(FailingOnceMediaSourceFactory())
         val failingPlayer =
             ExoQuranPlayer(context, failing, text, settings, timings, history, CoroutineScope(Dispatchers.Main))
@@ -333,12 +335,36 @@ class ExoQuranPlayerTest {
         failingPlayer.play(2, fromAyah = 1, mode = RecitationMode.ARABIC_ONLY)
 
         runUntil(failing) { failingPlayer.error.value != null }
-        assertEquals("Playback failed. Please try again.", failingPlayer.error.value)
+        assertEquals(PlaybackError.FAILED, failingPlayer.error.value)
         assertEquals(Player.STATE_IDLE, failing.playbackState)
 
         failingPlayer.play(2, fromAyah = 1, mode = RecitationMode.ARABIC_ONLY)
 
         assertNull(failingPlayer.error.value)
+    }
+
+    @Test
+    fun `retry re-arms the failed queue where it stopped`() {
+        val failing = newPlayer(FailingOnceMediaSourceFactory())
+        val failingPlayer =
+            ExoQuranPlayer(context, failing, text, settings, timings, history, CoroutineScope(Dispatchers.Main))
+        failingPlayer.play(2, fromAyah = 1, mode = RecitationMode.ARABIC_ONLY)
+        runUntil(failing) { failingPlayer.error.value != null }
+        val stoppedAt = failing.currentMediaItemIndex
+
+        failingPlayer.retry()
+
+        runUntil(failing) { failingPlayer.error.value == null && failingPlayer.nowPlaying.value?.isPlaying == true }
+        assertEquals(stoppedAt, failing.currentMediaItemIndex)
+    }
+
+    @Test
+    fun `retry with nothing queued or failed is a no-op`() {
+        player.retry()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertNull(player.nowPlaying.value)
+        assertEquals(0, exoPlayer.mediaItemCount)
     }
 
     @Test
@@ -355,34 +381,86 @@ class ExoQuranPlayerTest {
     }
 
     @Test
-    fun `network io errors ask to check the connection or download the surah`() {
-        val expected = "Can't reach the audio. Check your connection or download this surah."
-        assertEquals(expected, ExoQuranPlayer.errorMessage(PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED))
-        assertEquals(expected, ExoQuranPlayer.errorMessage(PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT))
-        assertEquals(expected, ExoQuranPlayer.errorMessage(PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS))
+    fun `network io errors are a network error`() {
+        assertEquals(
+            PlaybackError.NETWORK,
+            ExoQuranPlayer.errorOf(PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED),
+        )
+        assertEquals(
+            PlaybackError.NETWORK,
+            ExoQuranPlayer.errorOf(PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT),
+        )
+        assertEquals(PlaybackError.NETWORK, ExoQuranPlayer.errorOf(PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS))
     }
 
     @Test
-    fun `other errors get a short generic message`() {
-        val expected = "Playback failed. Please try again."
-        assertEquals(expected, ExoQuranPlayer.errorMessage(PlaybackException.ERROR_CODE_UNSPECIFIED))
-        assertEquals(expected, ExoQuranPlayer.errorMessage(PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND))
+    fun `other errors are a plain failure`() {
+        assertEquals(PlaybackError.FAILED, ExoQuranPlayer.errorOf(PlaybackException.ERROR_CODE_UNSPECIFIED))
+        assertEquals(PlaybackError.FAILED, ExoQuranPlayer.errorOf(PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND))
+    }
+
+    @Test
+    fun `repeatAyah on another surah queues it with its repeat together`() {
+        player.play(2, fromAyah = 1, mode = RecitationMode.ARABIC_ONLY)
+        runMainLooperUntil { player.nowPlaying.value?.isPlaying == true }
+
+        player.repeatAyah(3, ayah = 1, mode = RecitationMode.ARABIC_ONLY, times = null)
+
+        runMainLooperUntil { player.nowPlaying.value?.surah == 3 }
+        assertEquals(RepeatSetting.Range(1, 1, null), player.nowPlaying.value?.repeat)
+        assertEquals("3:1:ar", exoPlayer.currentMediaItem?.mediaId)
+    }
+
+    @Test
+    fun `repeatAyah on the queued surah moves to its ayah with the repeat`() {
+        player.play(2, fromAyah = 5, mode = RecitationMode.ARABIC_ONLY)
+        runMainLooperUntil { player.nowPlaying.value?.ayah == 5 }
+
+        player.repeatAyah(2, ayah = 7, mode = RecitationMode.ARABIC_ONLY, times = null)
+
+        runMainLooperUntil { exoPlayer.currentMediaItem?.mediaId == "2:7:ar" }
+        assertEquals(RepeatSetting.Range(7, 7, null), player.nowPlaying.value?.repeat)
+        assertEquals(0L, exoPlayer.currentPosition)
+    }
+
+    @Test
+    fun `playFromWord seeks within the queued surah, from the word's start`() {
+        timings.words = mapOf(2 to mapOf(5 to WordTimings(intArrayOf(0, 1_000, 1_500, 2_500))))
+        player.play(2, fromAyah = 5, mode = RecitationMode.ARABIC_ONLY)
+        runMainLooperUntil { player.nowPlaying.value?.isPlaying == true }
+
+        player.playFromWord(2, ayah = 5, word = 1, mode = RecitationMode.ARABIC_ONLY)
+
+        runMainLooperUntil { exoPlayer.currentPosition == 1_500L }
+        assertEquals(5, exoPlayer.currentMediaItemIndex) // the queue was not rebuilt
+        assertEquals("2:5:ar", exoPlayer.currentMediaItem?.mediaId)
+    }
+
+    @Test
+    fun `playFromWord queues the surah from that ayah at the word when it is not queued`() {
+        timings.words = mapOf(2 to mapOf(5 to WordTimings(intArrayOf(0, 1_000, 1_500, 2_500))))
+
+        player.playFromWord(2, ayah = 5, word = 1, mode = RecitationMode.ARABIC_ENGLISH)
+
+        runMainLooperUntil { exoPlayer.currentMediaItem?.mediaId == "2:5:ar" }
+        runMainLooperUntil { exoPlayer.currentPosition == 1_500L }
+        assertEquals(574, exoPlayer.mediaItemCount) // the basmala pair, then Arabic and English per ayah
+    }
+
+    @Test
+    fun `playFromWord falls back to the ayah's start when the word timings are unknown`() {
+        player.play(2, fromAyah = 5, mode = RecitationMode.ARABIC_ONLY)
+        runMainLooperUntil { player.nowPlaying.value?.isPlaying == true }
+
+        player.playFromWord(2, ayah = 7, word = 3, mode = RecitationMode.ARABIC_ONLY)
+
+        runMainLooperUntil { exoPlayer.currentMediaItem?.mediaId == "2:7:ar" }
+        runMainLooperUntil { exoPlayer.currentPosition == 0L }
     }
 
     /** Media sources whose windows are seekable, 10 s long and start at 0, so seeks up to 10 s work. */
     private class SeekableFakeMediaSourceFactory : MediaSource.Factory {
-        override fun createMediaSource(mediaItem: MediaItem): MediaSource = FakeMediaSource(
-            FakeTimeline(
-                FakeTimeline.TimelineWindowDefinition.Builder()
-                    .setUid(mediaItem.mediaId)
-                    .setSeekable(true)
-                    .setDurationUs(10 * C.MICROS_PER_SECOND)
-                    .setDefaultPositionUs(0)
-                    .setWindowPositionInFirstPeriodUs(0)
-                    .setMediaItem(mediaItem)
-                    .build(),
-            ),
-        )
+        override fun createMediaSource(mediaItem: MediaItem): MediaSource = FakeMediaSource(tenSecondWindow(mediaItem))
 
         override fun getSupportedTypes(): IntArray = intArrayOf(C.CONTENT_TYPE_OTHER)
 
@@ -395,7 +473,8 @@ class ExoQuranPlayerTest {
     }
 
     /** Fails the very first preparation (driving the player into an error), then behaves. */
-    private class FailingOnceMediaSource(private val failedOnce: AtomicBoolean) : FakeMediaSource() {
+    private class FailingOnceMediaSource(private val failedOnce: AtomicBoolean, timeline: FakeTimeline) :
+        FakeMediaSource(timeline) {
         override fun prepareSourceInternal(transferListener: TransferListener?) {
             // Prepare properly first so a later release passes FakeMediaSource's own assertions.
             super.prepareSourceInternal(transferListener)
@@ -409,7 +488,8 @@ class ExoQuranPlayerTest {
         // Shared: the queue has one source per item, and only the first preparation may fail.
         private val failedOnce = AtomicBoolean(false)
 
-        override fun createMediaSource(mediaItem: MediaItem): MediaSource = FailingOnceMediaSource(failedOnce)
+        override fun createMediaSource(mediaItem: MediaItem): MediaSource =
+            FailingOnceMediaSource(failedOnce, tenSecondWindow(mediaItem))
 
         override fun getSupportedTypes(): IntArray = intArrayOf(C.CONTENT_TYPE_OTHER)
 
@@ -419,5 +499,19 @@ class ExoQuranPlayerTest {
 
         override fun setLoadErrorHandlingPolicy(loadErrorHandlingPolicy: LoadErrorHandlingPolicy): MediaSource.Factory =
             this
+    }
+
+    private companion object {
+        /** A seekable 10 s window for [mediaItem], starting at 0, so seeks up to 10 s work. */
+        fun tenSecondWindow(mediaItem: MediaItem): FakeTimeline = FakeTimeline(
+            FakeTimeline.TimelineWindowDefinition.Builder()
+                .setUid(mediaItem.mediaId)
+                .setSeekable(true)
+                .setDurationUs(10 * C.MICROS_PER_SECOND)
+                .setDefaultPositionUs(0)
+                .setWindowPositionInFirstPeriodUs(0)
+                .setMediaItem(mediaItem)
+                .build(),
+        )
     }
 }

@@ -2,6 +2,7 @@ package dev.sadakat.qit.presentation.reader
 
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
+import dev.sadakat.qit.core.domain.model.ArabicWords
 import dev.sadakat.qit.core.domain.model.AyahRef
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.RecitationMode
@@ -17,6 +18,7 @@ import dev.sadakat.qit.core.testing.FakeQuranText
 import dev.sadakat.qit.core.testing.FakeSurahDownloads
 import dev.sadakat.qit.core.testing.FakeWordMeanings
 import dev.sadakat.qit.core.testing.MainDispatcherRule
+import dev.sadakat.qit.core.testing.TestQuran
 import dev.sadakat.qit.presentation.awaitWhere
 import dev.sadakat.qit.watch.FakeWatchConnection
 import kotlinx.coroutines.test.runTest
@@ -248,6 +250,123 @@ class SurahReaderViewModelTest {
         quranText.failure = IllegalStateException("disk on fire")
         viewModel().uiState.test {
             assertTrue(awaitWhere { it.loadFailed }.loadFailed)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `retry reloads the surah after a failure`() = runTest {
+        quranText.failure = IllegalStateException("disk on fire")
+        val viewModel = viewModel()
+        viewModel.uiState.test {
+            assertTrue(awaitWhere { it.loadFailed }.loadFailed)
+
+            quranText.failure = null
+            viewModel.retry()
+
+            val state = awaitWhere { it.surah != null && !it.loadFailed }
+            assertEquals("Al-Baqara", state.surah?.nameEnglish)
+            assertEquals(286, state.ayahs.size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `playing from a word and repeating an ayah use the current mode`() = runTest {
+        val viewModel = viewModel()
+        viewModel.uiState.test {
+            awaitWhere { it.surah != null }
+
+            viewModel.playFromWord(ayah = 7, word = 2)
+            assertEquals(
+                listOf(FakeQuranPlayer.PlayFromWordCall(2, 7, 2, RecitationMode.ARABIC_BANGLA)),
+                player.playFromWordCalls,
+            )
+
+            viewModel.repeatAyah(ayah = 7)
+            assertEquals(
+                listOf(FakeQuranPlayer.RepeatAyahCall(2, 7, RecitationMode.ARABIC_BANGLA, times = null)),
+                player.repeatAyahCalls,
+            )
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `the ayah actions show the ayah, its translation and each word with its meaning`() = runTest {
+        wordMeanings.byLanguage = mapOf(
+            WordByWord.ENGLISH to mapOf(2 to mapOf(1 to listOf("an ayah", "two one"))),
+        )
+        val viewModel = viewModel()
+        viewModel.uiState.test {
+            awaitWhere { it.surah != null }
+
+            viewModel.showAyahActions(1)
+
+            val actions = awaitWhere { it.ayahActions?.words?.all { w -> w.meaning != null } == true }.ayahActions!!
+            assertEquals(1, actions.ayah)
+            assertEquals(TestQuran.ayahs(2)[0].arabic, actions.arabic)
+            assertEquals(TestQuran.ayahs(2)[0].bangla, actions.translation) // the mode's translation
+            // English while word by word is off
+            assertEquals(listOf("an ayah", "two one"), actions.words.map { it.meaning })
+            assertEquals(2 to WordByWord.ENGLISH, wordMeanings.requested.last())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `the glossary follows the word-by-word language once one is picked`() = runTest {
+        wordMeanings.byLanguage = mapOf(
+            WordByWord.BANGLA to mapOf(2 to mapOf(1 to listOf("একটি আয়াত", "দুই এক"))),
+        )
+        settings.readingPrefs.value = ReadingPrefs(wordByWord = WordByWord.BANGLA)
+        val viewModel = viewModel()
+        viewModel.uiState.test {
+            awaitWhere { it.wordMeanings.isNotEmpty() }
+
+            viewModel.showAyahActions(1)
+
+            val actions = awaitWhere { it.ayahActions?.words?.any { w -> w.meaning != null } == true }.ayahActions!!
+            assertEquals(listOf("একটি আয়াত", "দুই এক"), actions.words.map { it.meaning })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `no meanings are requested while the actions are closed`() = runTest {
+        val viewModel = viewModel()
+        viewModel.uiState.test {
+            awaitWhere { it.surah != null }
+            val before = wordMeanings.requested.size // the reader's own word-by-word flow may have asked
+
+            viewModel.showAyahActions(1)
+            awaitWhere { it.ayahActions?.words?.first()?.meaning != null }
+            assertEquals(before + 1, wordMeanings.requested.size) // the glossary's own, once
+
+            viewModel.dismissAyahActions()
+            assertNull(awaitWhere { it.ayahActions == null }.ayahActions)
+            assertEquals(before + 1, wordMeanings.requested.size) // closed again: nothing more requested
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `the words are listed without meanings when none are known`() = runTest {
+        val viewModel = viewModel()
+        viewModel.uiState.test {
+            awaitWhere { it.surah != null }
+
+            viewModel.showAyahActions(3) // no meanings for ayah 3
+
+            val actions = awaitWhere { it.ayahActions?.ayah == 3 }.ayahActions!!
+            assertEquals(TestQuran.ayahs(2)[2].arabic, actions.arabic)
+            assertEquals(
+                ArabicWords.ranges(actions.arabic).map {
+                    actions.arabic.substring(it)
+                },
+                actions.words.map { it.arabic },
+            )
+            assertTrue(actions.words.all { it.meaning == null })
             cancelAndIgnoreRemainingEvents()
         }
     }
