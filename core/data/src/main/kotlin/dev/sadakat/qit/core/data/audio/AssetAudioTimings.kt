@@ -31,7 +31,7 @@ class AssetAudioTimings(private val context: Context) : AudioTimings {
     override suspend fun wordTimings(surah: Int): Map<Int, WordTimings> {
         require(surah in 1..QuranMeta.SURAH_COUNT) { "Invalid surah $surah" }
         timingsMutex.withLock { cachedTimings[surah]?.let { return it } }
-        val ayahs = AudioTimingParser.parseWordTimings(readAsset(timingPath(surah)))
+        val ayahs = parseAsset(timingPath(surah), AudioTimingParser::parseWordTimings)
         // The basmala before verse 1 is recited from 1:1's file (Al-Fatiha has none, so no recursion).
         val timings = if (QuranMeta.hasBasmalaPrefix(surah)) ayahs + (0 to wordTimings(1).getValue(1)) else ayahs
         timingsMutex.withLock { cachedTimings[surah] = timings }
@@ -40,8 +40,7 @@ class AssetAudioTimings(private val context: Context) : AudioTimings {
 
     override suspend fun durationMs(fileId: String): Long? {
         val all = durationsMutex.withLock {
-            durations
-                ?: AudioTimingParser.parseDurations(readAsset("quran/audio/durations.json")).also { durations = it }
+            durations ?: parseAsset(DURATIONS, AudioTimingParser::parseDurations).also { durations = it }
         }
         return all.durationMs(fileId)
     }
@@ -49,7 +48,12 @@ class AssetAudioTimings(private val context: Context) : AudioTimings {
     private fun timingPath(surah: Int) =
         "quran/timing/ar.alafasy/" + String.format(Locale.ROOT, "%03d", surah) + ".json"
 
-    private suspend fun readAsset(path: String): String = withContext(Dispatchers.IO) {
-        context.assets.open(path).bufferedReader().use { it.readText() }
+    /** Reads and parses an asset off the caller's thread: the player asks from the main thread. */
+    private suspend fun <T> parseAsset(path: String, parse: (String) -> T): T = withContext(Dispatchers.IO) {
+        parse(context.assets.open(path).bufferedReader().use { it.readText() })
+    }
+
+    private companion object {
+        const val DURATIONS = "quran/audio/durations.json"
     }
 }
