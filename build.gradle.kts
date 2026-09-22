@@ -99,11 +99,11 @@ subprojects {
 data class CoverageFloor(val lines: Int, val branches: Int)
 
 val coverageFloors = mapOf(
-    ":core:domain" to CoverageFloor(lines = 94, branches = 90),
-    ":core:data" to CoverageFloor(lines = 89, branches = 75),
+    ":core:domain" to CoverageFloor(lines = 96, branches = 92),
+    ":core:data" to CoverageFloor(lines = 91, branches = 76),
     ":core:designsystem" to CoverageFloor(lines = 94, branches = 45),
-    ":app" to CoverageFloor(lines = 71, branches = 44),
-    ":wear" to CoverageFloor(lines = 78, branches = 45),
+    ":app" to CoverageFloor(lines = 85, branches = 60),
+    ":wear" to CoverageFloor(lines = 80, branches = 50),
 )
 
 /** Generated code, DI wiring and Android entry points: nothing of ours to unit-test. */
@@ -156,8 +156,8 @@ kover {
         filters { excludeGeneratedAndGlue() }
         total {
             verify {
-                rule("aggregate line coverage") { minBound(83, CoverageUnit.LINE) }
-                rule("aggregate branch coverage") { minBound(58, CoverageUnit.BRANCH) }
+                rule("aggregate line coverage") { minBound(87, CoverageUnit.LINE) }
+                rule("aggregate branch coverage") { minBound(64, CoverageUnit.BRANCH) }
             }
         }
     }

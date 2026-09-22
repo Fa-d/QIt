@@ -3,6 +3,14 @@ name: CI
 on:
   push:
   pull_request:
+  # Run by hand with "record" to re-record the screenshot goldens on Linux (download them from the
+  # run's artifacts and commit them) — for when an intended UI change moved pixels.
+  workflow_dispatch:
+    inputs:
+      record:
+        description: Re-record screenshot goldens instead of verifying them
+        type: boolean
+        default: false
 
 # A newer push to the same branch makes the running check pointless.
 concurrency:
@@ -26,12 +34,27 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Quality gate + assemble
+        if: ${{ !inputs.record }}
         run: ./gradlew qualityGate assembleDebug
+
+      - name: Record screenshot goldens
+        if: ${{ inputs.record }}
+        run: ./gradlew recordRoborazziDebug
+
+      - name: Upload recorded goldens
+        if: ${{ inputs.record }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-goldens
+          path: '**/src/test/screenshots/*.png'
 
       - name: Upload reports on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: reports
-          path: '**/build/reports/**'
+          # Test/lint/coverage reports, and Roborazzi's compare images for failed screenshots.
+          path: |
+            **/build/reports/**
+            **/build/outputs/roborazzi/**
           if-no-files-found: ignore

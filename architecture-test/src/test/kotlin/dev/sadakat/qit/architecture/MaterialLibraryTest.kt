@@ -13,7 +13,6 @@ class MaterialLibraryTest {
         val forbidden = listOf("androidx.wear.compose.material.", "androidx.compose.material3.")
         val violations = projectFiles()
             .filter { "/wear/src/main/" in it.path }
-            .filterNot { it.isLegacyUi }
             .flatMap { file ->
                 file.imports
                     .filter { import -> forbidden.any { import.name.startsWith(it) } }

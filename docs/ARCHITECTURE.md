@@ -10,7 +10,8 @@ layers over the same core.
 ```mermaid
 flowchart TD
     app[":app — phone UI (Compose, Material 3)"]
-    wear[":wear — watch UI (Compose for Wear OS)"]
+    wear[":wear — watch UI + tile (Compose for Wear OS, Material 3)"]
+    ds[":core:designsystem — design tokens (Compose UI only)"]
     data[":core:data — adapters (Android library)"]
     domain[":core:domain — models, pure logic, ports (pure Kotlin/JVM)"]
     testing[":core:testing — fakes + sample data (test only)"]
@@ -18,8 +19,10 @@ flowchart TD
 
     app --> data
     app --> domain
+    app --> ds
     wear --> data
     wear --> domain
+    wear --> ds
     data --> domain
     testing --> domain
     arch -.->|scans sources of| app
@@ -31,13 +34,15 @@ flowchart TD
 Dependency rule: **inward only**. `:core:domain` imports nothing from Android or the outer layers
 (enforced by `DomainIsolationTest`); presentation code (`..presentation..`) imports domain ports
 only, never `dev.sadakat.qit.core.data` (enforced by `PresentationIsolationTest`). Both tests are
-Konsist rules in `:architecture-test`.
+Konsist rules in `:architecture-test`. `:core:designsystem` depends on nothing of ours and on no
+Material library (`DesignSystemArchitectureTest`), so both apps can share it.
 
 ## The domain (`:core:domain`)
 
 **Fixed structure of the Quran** — `model/QuranMeta.kt` knows the 114 surah lengths and converts
 between per-surah ayah numbers and the global ayah numbering (1..6236) every audio source uses. It
-also answers `hasBasmalaPrefix` (true for every surah except Al-Fatiha and At-Tawbah).
+also answers `hasBasmalaPrefix` (true for every surah except Al-Fatiha and At-Tawbah) and knows
+where each of the 30 juz starts (`juzStart`, `juzOf`).
 
 **Models** (`model/`):
 
@@ -49,6 +54,10 @@ also answers `hasBasmalaPrefix` (true for every surah except Al-Fatiha and At-Ta
   media ids, download ids and messages.
 - `RecitationMode` — what plays for each ayah, in order: `ARABIC_ONLY`, `ARABIC_ENGLISH` or
   `ARABIC_BANGLA`.
+- `ReadingPrefs` — the reading settings: `ArabicTextSize` (a scale factor), show translation,
+  follow along, `ThemeMode`, wallpaper colors.
+- `AyahRefParser` — reads a typed reference ("2:255", "2.255", "২:২৫৫", "٢:٢٥٥") into an `AyahRef`
+  when that ayah exists; search uses it to jump.
 
 **Pure logic** (`audio/`):
 
@@ -59,14 +68,26 @@ also answers `hasBasmalaPrefix` (true for every surah except Al-Fatiha and At-Ta
 - `DownloadAggregation` — derives per-surah download state from per-file state (see
   [Downloads](#audio-and-downloads)).
 
+**Playback options** (`player/`): `PlaybackSpeed` (0.75×–1.5×), `RepeatSetting` (`Off`, `Ayah(times)`
+— every ayah N times, or the current one forever — and `Range(from, to, times)`), `SleepOption`
+(minutes or end of surah) and `SleepTimerStatus`. Their rules are pure:
+
+- `RepeatPolicy` — what happens when an ayah ends (`Advance`, `JumpTo(ayah)`, `Finish` after a
+  counted range's last round), how a manual move affects a repeat (an ayah repeat restarts its
+  count; a range survives moves inside it and is dropped once playback leaves it), and where
+  playback jumps when a range is chosen elsewhere. The basmala never repeats.
+- `SleepTimer` — status, fade volume and "is due" from explicit timestamps: the last 20 s fade out
+  on an equal-power curve, and the end-of-surah stop fades over the last seconds of recitation in
+  wall time (media time divided by the speed).
+
 **Ports** — interfaces the adapters implement:
 
 | Port | Package | What it gives |
 | --- | --- | --- |
 | `QuranText` | `repository/` | All surahs and every surah's ayahs (offline, from assets) |
-| `QuranSettings` | `repository/` | `Flow<RecitationMode>` and `Flow<LastPosition?>`, persisted |
+| `QuranSettings` | `repository/` | `Flow<RecitationMode>`, `Flow<LastPosition?>`, `Flow<ReadingPrefs>` and `Flow<PlaybackSpeed>`, persisted |
 | `SurahDownloads` | `repository/` | `StateFlow<Map<Int, Map<Track, SurahDownloadState>>>` (surah number → track → state), `download(surah, tracks)`, `remove(surah, tracks)` |
-| `QuranPlayer` | `player/` | `StateFlow<NowPlaying?>` + `StateFlow<String?>` error; `play`, `togglePlayPause`, `nextAyah`, `previousAyah`, `stop`, `restoreLast` |
+| `QuranPlayer` | `player/` | `StateFlow<NowPlaying?>` (with speed, repeat and progress), `StateFlow<String?>` error and `StateFlow<SleepTimerStatus>`; `play`, `togglePlayPause`, `nextAyah`, `previousAyah`, `stop`, `restoreLast`, `setRepeat`, `setSpeed`, `startSleepTimer`, `cancelSleepTimer` |
 
 ## The adapters (`:core:data`)
 
@@ -155,12 +176,72 @@ anything else streams over the network — the data source is **read-only for st
 - `restoreLast` re-queues the saved position, paused, so the player bar reappears after an app
   restart.
 
+**Repeat, speed and the sleep timer.** A repeat acts at ayah boundaries: when the current item is
+the last item of an ayah where `RepeatPolicy` intervenes, the player sets
+`pauseAtEndOfMediaItems`, so ExoPlayer pauses exactly at the item's end; the listener then applies
+the policy's step (jump back and play, carry on, or stop) — the next ayah never blips in, and with
+a translation the repeat waits for it. `NowPlaying.isPlaying` stays true across that hop. Speed is
+`setPlaybackSpeed` (pitch kept), persisted, and re-applied on `play`/`restoreLast`. The sleep timer
+ticks `SleepTimer` on a monotonic clock (every second, ten times a second while fading), sets the
+player's volume, pauses when due and restores the volume; the end-of-surah stop wins over a range
+that loops the last ayah.
+
 **MediaSession.** The session wraps not the raw player but `ExoQuranPlayer.sessionPlayer` — an
 ayah-aware `ForwardingPlayer` whose `seekToNext`/`seekToPrevious` (and their media-item variants)
 delegate to `nextAyah()`/`previousAyah()`. So the notification's skip buttons move by ayah, not by
-track. The phone's `service/QuranPlaybackService` (`MediaSessionService`) injects the singleton
+track. It also hides Media3's repeat and shuffle from system controls: Media3's repeat would loop a
+single track (only the Arabic, or only the translation), and shuffle means nothing for a surah. The phone's `service/QuranPlaybackService` (`MediaSessionService`) injects the singleton
 `MediaSession` built in `di/MediaModule.kt`; the watch's `service/QuranPlaybackService` builds the
 same kind of session over its own player instance.
+
+## Design system (`:core:designsystem`)
+
+Design tokens in three layers, shared by the phone (Material 3) and the watch (Wear Material 3):
+
+1. **Reference tokens** — `ref/QItPalettes`: six tonal palettes generated in the HCT color space
+   from the "mushaf" seeds (deep green, sage, illumination gold, warm paper/ink neutrals, error).
+   A tone means the same perceived lightness in every palette. Only theme code reads them
+   (`DesignSystemArchitectureTest`), and it's the only file allowed color literals.
+2. **Semantic tokens** — `color/QItColors` (Material's roles plus `arabicText`, `translationText`,
+   `playingAyahHighlight`, `ornament`, `progressTrack`, `divider`) for light, dark ("night
+   mushaf") and the watch (OLED black); the scales `QItSpacing`, `QItRadius`, `QItElevation`,
+   `QItSizes`, `QItMotion`; `QItUiType` (serif headings) and `QItArabicType` (Amiri Quran, scaled by
+   the text-size setting; RTL text direction, so align Arabic right, not "end").
+3. **Component tokens** — `component/PlayerTokens`, `ReaderTokens`, `WearTokens` for sizes that
+   aren't steps of a scale.
+
+`QItTheme` exposes them (`QItTheme.colors`, `.spacing`, `.arabic`, …) from static composition
+locals that `ProvideQItTokens` sets. Each app maps them onto its own MaterialTheme: the phone's
+`ui/theme/QItAppTheme` (with opt-in wallpaper colors: the Material roles come from the wallpaper
+scheme and the extended roles are derived from it) and the watch's
+`presentation/theme/QItWearTheme`; the tile mirrors the watch scheme in ARGB. `ContrastTest` checks
+every drawn-on pair against WCAG (text 4.5:1, the Quran's Arabic 7:1, UI 3:1) and
+`DesignTokenUsageTest` forbids color and dp/sp literals in app code.
+
+## The phone UI
+
+One home screen, no tabs: the continue card (what's queued, or where listening stopped), search
+(names, numbers, verse references with a "Go to 2:255" row), and surahs or juz. Navigation is
+type-safe (`navigation/QuranDestinations`: home, reader). The mini player is pinned under both
+screens while something is queued; tapping or swiping it up opens the full player
+(`NowPlayingSheet` → stateless `NowPlayingContent`) with repeat, speed and sleep controls. The
+reader follows the reciting ayah (`FollowAlong`: a user drag pauses following; a chip jumps back),
+and the reading settings sheet sets size, translation, follow-along, theme and wallpaper colors.
+`AppViewModel` feeds the reading settings into `QItAppTheme` at the root, so every screen reacts.
+
+## The watch UI and tile
+
+Wear Material 3 throughout (`MaterialLibraryTest` keeps the legacy library out): `AppScaffold` +
+`ScreenScaffold` + `TransformingLazyColumn` (rotary scrolling built in) with edge buttons for each
+screen's main action. A small hub (surahs, juz, downloaded, recitation), the surah screen, Now
+playing as a pager (controls with an ayah-progress ring and crown volume through `StreamVolume`,
+then the whole ayah text) and an options screen (speed, repeat, sleep).
+
+The tile (`tile/QuranTileService`, a `Material3TileService`) renders `tileStateOf(nowPlaying,
+lastPosition)`: continue, or what's queued with pause/resume. Pause is handled in place (a load
+action); continue and resume launch `MainActivity` with `WearIntents` extras, because the activity
+is in the foreground and may start the playback service. `TileRefresher` requests a redraw
+(debounced) when the surah, ayah or play state changes.
 
 ## Phone → watch
 
@@ -184,11 +265,17 @@ rising/falling edges so the request isn't churned); it releases the network when
 - **Fakes, not mocks** — `:core:testing` ships `FakeQuranText`, `FakeSurahDownloads`,
   `FakeQuranSettings`, `FakeQuranPlayer`, sample data (`TestQuran`: real surah structure,
   placeholder text) and `MainDispatcherRule`. Tests use these; no new fakes of the ports.
-- **Pure logic on the JVM** — `QueuePlan`, `DownloadAggregation`, `QuranAudioUrls`, `SurahSearch`
-  and `QuranTextParser` are plain functions/objects tested without Android.
-- **Robolectric** for everything touching Android (sdk 34, pinned per module in
+- **Pure logic on the JVM** — `QueuePlan`, `DownloadAggregation`, `QuranAudioUrls`, `RepeatPolicy`,
+  `SleepTimer`, `AyahRefParser`, `SurahSearch`, `tileStateOf` and `QuranTextParser` are plain
+  functions/objects tested without Android.
+- **Robolectric** for everything touching Android (sdk 36, pinned per module in
   `src/test/resources/robolectric.properties`), including Compose UI tests
-  (`createComposeRule()`) for the screens.
+  (`androidx.compose.ui.test.junit4.v2.createComposeRule()`) for the screens.
+- **Screenshot tests** — Roborazzi on Robolectric: every screen in light and dark, a stress variant
+  (largest Arabic, font scale 1.3), and both round watch sizes. Goldens live in
+  `<module>/src/test/screenshots/` and are verified on every test run; the helpers
+  (`dev.sadakat.qit.testing.snapshot`, `dev.sadakat.qit.wear.testing.wearSnapshot`) also run the
+  accessibility checks (touch targets, contrast, labels).
 - **Media3 test utils** (`media3-test-utils-robolectric`: `TestExoPlayerBuilder`,
   `TestPlayerRunHelper`) drive `ExoQuranPlayer` against a real, clock-controlled player in
   `:core:data`'s tests.
@@ -196,10 +283,12 @@ rising/falling edges so the request isn't churned); it releases the network when
 - **Architecture tests** — `:architecture-test` holds the Konsist rules: domain purity
   (`DomainIsolationTest`), presentation isolation (`PresentationIsolationTest`), ViewModel shape
   (one immutable `StateFlow<UiState>`, no `Context`, no public `MutableStateFlow` —
-  `ViewModelArchitectureTest`, `UiStateArchitectureTest`) and `*Test` naming
-  (`TestNamingArchitectureTest`). They read all modules' sources, so after changing another
+  `ViewModelArchitectureTest`, `UiStateArchitectureTest`), `*Test` naming
+  (`TestNamingArchitectureTest`), design-token use (`DesignTokenUsageTest`), the design system's
+  purity and single font source (`DesignSystemArchitectureTest`) and one Material library per app
+  (`MaterialLibraryTest`). They read all modules' sources, so after changing another
   module's sources force a re-run: `./gradlew :architecture-test:test --rerun-tasks`.
-- **Coverage** — Kover: at least 70 % aggregate line coverage (`./gradlew :koverVerify`) and 90 %
-  in `:core:domain`.
+- **Coverage** — Kover: every module has line and branch floors (`coverageFloors` in the root
+  build) plus an aggregate floor; see [QUALITY.md](QUALITY.md).
 
 `./gradlew qualityGate` runs all of this plus spotless, detekt and lint — see [QUALITY.md](QUALITY.md).

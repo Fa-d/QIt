@@ -37,6 +37,5 @@ class DesignTokenUsageTest {
     }
 
     private fun tokenFiles() = appMainFiles()
-        .filterNot { it.isLegacyUi }
         .filterNot { file -> themePackages.any { file.packagee?.name == it } }
 }

@@ -7,17 +7,36 @@ download them too.
 
 ## Features
 
-- **Surah list with search** — search by transliterated name, Arabic name, meaning or surah number;
-  the match tolerates spelling variation (Ikhlas/Ikhlaas, Yasin/Yaseen, undiacriticed Arabic).
+Few features, each one made for listening:
+
+- **Home** — a continue card first (surah, ayah, progress through the surah, one-tap play), then
+  one search field for surah names, numbers and verse references: type `2:255` (in Western,
+  Arabic-Indic or Bengali digits) to jump straight to the ayah. Browse by surah or by juz. Matching
+  tolerates spelling variation (Ikhlas/Ikhlaas, Yasin/Yaseen, undiacriticed Arabic).
 - **Reader** — Uthmani Arabic with Saheeh International (English) and Muhiuddin Khan (Bangla) text;
-  tap an ayah to play from there.
+  tap an ayah to play from there. The reciting ayah is highlighted and followed on screen; scroll
+  away to read elsewhere and a "jump to reciting ayah" chip brings you back.
 - **Ayah-by-ayah recitation** — three modes: Arabic only, Arabic + English, Arabic + Bangla. Surahs
-  open with the basmala; playback continues ayah by ayah, and the position is saved so you can
-  continue where you left off.
-- **Offline downloads** — download the audio files of any surah for the current mode; the queue,
-  progress and failures are shown per surah. Downloaded surahs play without network.
-- **Wear OS app** — browse surahs, download, play; "Now playing" with the current ayah's Arabic
-  text. The phone's reader can send a surah download request to the watch.
+  open with the basmala; the position is saved so you can continue where you left off.
+- **Mini player and full player** — the mini player shows what plays and how far through the surah;
+  swipe it up for the full player: the ayah large with its translation, a slider to move by ayah,
+  the recitation mode, and:
+  - **Repeat for memorizing** — each ayah N times (or the current one forever), or a range of ayahs
+    N times or forever;
+  - **Speed** — 0.75× to 1.5×, natural pitch, remembered;
+  - **Sleep timer** — minutes or the end of the surah, with a gentle fade-out.
+- **Reading settings** — Arabic text size, show/hide the translation, follow-along, theme
+  (system/light/dark) and, on Android 12+, wallpaper colors.
+- **Offline downloads** — download the audio files of any surah for the current mode; progress and
+  failures are shown per surah. Downloaded surahs play without network.
+- **Wear OS app** — Wear Material 3: a small hub (surahs, juz, downloaded, recitation), surah
+  download and play, Now playing with an ayah-progress ring and crown volume, the whole ayah text,
+  and speed / repeat / sleep options. The phone's reader can send a surah download to the watch.
+- **Wear OS tile** — continue listening, or see the ayah and pause, one swipe from the watch face.
+
+The look is QIt's own "mushaf" palette — warm paper, ink, deep green and gold, with the rub el
+hizb (octagram) around surah and ayah numbers — on both phone and watch, from one set of design
+tokens (`:core:designsystem`).
 
 ## Audio sources
 
@@ -77,14 +96,16 @@ python3 -m unittest scripts/test_build_quran_text.py -v
 
 | Module | Kind | What's in it |
 | --- | --- | --- |
-| `:core:domain` | pure Kotlin/JVM | Models (`QuranMeta`, `Surah`, `Ayah`, `Track`, `RecitationMode`), pure logic (`QuranAudioUrls`, `QueuePlan`, `DownloadAggregation`) and the ports (`QuranText`, `QuranSettings`, `SurahDownloads`, `QuranPlayer`) |
+| `:core:domain` | pure Kotlin/JVM | Models (`QuranMeta` with juz boundaries, `Surah`, `Ayah`, `Track`, `RecitationMode`, `ReadingPrefs`, `AyahRefParser`), pure logic (`QuranAudioUrls`, `QueuePlan`, `DownloadAggregation`, `RepeatPolicy`, `SleepTimer`) and the ports (`QuranText`, `QuranSettings`, `SurahDownloads`, `QuranPlayer`) |
 | `:core:data` | Android library | Adapters for the ports: `AssetQuranText`, `DataStoreQuranSettings`, `MediaSurahDownloads`, `ExoQuranPlayer`, plus `QuranCache`, `QuranDownloadService`, `QuranMediaItems` and the phone↔watch message types |
+| `:core:designsystem` | Android library (Compose UI only) | Design tokens shared by phone and watch: tonal palettes, semantic colors, spacing/radius/elevation/size/motion scales, Latin and Arabic type, the Amiri Quran font, `OctagramShape` |
 | `:core:testing` | pure Kotlin/JVM | Test fakes (`FakeQuranText`, `FakeSurahDownloads`, `FakeQuranSettings`, `FakeQuranPlayer`), sample data (`TestQuran`), `MainDispatcherRule` |
-| `:app` | Android application | Phone UI (Compose, Material 3): surah list, reader, player bar; Hilt DI; `QuranPlaybackService`; the watch link |
-| `:wear` | Android application (Wear OS) | Watch UI (Compose for Wear OS): home, surah, now playing; Hilt DI; playback + message services; Wi-Fi binding for downloads |
-| `:architecture-test` | pure Kotlin/JVM | Konsist rules that enforce the architecture (domain purity, presentation isolation, ViewModel shape) |
+| `:app` | Android application | Phone UI (Compose, Material 3): home, reader, mini/full player, reading settings; Hilt DI; `QuranPlaybackService`; the watch link |
+| `:wear` | Android application (Wear OS) | Watch UI (Compose for Wear OS, Material 3): hub, surah/juz lists, surah, now playing, options; the tile; Hilt DI; playback + message services; Wi-Fi binding for downloads |
+| `:architecture-test` | pure Kotlin/JVM | Konsist rules that enforce the architecture (domain purity, presentation isolation, ViewModel shape, design-token use, one Material per app) |
 
-Dependencies point inward: `:app` and `:wear` → `:core:data` → `:core:domain`. See
+Dependencies point inward: `:app` and `:wear` → `:core:data` → `:core:domain`; both apps also use
+`:core:designsystem`, which depends on nothing of ours. See
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Scripts
