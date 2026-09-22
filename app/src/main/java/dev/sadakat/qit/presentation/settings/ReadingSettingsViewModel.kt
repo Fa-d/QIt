@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.core.domain.model.ArabicTextSize
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.ThemeMode
+import dev.sadakat.qit.core.domain.model.WordByWord
 import dev.sadakat.qit.core.domain.repository.QuranSettings
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -34,6 +35,10 @@ class ReadingSettingsViewModel @Inject constructor(private val settings: QuranSe
 
     fun setFollowAlong(follow: Boolean) {
         updateReadingPrefs { it.copy(followAlong = follow) }
+    }
+
+    fun setWordByWord(language: WordByWord) {
+        updateReadingPrefs { it.copy(wordByWord = language) }
     }
 
     fun setThemeMode(mode: ThemeMode) {

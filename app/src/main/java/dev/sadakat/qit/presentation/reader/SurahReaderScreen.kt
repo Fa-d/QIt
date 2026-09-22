@@ -224,6 +224,7 @@ private fun ReaderContent(
                         pointer = pointer,
                         heardTimes = state.heard.getOrElse(ayah.number - 1) { 0 },
                         followWords = state.followAlong && follow.following,
+                        wordMeanings = state.wordMeanings[ayah.number],
                         onClick = {
                             // Reading where the recitation is: mirror it again from here.
                             follow.resume()

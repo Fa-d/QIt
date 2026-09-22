@@ -15,13 +15,16 @@ Few features, each one made for listening:
   tolerates spelling variation (Ikhlas/Ikhlaas, Yasin/Yaseen, undiacriticed Arabic).
 - **Reader** — Uthmani Arabic with Saheeh International (English) and Muhiuddin Khan (Bangla) text;
   tap an ayah to play from there. The reciting ayah is highlighted and followed on screen, with a
-  **word pointer**: the word Alafasy is reciting is lit, words behind in full ink, words ahead
-  quieter, and in long ayahs the recited line stays on screen. Scroll away to read elsewhere and a
-  "jump to reciting ayah" chip brings you back. Each heard ayah shows how often it was heard.
+  **word pointer**: the word Alafasy is reciting sits on a solid pill, words behind in full ink,
+  words ahead quieter, and in long ayahs the recited line stays on screen. **Word by word** (English
+  or Bangla, in the reading settings) lays each ayah out word by word with each word's meaning under
+  it, lit together with the word as it is recited. Scroll away to read elsewhere and a "jump to
+  reciting ayah" chip brings you back. Each heard ayah shows how often it was heard.
 - **Ayah-by-ayah recitation** — three modes: Arabic only, Arabic + English, Arabic + Bangla. Surahs
   open with the basmala; the position is saved so you can continue where you left off.
 - **Mini player and full player** — the mini player shows what plays and how far through the surah;
-  swipe it up for the full player: the ayah large with the word pointer and its translation, one
+  swipe it up for the full player: the ayah large with the word pointer (and, word by word, the
+  meaning of the word being recited) and its translation, one
   bar for the whole surah (time gone and left; drag anywhere, it names the ayah under the thumb),
   the transport with repeat and speed at its sides, and the recitation mode and sleep timer:
   - **Repeat for memorizing** — each ayah N times (or the current one forever), or a range of ayahs

@@ -9,11 +9,16 @@
     <string name="show_translation">Show translation</string>
     <string name="follow_along">Follow along</string>
     <string name="follow_along_supporting">Keep the reciting ayah on screen</string>
+    <string name="word_by_word">Word by word</string>
+    <string name="word_by_word_supporting">Each word\'s meaning under it, lit as it is recited</string>
+    <string name="word_by_word_off">Off</string>
+    <string name="word_by_word_english">English</string>
+    <string name="word_by_word_bangla">বাংলা</string>
     <string name="theme">Theme</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
     <string name="wallpaper_colors">Wallpaper colors</string>
     <string name="wallpaper_colors_supporting">Use your wallpaper\'s colors instead of QIt\'s</string>
-    <string name="word_timings_credit">Word timings: quran-align by Collin Fair, CC BY 4.0</string>
+    <string name="word_timings_credit">Word timings: quran-align by Collin Fair, CC BY 4.0. Word meanings: Quran.com</string>
 </resources>

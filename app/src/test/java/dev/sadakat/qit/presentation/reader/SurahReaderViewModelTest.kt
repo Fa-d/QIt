@@ -6,6 +6,7 @@ import dev.sadakat.qit.core.domain.model.AyahRef
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
+import dev.sadakat.qit.core.domain.model.WordByWord
 import dev.sadakat.qit.core.domain.player.NowPlaying
 import dev.sadakat.qit.core.domain.player.WordPointer
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState
@@ -14,6 +15,7 @@ import dev.sadakat.qit.core.testing.FakeQuranPlayer
 import dev.sadakat.qit.core.testing.FakeQuranSettings
 import dev.sadakat.qit.core.testing.FakeQuranText
 import dev.sadakat.qit.core.testing.FakeSurahDownloads
+import dev.sadakat.qit.core.testing.FakeWordMeanings
 import dev.sadakat.qit.core.testing.MainDispatcherRule
 import dev.sadakat.qit.presentation.awaitWhere
 import dev.sadakat.qit.watch.FakeWatchConnection
@@ -36,6 +38,7 @@ class SurahReaderViewModelTest {
     private val player = FakeQuranPlayer()
     private val watch = FakeWatchConnection()
     private val history = FakeListeningHistory()
+    private val wordMeanings = FakeWordMeanings(bySurah = mapOf(2 to mapOf(1 to listOf("alif lam mim"))))
 
     private fun viewModel(surah: Int = 2, ayah: Int = 0) = SurahReaderViewModel(
         SavedStateHandle(mapOf("surah" to surah, "ayah" to ayah)),
@@ -45,6 +48,7 @@ class SurahReaderViewModelTest {
         player,
         watch,
         history,
+        wordMeanings,
     )
 
     @Test
@@ -285,6 +289,22 @@ class SurahReaderViewModelTest {
             player.nowPlaying.value =
                 NowPlaying(3, 5, Track.ARABIC, RecitationMode.ARABIC_ONLY, isPlaying = true, isBuffering = false)
             assertEquals(WordPointer.Off, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `word meanings are loaded in the picked language only while word by word is on`() = runTest {
+        val viewModel = viewModel()
+        viewModel.uiState.test {
+            assertEquals(emptyMap<Int, List<String>>(), awaitWhere { it.surah != null }.wordMeanings)
+
+            settings.readingPrefs.value = ReadingPrefs(wordByWord = WordByWord.BANGLA)
+            assertEquals(listOf("alif lam mim"), awaitWhere { it.wordMeanings.isNotEmpty() }.wordMeanings[1])
+            assertEquals(2 to WordByWord.BANGLA, wordMeanings.requested.last())
+
+            settings.readingPrefs.value = ReadingPrefs(wordByWord = WordByWord.OFF)
+            assertTrue(awaitWhere { it.wordMeanings.isEmpty() }.wordMeanings.isEmpty())
             cancelAndIgnoreRemainingEvents()
         }
     }

@@ -18,14 +18,17 @@ import dev.sadakat.qit.core.domain.repository.QuranSettings
 import dev.sadakat.qit.core.domain.repository.QuranText
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState
 import dev.sadakat.qit.core.domain.repository.SurahDownloads
+import dev.sadakat.qit.core.domain.repository.WordMeanings
 import dev.sadakat.qit.core.domain.repository.stateOf
 import dev.sadakat.qit.watch.WatchConnection
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -56,8 +59,11 @@ data class SurahReaderUiState(
     val heard: List<Int> = emptyList(),
     /** How far this surah has been listened to; null while nothing of it has been heard. */
     val listening: SurahListening? = null,
+    /** Each word's meaning, by ayah, in the word-by-word language; empty while word by word is off. */
+    val wordMeanings: Map<Int, List<String>> = emptyMap(),
 )
 
+@OptIn(ExperimentalCoroutinesApi::class) // flatMapLatest: drop the meanings of a language switched away from.
 @HiltViewModel
 @Suppress("LongParameterList") // One surah brings its text, settings, audio, playback, watch and listening together.
 class SurahReaderViewModel @Inject constructor(
@@ -68,6 +74,7 @@ class SurahReaderViewModel @Inject constructor(
     private val player: QuranPlayer,
     private val watch: WatchConnection,
     history: ListeningHistory,
+    wordMeanings: WordMeanings,
 ) : ViewModel() {
 
     private val surahNumber: Int = savedStateHandle.get<Int>("surah") ?: 1
@@ -105,13 +112,23 @@ class SurahReaderViewModel @Inject constructor(
         )
     }
 
+    /** This surah's word meanings in the word-by-word language; empty while it is off or they fail to load. */
+    private val meanings = settings.readingPrefs
+        .map { it.wordByWord }
+        .distinctUntilChanged()
+        .flatMapLatest { language ->
+            flow { emit(wordMeanings.meanings(surahNumber, language)) }.catch { emit(emptyMap()) }
+        }
+
+    private data class Reading(val mode: RecitationMode, val prefs: ReadingPrefs, val meanings: Map<Int, List<String>>)
+
     val uiState: StateFlow<SurahReaderUiState> = combine(
         load,
-        combine(settings.mode, settings.readingPrefs) { mode, prefs -> mode to prefs },
+        combine(settings.mode, settings.readingPrefs, meanings, ::Reading),
         combine(downloads.states, heard) { states, heard -> states to heard },
         player.nowPlaying,
         message,
-    ) { load, (mode, prefs), (states, heard), nowPlaying, message ->
+    ) { load, (mode, prefs, meanings), (states, heard), nowPlaying, message ->
         SurahReaderUiState(
             surah = load.surah,
             ayahs = load.ayahs,
@@ -125,6 +142,7 @@ class SurahReaderViewModel @Inject constructor(
             message = message,
             heard = heard.perAyah,
             listening = heard.listening,
+            wordMeanings = meanings,
         )
     }.stateIn(
         viewModelScope,

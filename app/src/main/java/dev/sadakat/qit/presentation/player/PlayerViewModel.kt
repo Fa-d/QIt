@@ -19,6 +19,7 @@ import dev.sadakat.qit.core.domain.player.WordPointer
 import dev.sadakat.qit.core.domain.repository.AudioTimings
 import dev.sadakat.qit.core.domain.repository.QuranSettings
 import dev.sadakat.qit.core.domain.repository.QuranText
+import dev.sadakat.qit.core.domain.repository.WordMeanings
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -44,6 +45,8 @@ data class PlayerUiState(
     val ayahArabic: String? = null,
     /** Its translation in the playing mode, if the mode has one and translations are shown. */
     val ayahTranslation: String? = null,
+    /** The meaning of each of its words (the basmala's too) while word by word is on; else empty. */
+    val ayahMeanings: List<String> = emptyList(),
     val sleepTimer: SleepTimerStatus = SleepTimerStatus.Off,
     val error: String? = null,
     /**
@@ -66,6 +69,7 @@ class PlayerViewModel @Inject constructor(
     private val quranText: QuranText,
     private val settings: QuranSettings,
     private val timings: AudioTimings,
+    private val wordMeanings: WordMeanings,
 ) : ViewModel() {
 
     // The error the user dismissed; hidden until the player clears it (a retry) or reports another.
@@ -99,10 +103,28 @@ class PlayerViewModel @Inject constructor(
             }
         }
 
-    private data class Reading(val ayahs: List<Ayah>, val showTranslation: Boolean)
+    /** The playing surah's word meanings in the word-by-word language, loaded once per surah and language. */
+    private val surahMeanings = combine(
+        player.nowPlaying.map { it?.surah }.distinctUntilChanged(),
+        settings.readingPrefs.map { it.wordByWord }.distinctUntilChanged(),
+    ) { surah, language -> surah to language }
+        .flatMapLatest { (surah, language) ->
+            if (surah == null) {
+                flowOf(emptyMap())
+            } else {
+                flow { emit(wordMeanings.meanings(surah, language)) }.catch { emit(emptyMap()) }
+            }
+        }
 
-    private val reading =
-        combine(surahAyahs, settings.readingPrefs) { ayahs, prefs -> Reading(ayahs, prefs.showTranslation) }
+    private data class Reading(
+        val ayahs: List<Ayah>,
+        val showTranslation: Boolean,
+        val meanings: Map<Int, List<String>>,
+    )
+
+    private val reading = combine(surahAyahs, settings.readingPrefs, surahMeanings) { ayahs, prefs, meanings ->
+        Reading(ayahs, prefs.showTranslation, meanings)
+    }
 
     /** Where each ayah of the playing queue starts; empty while its files' lengths are unknown. */
     private val ayahStarts = player.nowPlaying
@@ -142,6 +164,7 @@ class PlayerViewModel @Inject constructor(
             ayahTranslation = nowPlaying?.mode?.translation
                 ?.takeIf { reading.showTranslation }
                 ?.let { track -> ayah?.translation(track) },
+            ayahMeanings = nowPlaying?.let { reading.meanings[it.ayah] }.orEmpty(),
             sleepTimer = status.sleepTimer,
             error = status.error?.takeIf { it != status.dismissed },
             ayahStartsMs = status.ayahStarts,
