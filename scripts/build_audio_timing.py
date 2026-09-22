@@ -6,8 +6,9 @@ Writes (compact UTF-8 JSON):
       per surah: [[ayah, [start0, end0, start1, end1, ...]], ...] - where each display word of the
       ayah's Arabic text is recited (ms) in the verse-by-verse Alafasy 128 kbps file.
   core/data/src/main/assets/quran/audio/durations.json
-      {"ar": [6236], "en": [6236], "bn": [6236], "bnIntro": [114]} - the length (ms) of every audio
-      file the app plays, by global ayah (bnIntro by surah; 0 for surahs 1 and 9, which have none).
+      {"verses": {"ar": [6236], "en": [6236], "bn": [6236], ...}, "intros": {"bn": [114]}} - the length
+      (ms) of every audio file the app plays, by track code: verses by global ayah, a track's own
+      basmala files by surah (0 for surahs 1 and 9, which have none).
 
 Word timings come from quran-align by Collin Fair (https://github.com/cpfair/quran-align), release
 2016-11-24, file Alafasy_128kbps.json, licensed CC BY 4.0. The islamic.network files the app plays
@@ -69,7 +70,10 @@ AUDIO_TRACKS = {
     "en": os.path.join("english", "saheeh-intl-walk-192k"),
     "bn": os.path.join("bangla", "bangla-translation-verses"),
 }
-BANGLA_INTRO = os.path.join("bangla", "bangla-translation-verses", "intro")
+# Tracks whose basmala is a file of its own per surah (the others reuse 1:1).
+INTRO_TRACKS = {
+    "bn": os.path.join("bangla", "bangla-translation-verses", "intro"),
+}
 
 
 def is_pause_mark(token):
@@ -224,18 +228,21 @@ def probe_ms(path):
 
 
 def measure_durations(audio_root):
+    """{"verses": {track code: [ms by global ayah - 1]}, "intros": {track code: [ms by surah - 1, 0 = none]}}."""
     jobs = {}
     for track, folder in AUDIO_TRACKS.items():
         for g in range(1, 6237):
             jobs[(track, g)] = os.path.join(audio_root, folder, f"{g:05d}.mp3")
-    for surah in range(1, 115):
-        if surah not in (1, 9):
-            jobs[("bnIntro", surah)] = os.path.join(audio_root, BANGLA_INTRO, f"{surah:03d}.mp3")
+    for track, folder in INTRO_TRACKS.items():
+        for surah in range(1, 115):
+            if surah not in (1, 9):
+                jobs[(track + "/intro", surah)] = os.path.join(audio_root, folder, f"{surah:03d}.mp3")
     with ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as pool:
         results = dict(zip(jobs, pool.map(probe_ms, jobs.values())))
-    durations = {track: [results[(track, g)] for g in range(1, 6237)] for track in AUDIO_TRACKS}
-    durations["bnIntro"] = [results.get(("bnIntro", s), 0) for s in range(1, 115)]
-    return durations
+    return {
+        "verses": {track: [results[(track, g)] for g in range(1, 6237)] for track in AUDIO_TRACKS},
+        "intros": {track: [results.get((track + "/intro", s), 0) for s in range(1, 115)] for track in INTRO_TRACKS},
+    }
 
 
 def main():
@@ -254,10 +261,10 @@ def main():
 
     print(f"Measuring audio durations under {args.audio} (ffprobe)…")
     durations = measure_durations(args.audio)
-    per_surah = build_timings(read_texts(), alignments, durations["ar"])
+    per_surah = build_timings(read_texts(), alignments, durations["verses"]["ar"])
     write_assets(ASSETS_DIR, per_surah, durations)
     words = sum(len(row[1]) // 2 for rows in per_surah for row in rows)
-    print(f"Wrote timings for {words} words and {sum(len(v) for v in durations.values())} durations "
+    print(f"Wrote timings for {words} words and {sum(len(v) for group in durations.values() for v in group.values())} durations "
           f"to {ASSETS_DIR}")
 
 

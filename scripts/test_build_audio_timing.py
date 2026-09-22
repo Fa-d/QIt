@@ -116,11 +116,12 @@ class WriteAssetsTest(unittest.TestCase):
     def test_writes_compact_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             per_surah = [[[1, [0, 10]]]] * 114
-            bat.write_assets(tmp, per_surah, {"ar": [1], "en": [2], "bn": [3], "bnIntro": [0]})
+            durations = {"verses": {"ar": [1], "en": [2], "bn": [3]}, "intros": {"bn": [0]}}
+            bat.write_assets(tmp, per_surah, durations)
             timing = sorted(os.listdir(os.path.join(tmp, "timing", "ar.alafasy")))
             self.assertEqual((len(timing), timing[0], timing[-1]), (114, "001.json", "114.json"))
             with open(os.path.join(tmp, "audio", "durations.json"), encoding="utf-8") as f:
-                self.assertEqual(f.read(), '{"ar":[1],"en":[2],"bn":[3],"bnIntro":[0]}')
+                self.assertEqual(f.read(), '{"verses":{"ar":[1],"en":[2],"bn":[3]},"intros":{"bn":[0]}}')
             with open(os.path.join(tmp, "timing", "ar.alafasy", "001.json"), encoding="utf-8") as f:
                 self.assertEqual(json.load(f), [[1, [0, 10]]])
 
