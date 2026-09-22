@@ -54,6 +54,15 @@ data class QItColors(
     val playingAyahHighlight: Color,
     /** Text on [playingAyahHighlight]. */
     val onPlayingAyahHighlight: Color,
+    /**
+     * The word being recited (the word pointer). Words already recited stay [arabicText]; words
+     * still to come are [upcomingWord], quieter but readable.
+     */
+    val currentWord: Color,
+    val upcomingWord: Color,
+    /** [currentWord] and [upcomingWord] on [playingAyahHighlight]. */
+    val currentWordOnHighlight: Color,
+    val upcomingWordOnHighlight: Color,
     /** Gold line work: the octagram around surah and ayah numbers, section rules. */
     val ornament: Color,
     /** The unfilled part of progress bars and rings; the filled part is [primary]. */
@@ -111,6 +120,10 @@ fun lightQItColors(): QItColors = QItColors(
     translationText = neutralVariant[30],
     playingAyahHighlight = tertiary[92],
     onPlayingAyahHighlight = tertiary[10],
+    currentWord = primary[30],
+    upcomingWord = neutral[40],
+    currentWordOnHighlight = primary[30],
+    upcomingWordOnHighlight = tertiary[40],
     ornament = tertiary[50],
     progressTrack = secondary[90],
     divider = neutralVariant[90],
@@ -158,6 +171,10 @@ fun darkQItColors(): QItColors = QItColors(
     translationText = neutralVariant[80],
     playingAyahHighlight = tertiary[20],
     onPlayingAyahHighlight = tertiary[90],
+    currentWord = primary[80],
+    upcomingWord = neutral[60],
+    currentWordOnHighlight = primary[90],
+    upcomingWordOnHighlight = tertiary[70],
     ornament = tertiary[70],
     progressTrack = secondary[30],
     divider = neutralVariant[20],

@@ -7,9 +7,11 @@ import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.player.NowPlaying
+import dev.sadakat.qit.core.domain.player.PlaybackProgress
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.player.RepeatSetting
 import dev.sadakat.qit.core.domain.player.SleepTimerStatus
+import dev.sadakat.qit.core.domain.player.WordPointer
 import dev.sadakat.qit.testing.snapshot
 import org.junit.Rule
 import org.junit.Test
@@ -51,12 +53,17 @@ class PlayerScreenshotTest {
 
     @Composable
     private fun Mini() {
-        MiniPlayer(state = state(), onExpand = {}, onTogglePlayPause = {}, onNext = {})
+        MiniPlayer(state = state(), progress = { PROGRESS }, onExpand = {}, onTogglePlayPause = {}, onNext = {})
     }
 
     @Composable
     private fun Full(state: PlayerUiState) {
-        NowPlayingContent(state = state, actions = NO_ACTIONS)
+        NowPlayingContent(
+            state = state,
+            actions = NO_ACTIONS,
+            pointer = WordPointer.Reciting(4),
+            progress = { PROGRESS },
+        )
     }
 
     private fun state(
@@ -83,6 +90,20 @@ class PlayerScreenshotTest {
     )
 
     private companion object {
-        val NO_ACTIONS = NowPlayingActions({}, {}, {}, {}, {}, {}, {}, {}, { _, _ -> }, {})
+        val NO_ACTIONS = NowPlayingActions(
+            onTogglePlayPause = {},
+            onPrevious = {},
+            onNext = {},
+            onSeek = {},
+            onModeChange = {},
+            onRepeatChange = {},
+            onSpeedChange = {},
+            onSleepTimerChange = {},
+            onOpenReader = { _, _ -> },
+            onStop = {},
+        )
+
+        /** 3:12 into Al-Kahf (Arabic + English, 17:17 in all). */
+        val PROGRESS = PlaybackProgress(itemPositionMs = 2_000, surahPositionMs = 192_000, surahDurationMs = 1_037_000)
     }
 }

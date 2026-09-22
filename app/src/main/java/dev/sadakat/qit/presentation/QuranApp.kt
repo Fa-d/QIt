@@ -39,6 +39,9 @@ import dev.sadakat.qit.presentation.settings.ReadingSettingsSheet
 fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = hiltViewModel()) {
     val navController = rememberNavController()
     val playerState by playerViewModel.uiState.collectAsStateWithLifecycle()
+    val pointer by playerViewModel.pointer.collectAsStateWithLifecycle()
+    // Read only inside lambdas, where it's drawn: the root doesn't recompose with every tick.
+    val progress = playerViewModel.progress.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showNowPlaying by rememberSaveable { mutableStateOf(false) }
     var showReadingSettings by rememberSaveable { mutableStateOf(false) }
@@ -65,6 +68,7 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
             ) {
                 MiniPlayer(
                     state = playerState,
+                    progress = { progress.value },
                     onExpand = { showNowPlaying = true },
                     onTogglePlayPause = playerViewModel::togglePlayPause,
                     onNext = playerViewModel::nextAyah,
@@ -96,7 +100,7 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
                 onTogglePlayPause = playerViewModel::togglePlayPause,
                 onPrevious = playerViewModel::previousAyah,
                 onNext = playerViewModel::nextAyah,
-                onSeekToAyah = playerViewModel::seekToAyah,
+                onSeek = playerViewModel::seekTo,
                 onModeChange = playerViewModel::setMode,
                 onRepeatChange = playerViewModel::setRepeat,
                 onSpeedChange = playerViewModel::setSpeed,
@@ -111,6 +115,8 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
                 },
             ),
             onDismiss = { showNowPlaying = false },
+            pointer = pointer,
+            progress = { progress.value },
         )
     }
     if (showReadingSettings) {

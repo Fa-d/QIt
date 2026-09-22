@@ -81,6 +81,9 @@ interface QuranPlayer {
      */
     val progress: Flow<PlaybackProgress>
 
+    /** The word being recited in the playing ayah; changes once per word. */
+    val pointer: Flow<WordPointer>
+
     /** Moves to [surahPositionMs] into the queued surah, as if it were one recording. */
     fun seekTo(surahPositionMs: Long)
 

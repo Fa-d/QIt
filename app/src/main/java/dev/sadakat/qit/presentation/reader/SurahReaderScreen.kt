@@ -40,6 +40,7 @@ import dev.sadakat.qit.core.designsystem.QItTheme
 import dev.sadakat.qit.core.designsystem.component.ReaderTokens
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Surah
+import dev.sadakat.qit.core.domain.player.WordPointer
 import kotlinx.coroutines.delay
 
 /** Connects [SurahReaderScreen] to its [SurahReaderViewModel]. */
@@ -51,8 +52,10 @@ fun SurahReaderRoute(
     viewModel: SurahReaderViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val pointer by viewModel.pointer.collectAsStateWithLifecycle()
     SurahReaderScreen(
         state = state,
+        pointer = pointer,
         onBack = onBack,
         onOpenReadingSettings = onOpenReadingSettings,
         onAyahClick = viewModel::playAyah,
@@ -71,6 +74,7 @@ fun SurahReaderRoute(
 @Composable
 fun SurahReaderScreen(
     state: SurahReaderUiState,
+    pointer: WordPointer,
     onBack: () -> Unit,
     onOpenReadingSettings: () -> Unit,
     onAyahClick: (Int) -> Unit,
@@ -136,6 +140,7 @@ fun SurahReaderScreen(
 
                 else -> ReaderContent(
                     state = state,
+                    pointer = pointer,
                     onAyahClick = onAyahClick,
                     onPlaySurah = onPlaySurah,
                     onModeChange = onModeChange,
@@ -151,6 +156,7 @@ fun SurahReaderScreen(
 @Composable
 private fun ReaderContent(
     state: SurahReaderUiState,
+    pointer: WordPointer,
     onAyahClick: (Int) -> Unit,
     onPlaySurah: () -> Unit,
     onModeChange: (RecitationMode) -> Unit,
@@ -197,6 +203,7 @@ private fun ReaderContent(
                         mode = state.mode,
                         onPlaySurah = onPlaySurah,
                         onModeChange = onModeChange,
+                        listening = state.listening,
                         modifier = Modifier.widthIn(max = ReaderTokens.MaxReadingWidth),
                     )
                 }
@@ -214,6 +221,9 @@ private fun ReaderContent(
                         translationTrack = state.mode.translation.takeIf { state.showTranslation },
                         isPlaying = state.playingAyah == ayah.number,
                         pulsed = pulsedAyah == ayah.number,
+                        pointer = pointer,
+                        heardTimes = state.heard.getOrElse(ayah.number - 1) { 0 },
+                        followWords = state.followAlong && follow.following,
                         onClick = {
                             // Reading where the recitation is: mirror it again from here.
                             follow.resume()

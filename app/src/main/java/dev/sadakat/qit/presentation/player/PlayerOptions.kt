@@ -46,83 +46,18 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-/** Repeat, speed and sleep timer: three chips showing their current value, each opening its choices. */
+/** The sleep timer: the time left while it runs; its menu starts or stops it. */
 @Composable
-fun PlayerOptions(
-    nowPlaying: NowPlaying,
-    sleepTimer: SleepTimerStatus,
-    onRepeatChange: (RepeatSetting) -> Unit,
-    onSpeedChange: (PlaybackSpeed) -> Unit,
-    onSleepTimerChange: (SleepOption?) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var repeatDialogOpen by rememberSaveable { mutableStateOf(false) }
-    // A flow row: with large text the chips move to a second line instead of wrapping their labels.
-    FlowRow(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(QItTheme.spacing.sm, Alignment.CenterHorizontally),
-    ) {
-        FilterChip(
-            selected = nowPlaying.repeat != RepeatSetting.Off,
-            onClick = { repeatDialogOpen = true },
-            label = { Text(repeatLabel(nowPlaying.repeat), maxLines = 1) },
-            leadingIcon = { Icon(Icons.Rounded.Repeat, contentDescription = null) },
-            modifier = Modifier.testTag("chip_repeat"),
-        )
-        SpeedChip(nowPlaying.speed, onSpeedChange)
-        SleepChip(sleepTimer, onSleepTimerChange)
-    }
-    if (repeatDialogOpen) {
-        RepeatDialog(
-            current = nowPlaying.repeat,
-            ayah = max(nowPlaying.ayah, 1),
-            ayahCount = nowPlaying.ayahCount,
-            onConfirm = {
-                repeatDialogOpen = false
-                onRepeatChange(it)
-            },
-            onDismiss = { repeatDialogOpen = false },
-        )
-    }
-}
-
-@Composable
-private fun SpeedChip(speed: PlaybackSpeed, onSpeedChange: (PlaybackSpeed) -> Unit) {
-    var open by remember { mutableStateOf(false) }
-    Box {
-        FilterChip(
-            selected = speed != PlaybackSpeed.X1,
-            onClick = { open = true },
-            label = { Text(stringResource(R.string.player_speed, speedFactor(speed)), maxLines = 1) },
-            leadingIcon = { Icon(Icons.Rounded.Speed, contentDescription = null) },
-            modifier = Modifier.testTag("chip_speed"),
-        )
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            PlaybackSpeed.entries.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.player_speed, speedFactor(option))) },
-                    trailingIcon = { if (option == speed) Icon(Icons.Rounded.Check, contentDescription = null) },
-                    onClick = {
-                        open = false
-                        onSpeedChange(option)
-                    },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SleepChip(status: SleepTimerStatus, onChange: (SleepOption?) -> Unit) {
+fun SleepChip(status: SleepTimerStatus, onChange: (SleepOption?) -> Unit, modifier: Modifier = Modifier) {
     var open by remember { mutableStateOf(false) }
     val active = status != SleepTimerStatus.Off
-    Box {
+    Box(modifier) {
         FilterChip(
             selected = active,
             onClick = { open = true },
             label = { Text(sleepLabel(status) ?: stringResource(R.string.player_sleep), maxLines = 1) },
             leadingIcon = { Icon(Icons.Rounded.Bedtime, contentDescription = null) },
-            modifier = Modifier.testTag("chip_sleep"),
+            modifier = Modifier.testTag("player_sleep"),
         )
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             SLEEP_MINUTES.forEach { minutes ->

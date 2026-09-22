@@ -5,8 +5,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
@@ -19,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -31,11 +34,14 @@ import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Revelation
 import dev.sadakat.qit.core.domain.model.Surah
+import dev.sadakat.qit.core.domain.model.SurahListening
 import dev.sadakat.qit.presentation.components.NumberBadge
+import kotlin.math.roundToInt
 
 /**
- * The reader's first item: the surah's identity (number, Arabic and English names), the basmala,
- * the labelled recitation-mode selector and the play action — everything one needs before the ayahs.
+ * The reader's first item: the surah's identity (number, Arabic and English names), how far it has
+ * been listened to, the basmala, the labelled recitation-mode selector and the play action —
+ * everything one needs before the ayahs.
  */
 @Composable
 fun ReaderHeader(
@@ -44,6 +50,7 @@ fun ReaderHeader(
     onPlaySurah: () -> Unit,
     onModeChange: (RecitationMode) -> Unit,
     modifier: Modifier = Modifier,
+    listening: SurahListening? = null,
 ) {
     Column(
         modifier = modifier
@@ -89,6 +96,7 @@ fun ReaderHeader(
                 color = QItTheme.colors.arabicText,
             )
         }
+        listening?.let { ListeningLine(it, Modifier.padding(top = QItTheme.spacing.md)) }
         if (QuranMeta.hasBasmalaPrefix(surah.number)) {
             Text(
                 text = stringResource(R.string.basmala),
@@ -125,6 +133,39 @@ fun ReaderHeader(
         )
     }
 }
+
+/** "Heard in full 2× · 64% into the next round", or "23 of 110 ayahs heard" before the first round. */
+@Composable
+private fun ListeningLine(listening: SurahListening, modifier: Modifier = Modifier) {
+    val text = when {
+        listening.rounds == 0 -> stringResource(R.string.reader_heard_ayahs, listening.ayahsHeard, listening.ayahCount)
+
+        listening.ayahsIntoNextRound == 0 -> stringResource(R.string.reader_heard_rounds, listening.rounds)
+
+        else -> stringResource(
+            R.string.reader_heard_rounds_next,
+            listening.rounds,
+            (listening.nextRoundProgress * PERCENT).roundToInt(),
+        )
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("reader_listening"),
+    ) {
+        Icon(
+            Icons.Rounded.Headphones,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(QItTheme.sizes.iconSmall),
+        )
+        Spacer(Modifier.width(QItTheme.spacing.sm))
+        Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+private const val PERCENT = 100
 
 /** The labelled recitation-mode selector: Arabic, with or without a translation after it. */
 @Composable

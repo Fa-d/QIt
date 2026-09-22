@@ -15,9 +15,11 @@ import androidx.media3.test.utils.TestExoPlayerBuilder
 import androidx.media3.test.utils.robolectric.RobolectricUtil.runMainLooperUntil
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import dev.sadakat.qit.core.domain.audio.WordTimings
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.player.PlaybackProgress
 import dev.sadakat.qit.core.domain.player.RepeatSetting
+import dev.sadakat.qit.core.domain.player.WordPointer
 import dev.sadakat.qit.core.testing.FakeAudioTimings
 import dev.sadakat.qit.core.testing.FakeListeningHistory
 import dev.sadakat.qit.core.testing.FakeQuranSettings
@@ -171,6 +173,18 @@ class ExoQuranPlayerListeningTest {
 
         runMainLooperUntil { latest?.itemPositionMs == 250L }
         assertEquals(PlaybackProgress(250, 3 * ITEM_MS + 250, 5 * ITEM_MS), latest)
+        collecting.cancel()
+    }
+
+    @Test
+    fun `the pointer follows the recited word`() {
+        timings.words = mapOf(112 to mapOf(3 to WordTimings(intArrayOf(0, 400, 400, 1_200, 1_200, 2_000))))
+        startPaused(fromAyah = 3)
+        exoPlayer.seekTo(3, 500)
+        var latest: WordPointer? = null
+        val collecting = CoroutineScope(Dispatchers.Main).launch { player.pointer.collect { latest = it } }
+
+        runMainLooperUntil { latest == WordPointer.Reciting(1) }
         collecting.cancel()
     }
 

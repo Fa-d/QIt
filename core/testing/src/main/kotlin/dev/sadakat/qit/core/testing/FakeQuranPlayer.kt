@@ -9,6 +9,7 @@ import dev.sadakat.qit.core.domain.player.QuranPlayer
 import dev.sadakat.qit.core.domain.player.RepeatSetting
 import dev.sadakat.qit.core.domain.player.SleepOption
 import dev.sadakat.qit.core.domain.player.SleepTimerStatus
+import dev.sadakat.qit.core.domain.player.WordPointer
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
@@ -25,6 +26,7 @@ class FakeQuranPlayer : QuranPlayer {
     override val error = MutableStateFlow<String?>(null)
     override val sleepTimer = MutableStateFlow<SleepTimerStatus>(SleepTimerStatus.Off)
     override val progress = MutableStateFlow(PlaybackProgress.START)
+    override val pointer = MutableStateFlow<WordPointer>(WordPointer.Off)
 
     val playCalls = mutableListOf<PlayCall>()
     val seekCalls = mutableListOf<Long>()

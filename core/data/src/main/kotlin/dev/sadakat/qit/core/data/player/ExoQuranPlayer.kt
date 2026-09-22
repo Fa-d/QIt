@@ -31,6 +31,7 @@ import dev.sadakat.qit.core.domain.player.RepeatStep
 import dev.sadakat.qit.core.domain.player.SleepOption
 import dev.sadakat.qit.core.domain.player.SleepTimer
 import dev.sadakat.qit.core.domain.player.SleepTimerStatus
+import dev.sadakat.qit.core.domain.player.WordPointer
 import dev.sadakat.qit.core.domain.repository.AudioTimings
 import dev.sadakat.qit.core.domain.repository.LastPosition
 import dev.sadakat.qit.core.domain.repository.ListeningHistory
@@ -45,11 +46,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
@@ -72,7 +77,8 @@ import kotlin.math.max
  * to [history] by a [ListeningRecorder].
  */
 // pauseAtEndOfMediaItems and ForwardingPlayer are marked unstable, but have been stable in practice since Media3 1.0.
-@OptIn(UnstableApi::class, ExperimentalCoroutinesApi::class) // flatMapLatest: a position change restarts the ticker.
+// flatMapLatest: a position change restarts the ticker; mapLatest: a new surah drops a stale lookup.
+@OptIn(UnstableApi::class, ExperimentalCoroutinesApi::class)
 @Suppress("LongParameterList") // Its collaborators, all injected: splitting them up would only hide that.
 class ExoQuranPlayer(
     private val context: Context,
@@ -134,6 +140,16 @@ class ExoQuranPlayer(
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Main)
+
+    /** The playing surah's word timings, loaded once per surah. */
+    private val surahWords = _nowPlaying
+        .map { it?.surah }
+        .distinctUntilChanged()
+        .mapLatest { surah -> surah?.let { timings.wordTimings(it) }.orEmpty() }
+        .catch { emit(emptyMap()) }
+
+    override val pointer: Flow<WordPointer> =
+        combine(_nowPlaying, progress, surahWords, WordPointer::of).distinctUntilChanged()
 
     /** The player to hand to the MediaSession: next/previous from the notification move by ayah, not by item. */
     val sessionPlayer: Player
