@@ -1,4 +1,3 @@
-// kit-migration: pending (still builds Material containers itself; move it onto the :core:ui kit)
 package dev.sadakat.qit.presentation.player
 
 import androidx.compose.foundation.layout.Arrangement
@@ -47,6 +46,7 @@ import dev.sadakat.qit.core.domain.player.NowPlaying
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.player.RepeatSetting
 import dev.sadakat.qit.core.domain.player.SleepTimerStatus
+import dev.sadakat.qit.core.ui.kit.QItMenu
 import kotlin.math.max
 
 /**
@@ -185,7 +185,7 @@ private fun SpeedButton(speed: PlaybackSpeed, onSpeedChange: (PlaybackSpeed) -> 
                 },
             )
         }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        QItMenu(expanded = open, onDismissRequest = { open = false }) {
             PlaybackSpeed.entries.forEach { option ->
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.player_speed, speedFactor(option))) },
@@ -231,7 +231,7 @@ private fun ModeChip(mode: RecitationMode, onModeChange: (RecitationMode) -> Uni
                 .testTag("player_mode")
                 .semantics { contentDescription = description },
         )
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        QItMenu(expanded = open, onDismissRequest = { open = false }) {
             RecitationMode.entries.forEach { option ->
                 DropdownMenuItem(
                     text = { Text(modeName(option)) },

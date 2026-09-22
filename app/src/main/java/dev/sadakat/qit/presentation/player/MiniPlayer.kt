@@ -1,4 +1,3 @@
-// kit-migration: pending (still builds Material containers itself; move it onto the :core:ui kit)
 package dev.sadakat.qit.presentation.player
 
 import androidx.compose.foundation.clickable
@@ -8,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -38,6 +38,7 @@ import dev.sadakat.qit.R
 import dev.sadakat.qit.core.designsystem.QItTheme
 import dev.sadakat.qit.core.designsystem.component.PlayerTokens
 import dev.sadakat.qit.core.domain.player.PlaybackProgress
+import dev.sadakat.qit.core.ui.kit.QItBottomBar
 import dev.sadakat.qit.presentation.components.NumberBadge
 import dev.sadakat.qit.presentation.components.ayahTitleText
 import dev.sadakat.qit.presentation.components.bismillahTitleText
@@ -68,12 +69,8 @@ fun MiniPlayer(
     val subtitle = listOfNotNull(position, sleepLabel(state.sleepTimer)).joinToString(" · ")
     val swipeUpPx = with(LocalDensity.current) { QItTheme.spacing.xxl.toPx() }
 
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        // The surface runs behind the navigation bar (edge to edge); the controls stay above it.
-        Column(Modifier.navigationBarsPadding()) {
+    QItBottomBar(modifier = modifier) {
+        Column {
             LinearProgressIndicator(
                 // The surah's time once its length is known, else how many ayahs are behind.
                 progress = {
@@ -90,7 +87,8 @@ fun MiniPlayer(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(PlayerTokens.MiniPlayerHeight)
+                    // At least the bar's height; taller when large text needs the room.
+                    .heightIn(min = PlayerTokens.MiniPlayerHeight)
                     .clickable(onClickLabel = stringResource(R.string.player_cd_open), onClick = onExpand)
                     .pointerInput(onExpand) {
                         var dragged = 0f

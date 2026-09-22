@@ -1,4 +1,3 @@
-// kit-migration: pending (still builds Material containers itself; move it onto the :core:ui kit)
 package dev.sadakat.qit.presentation.player
 
 import androidx.compose.animation.AnimatedContent
@@ -52,7 +51,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.style.TextAlign
@@ -64,13 +65,15 @@ import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.player.NowPlaying
 import dev.sadakat.qit.core.domain.player.PlaybackProgress
 import dev.sadakat.qit.core.domain.player.WordPointer
+import dev.sadakat.qit.core.ui.kit.QItMenu
+import dev.sadakat.qit.core.ui.kit.QItSheet
+import dev.sadakat.qit.core.ui.kit.rememberQItSheetState
 import dev.sadakat.qit.presentation.components.RecitedArabicText
 import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.roundToInt
 
 /** The full player, slid up over the app from the mini player. */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NowPlayingSheet(
     state: PlayerUiState,
@@ -80,11 +83,11 @@ fun NowPlayingSheet(
     pointer: WordPointer = WordPointer.Off,
     progress: () -> PlaybackProgress = { PlaybackProgress.START },
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberQItSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
-    ModalBottomSheet(
+    QItSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
+        state = sheetState,
         containerColor = MaterialTheme.colorScheme.surface,
         // The sheet is its own window: expose its test tags as resource ids too (baseline profile).
         modifier = modifier.semantics { testTagsAsResourceId = true },
@@ -171,13 +174,15 @@ private fun Header(state: PlayerUiState, nowPlaying: NowPlaying, actions: NowPla
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                // Announced as the recitation moves on, without interrupting what's being read out.
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
         Box {
             IconButton(onClick = { menuOpen = true }) {
                 Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.player_cd_more))
             }
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            QItMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.player_open_in_reader)) },
                     leadingIcon = { Icon(Icons.AutoMirrored.Rounded.MenuBook, contentDescription = null) },
