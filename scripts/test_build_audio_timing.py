@@ -112,12 +112,18 @@ class BuildTimingsTest(unittest.TestCase):
         self.assertEqual(per_surah[1][254], [255, [0, 100, 100, 250]])
 
 
+class ProbeTest(unittest.TestCase):
+    def test_a_missing_file_is_zero_ms(self):
+        # A verse that shares its translation's file with the next verse has none of its own.
+        self.assertEqual(bat.probe_ms("/nonexistent/00001.mp3"), 0)
+
+
 class WriteAssetsTest(unittest.TestCase):
     def test_writes_compact_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             per_surah = [[[1, [0, 10]]]] * 114
             durations = {"verses": {"ar": [1], "en": [2], "bn": [3]}, "intros": {"bn": [0]}}
-            bat.write_assets(tmp, per_surah, durations)
+            bat.write_assets(tmp, {"ar.alafasy": per_surah}, durations)
             timing = sorted(os.listdir(os.path.join(tmp, "timing", "ar.alafasy")))
             self.assertEqual((len(timing), timing[0], timing[-1]), (114, "001.json", "114.json"))
             with open(os.path.join(tmp, "audio", "durations.json"), encoding="utf-8") as f:
