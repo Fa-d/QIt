@@ -1,39 +1,33 @@
 package dev.sadakat.qit.presentation.settings
 
-import android.os.Build
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ListItem
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sadakat.qit.R
@@ -42,57 +36,60 @@ import dev.sadakat.qit.core.domain.model.ArabicTextSize
 import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.ThemeMode
 import dev.sadakat.qit.core.domain.model.WordByWord
+import dev.sadakat.qit.core.ui.kit.QItRadioRow
+import dev.sadakat.qit.core.ui.kit.QItSegmentedToggle
+import dev.sadakat.qit.core.ui.kit.QItSheet
+import dev.sadakat.qit.core.ui.kit.QItSwitchRow
 import kotlin.math.roundToInt
 
 /**
- * The reading-comfort sheet (Arabic size, translation, follow-along, Bangla voice, word by word,
- * theme), opened from the home screen and the reader. Contract for the screens that host it.
+ * The reading-comfort sheet (Arabic size, translation, follow-along, the Bangla voice, word by word,
+ * the page tone),
+ * opened from the home screen and the reader. The rest of the look (the style, wallpaper colors)
+ * lives in Appearance, one tap away.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReadingSettingsSheet(
     onDismiss: () -> Unit,
+    onOpenAppearance: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ReadingSettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    ModalBottomSheet(onDismissRequest = onDismiss, modifier = modifier) {
+    QItSheet(onDismissRequest = onDismiss, modifier = modifier) {
         ReadingSettingsContent(
             state = state,
-            // Wallpaper colors exist only where Material You does.
-            showDynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
             onArabicTextSizeChange = viewModel::setArabicTextSize,
             onShowTranslationChange = viewModel::setShowTranslation,
             onFollowAlongChange = viewModel::setFollowAlong,
             onBanglaVoiceChange = viewModel::setBanglaVoice,
             onWordByWordChange = viewModel::setWordByWord,
             onThemeModeChange = viewModel::setThemeMode,
-            onDynamicColorChange = viewModel::setDynamicColor,
+            onOpenAppearance = onOpenAppearance,
         )
     }
 }
 
 /**
  * The sheet's stateless content: the Arabic text size with a live preview, the translation and
- * follow-along switches, the Bangla voice, the word-by-word language, the theme and (where
- * supported) wallpaper colors. Kept separate from the sheet so tests and goldens render it
- * without a window.
+ * follow-along switches, the Bangla voice, the word-by-word language, the page tone, and the way to
+ * Appearance. Kept
+ * separate from the sheet so tests and goldens render it without a window.
  */
 @Composable
 fun ReadingSettingsContent(
     state: ReadingSettingsUiState,
-    showDynamicColor: Boolean,
     onArabicTextSizeChange: (ArabicTextSize) -> Unit,
     onShowTranslationChange: (Boolean) -> Unit,
     onFollowAlongChange: (Boolean) -> Unit,
     onBanglaVoiceChange: (BanglaVoice) -> Unit,
     onWordByWordChange: (WordByWord) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
-    onDynamicColorChange: (Boolean) -> Unit,
+    onOpenAppearance: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val prefs = state.prefs
-    val arabicSizeLabel = stringResource(R.string.arabic_text_size)
+    val gutter = QItTheme.spacing.screenGutter
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -102,49 +99,12 @@ fun ReadingSettingsContent(
             text = stringResource(R.string.reading_settings_title),
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier
-                .padding(
-                    top = QItTheme.spacing.sm,
-                    bottom = QItTheme.spacing.sm,
-                    start = QItTheme.spacing.screenGutter,
-                    end = QItTheme.spacing.screenGutter,
-                )
+                .padding(top = QItTheme.spacing.sm, bottom = QItTheme.spacing.sm, start = gutter, end = gutter)
                 .semantics { heading() },
         )
 
         SectionLabel(textRes = R.string.arabic_text_size)
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(
-                    start = QItTheme.spacing.screenGutter,
-                    end = QItTheme.spacing.screenGutter,
-                ),
-        ) {
-            Text(
-                text = stringResource(R.string.arabic_size_small),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Slider(
-                value = prefs.arabicTextSize.ordinal.toFloat(),
-                onValueChange = { value ->
-                    onArabicTextSizeChange(ArabicTextSize.entries[value.roundToInt()])
-                },
-                valueRange = 0f..ArabicTextSize.entries.lastIndex.toFloat(),
-                // Five positions, so three steps between them.
-                steps = ArabicTextSize.entries.size - SLIDER_ENDS,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = QItTheme.spacing.sm)
-                    .semantics { contentDescription = arabicSizeLabel },
-            )
-            Text(
-                text = stringResource(R.string.arabic_size_large),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        ArabicSizeSlider(size = prefs.arabicTextSize, onChange = onArabicTextSizeChange)
         // The preview rescales live: the theme applies the very pref this slider writes.
         Text(
             text = stringResource(R.string.arabic_size_preview),
@@ -153,20 +113,15 @@ fun ReadingSettingsContent(
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(
-                    top = QItTheme.spacing.sm,
-                    bottom = QItTheme.spacing.md,
-                    start = QItTheme.spacing.screenGutter,
-                    end = QItTheme.spacing.screenGutter,
-                ),
+                .padding(top = QItTheme.spacing.sm, bottom = QItTheme.spacing.md, start = gutter, end = gutter),
         )
 
-        SettingSwitchRow(
+        QItSwitchRow(
             title = stringResource(R.string.show_translation),
             checked = prefs.showTranslation,
             onCheckedChange = onShowTranslationChange,
         )
-        SettingSwitchRow(
+        QItSwitchRow(
             title = stringResource(R.string.follow_along),
             supporting = stringResource(R.string.follow_along_supporting),
             checked = prefs.followAlong,
@@ -174,13 +129,15 @@ fun ReadingSettingsContent(
         )
 
         SectionLabel(textRes = R.string.bangla_voice)
-        BanglaVoice.entries.forEach { voice ->
-            SettingRadioRow(
-                title = stringResource(voice.titleRes()),
-                supporting = stringResource(voice.supportingRes()),
-                selected = voice == state.voice,
-                onSelect = { onBanglaVoiceChange(voice) },
-            )
+        Column(Modifier.selectableGroup()) {
+            BanglaVoice.entries.forEach { voice ->
+                QItRadioRow(
+                    title = stringResource(voice.titleRes()),
+                    supporting = stringResource(voice.supportingRes()),
+                    selected = voice == state.voice,
+                    onSelect = { onBanglaVoiceChange(voice) },
+                )
+            }
         }
 
         SectionLabel(textRes = R.string.word_by_word)
@@ -188,47 +145,84 @@ fun ReadingSettingsContent(
             text = stringResource(R.string.word_by_word_supporting),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(
-                bottom = QItTheme.spacing.sm,
-                start = QItTheme.spacing.screenGutter,
-                end = QItTheme.spacing.screenGutter,
-            ),
+            modifier = Modifier.padding(bottom = QItTheme.spacing.sm, start = gutter, end = gutter),
         )
-        ChoiceRow(
+        QItSegmentedToggle(
             options = WordByWord.entries,
             selected = prefs.wordByWord,
-            label = { it.labelRes() },
             onSelect = onWordByWordChange,
+            label = { stringResource(it.labelRes()) },
+            modifier = Modifier.padding(horizontal = gutter),
         )
 
-        SectionLabel(textRes = R.string.theme)
-        ChoiceRow(
+        SectionLabel(textRes = R.string.appearance_page)
+        QItSegmentedToggle(
             options = ThemeMode.entries,
             selected = prefs.themeMode,
-            label = { it.labelRes() },
             onSelect = onThemeModeChange,
+            label = { stringResource(it.labelRes()) },
+            modifier = Modifier.padding(horizontal = gutter),
         )
-
-        if (showDynamicColor) {
-            SettingSwitchRow(
-                title = stringResource(R.string.wallpaper_colors),
-                supporting = stringResource(R.string.wallpaper_colors_supporting),
-                checked = prefs.dynamicColor,
-                onCheckedChange = onDynamicColorChange,
-            )
+        TextButton(
+            onClick = onOpenAppearance,
+            modifier = Modifier.padding(start = QItTheme.spacing.sm, top = QItTheme.spacing.xs),
+        ) {
+            Icon(Icons.Rounded.Palette, contentDescription = null, modifier = Modifier.size(QItTheme.sizes.iconSmall))
+            Spacer(Modifier.size(QItTheme.spacing.sm))
+            Text(stringResource(R.string.appearance_more))
         }
+
         // The word pointer's timings are CC BY: credit them where the reading is set up.
         Text(
             text = stringResource(R.string.word_timings_credit),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(
-                top = QItTheme.spacing.lg,
-                start = QItTheme.spacing.screenGutter,
-                end = QItTheme.spacing.screenGutter,
-            ),
+            modifier = Modifier.padding(top = QItTheme.spacing.md, start = gutter, end = gutter),
         )
         Spacer(Modifier.height(QItTheme.spacing.xl))
+    }
+}
+
+/**
+ * Five sizes between a small and a large "A". A screen reader hears the slider as "Arabic text
+ * size, Large": the size's name, not a position; the two A's are only a picture of the scale.
+ */
+@Composable
+private fun ArabicSizeSlider(size: ArabicTextSize, onChange: (ArabicTextSize) -> Unit) {
+    val label = stringResource(R.string.arabic_text_size)
+    val sizeName = stringResource(size.labelRes())
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = QItTheme.spacing.screenGutter),
+    ) {
+        Text(
+            text = stringResource(R.string.arabic_size_small),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.clearAndSetSemantics {},
+        )
+        Slider(
+            value = size.ordinal.toFloat(),
+            onValueChange = { value -> onChange(ArabicTextSize.entries[value.roundToInt()]) },
+            valueRange = 0f..ArabicTextSize.entries.lastIndex.toFloat(),
+            // Five positions, so three steps between them.
+            steps = ArabicTextSize.entries.size - SLIDER_ENDS,
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = QItTheme.spacing.sm)
+                .semantics {
+                    contentDescription = label
+                    stateDescription = sizeName
+                },
+        )
+        Text(
+            text = stringResource(R.string.arabic_size_large),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.clearAndSetSemantics {},
+        )
     }
 }
 
@@ -246,89 +240,6 @@ private fun SectionLabel(textRes: Int) {
                 end = QItTheme.spacing.screenGutter,
             )
             .semantics { heading() },
-    )
-}
-
-/** One choice among a few [options], as a row of segmented buttons labelled by [label]'s string. */
-@Composable
-private fun <T> ChoiceRow(options: List<T>, selected: T, label: (T) -> Int, onSelect: (T) -> Unit) {
-    SingleChoiceSegmentedButtonRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(
-                start = QItTheme.spacing.screenGutter,
-                end = QItTheme.spacing.screenGutter,
-            ),
-    ) {
-        options.forEachIndexed { index, option ->
-            SegmentedButton(
-                selected = option == selected,
-                onClick = { onSelect(option) },
-                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                label = {
-                    Text(
-                        text = stringResource(label(option)),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-            )
-        }
-    }
-}
-
-/** A settings row that reads as one switch: the whole row toggles, the switch only shows state. */
-@Composable
-private fun SettingSwitchRow(
-    title: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    supporting: String? = null,
-) {
-    ListItem(
-        headlineContent = { Text(text = title) },
-        supportingContent = supporting?.let { text ->
-            {
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        },
-        trailingContent = { Switch(checked = checked, onCheckedChange = null) },
-        modifier = Modifier
-            .heightIn(min = QItTheme.sizes.touchTarget)
-            .toggleable(
-                value = checked,
-                role = Role.Switch,
-                onValueChange = onCheckedChange,
-            ),
-    )
-}
-
-/** A settings row that reads as one radio choice, as [SettingSwitchRow] reads as one switch. */
-@Composable
-private fun SettingRadioRow(title: String, selected: Boolean, onSelect: () -> Unit, supporting: String? = null) {
-    ListItem(
-        headlineContent = { Text(text = title) },
-        supportingContent = supporting?.let { text ->
-            {
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        },
-        trailingContent = { RadioButton(selected = selected, onClick = null) },
-        modifier = Modifier
-            .heightIn(min = QItTheme.sizes.touchTarget)
-            .selectable(
-                selected = selected,
-                role = Role.RadioButton,
-                onClick = onSelect,
-            ),
     )
 }
 
@@ -350,10 +261,12 @@ private fun WordByWord.labelRes(): Int = when (this) {
     WordByWord.BANGLA -> R.string.word_by_word_bangla
 }
 
-private fun ThemeMode.labelRes(): Int = when (this) {
-    ThemeMode.SYSTEM -> R.string.theme_system
-    ThemeMode.LIGHT -> R.string.theme_light
-    ThemeMode.DARK -> R.string.theme_dark
+private fun ArabicTextSize.labelRes(): Int = when (this) {
+    ArabicTextSize.SMALL -> R.string.arabic_size_name_small
+    ArabicTextSize.MEDIUM -> R.string.arabic_size_name_medium
+    ArabicTextSize.LARGE -> R.string.arabic_size_name_large
+    ArabicTextSize.XLARGE -> R.string.arabic_size_name_xlarge
+    ArabicTextSize.XXLARGE -> R.string.arabic_size_name_xxlarge
 }
 
 private const val SLIDER_ENDS = 2

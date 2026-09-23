@@ -2,188 +2,60 @@ package dev.sadakat.qit.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Shapes
-import androidx.compose.material3.Typography
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
-import dev.sadakat.qit.core.designsystem.ProvideQItTokens
-import dev.sadakat.qit.core.designsystem.color.QItColors
-import dev.sadakat.qit.core.designsystem.color.darkQItColors
-import dev.sadakat.qit.core.designsystem.color.lightQItColors
-import dev.sadakat.qit.core.designsystem.scale.QItRadius
-import dev.sadakat.qit.core.designsystem.type.QItUiType
+import dev.sadakat.qit.core.designsystem.skin.QItSkins
+import dev.sadakat.qit.core.designsystem.skin.QItStyle
+import dev.sadakat.qit.core.designsystem.skin.QItTone
+import dev.sadakat.qit.core.domain.model.UiStyle
+import dev.sadakat.qit.core.ui.kit.glass.QItSurfaceMode
+import dev.sadakat.qit.core.ui.theme.QItMaterialTheme
+import dev.sadakat.qit.core.ui.theme.withWallpaper
 
 /**
- * The phone's theme: QIt's tokens mapped onto Material 3, so Material components and our own
- * composables draw from the same colors, type and shapes.
+ * The phone's theme: the skin of [style] on [tone], mapped onto Material 3 by the UI kit.
  *
- * @param dynamicColor use the wallpaper colors (Android 12+) instead of the brand's; the extended
- *   roles (ayah highlight, ornaments, ...) are then derived from the wallpaper scheme too.
+ * @param dynamicColor use the wallpaper's accent colors (Android 12+) instead of the look's; the
+ *   extended roles (ayah highlight, ornaments, ...) follow them. A sepia page keeps its paper.
  * @param arabicScale the reader's Arabic text size, applied to the reading styles.
+ * @param surfaceMode pins how glass is drawn (tests); null follows the device.
  */
 @Composable
 fun QItAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
     arabicScale: Float = 1f,
+    style: QItStyle = QItStyle.MUSHAF,
+    tone: QItTone = if (darkTheme) QItTone.DARK else QItTone.LIGHT,
+    surfaceMode: QItSurfaceMode? = null,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
-    val colors = remember(darkTheme, dynamicColor) {
-        val brand = if (darkTheme) darkQItColors() else lightQItColors()
+    val skin = remember(style, tone, dynamicColor) {
+        val skin = QItSkins.of(style, tone)
         if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val wallpaper = if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-            brand.withDynamicColors(wallpaper)
+            val wallpaper = if (tone ==
+                QItTone.DARK
+            ) {
+                dynamicDarkColorScheme(context)
+            } else {
+                dynamicLightColorScheme(context)
+            }
+            skin.copy(colors = skin.colors.withWallpaper(wallpaper, keepPage = tone == QItTone.SEPIA))
         } else {
-            brand
+            skin
         }
     }
-    ProvideQItTokens(colors = colors, arabicScale = arabicScale) {
-        MaterialTheme(
-            colorScheme = colors.toColorScheme(),
-            typography = QItTypography,
-            shapes = QItShapes,
-            content = content,
-        )
-    }
+    QItMaterialTheme(skin = skin, arabicScale = arabicScale, surfaceMode = surfaceMode, content = content)
 }
 
-private val QItTypography = QItUiType().let { type ->
-    Typography(
-        displayLarge = type.displayLarge,
-        displayMedium = type.displayMedium,
-        displaySmall = type.displaySmall,
-        headlineLarge = type.headlineLarge,
-        headlineMedium = type.headlineMedium,
-        headlineSmall = type.headlineSmall,
-        titleLarge = type.titleLarge,
-        titleMedium = type.titleMedium,
-        titleSmall = type.titleSmall,
-        bodyLarge = type.bodyLarge,
-        bodyMedium = type.bodyMedium,
-        bodySmall = type.bodySmall,
-        labelLarge = type.labelLarge,
-        labelMedium = type.labelMedium,
-        labelSmall = type.labelSmall,
-    )
+/** The design system's style for the stored [UiStyle]. */
+fun UiStyle.toQItStyle(): QItStyle = when (this) {
+    UiStyle.MUSHAF -> QItStyle.MUSHAF
+    UiStyle.MATERIAL -> QItStyle.MATERIAL
+    UiStyle.EXPRESSIVE -> QItStyle.EXPRESSIVE
+    UiStyle.GLASS -> QItStyle.GLASS
 }
-
-private val QItShapes = QItRadius().let { radius ->
-    Shapes(
-        extraSmall = RoundedCornerShape(radius.xs),
-        small = RoundedCornerShape(radius.sm),
-        medium = RoundedCornerShape(radius.md),
-        large = RoundedCornerShape(radius.lg),
-        extraLarge = RoundedCornerShape(radius.xl),
-    )
-}
-
-/** The Material roles, 1:1 from QIt's. */
-internal fun QItColors.toColorScheme(): ColorScheme {
-    val scheme = if (isDark) darkColorScheme() else lightColorScheme()
-    return scheme.copy(
-        primary = primary,
-        onPrimary = onPrimary,
-        primaryContainer = primaryContainer,
-        onPrimaryContainer = onPrimaryContainer,
-        inversePrimary = inversePrimary,
-        secondary = secondary,
-        onSecondary = onSecondary,
-        secondaryContainer = secondaryContainer,
-        onSecondaryContainer = onSecondaryContainer,
-        tertiary = tertiary,
-        onTertiary = onTertiary,
-        tertiaryContainer = tertiaryContainer,
-        onTertiaryContainer = onTertiaryContainer,
-        background = background,
-        onBackground = onBackground,
-        surface = surface,
-        onSurface = onSurface,
-        surfaceVariant = surfaceVariant,
-        onSurfaceVariant = onSurfaceVariant,
-        surfaceTint = primary,
-        surfaceDim = surfaceDim,
-        surfaceBright = surfaceBright,
-        surfaceContainerLowest = surfaceContainerLowest,
-        surfaceContainerLow = surfaceContainerLow,
-        surfaceContainer = surfaceContainer,
-        surfaceContainerHigh = surfaceContainerHigh,
-        surfaceContainerHighest = surfaceContainerHighest,
-        inverseSurface = inverseSurface,
-        inverseOnSurface = inverseOnSurface,
-        outline = outline,
-        outlineVariant = outlineVariant,
-        scrim = scrim,
-        error = error,
-        onError = onError,
-        errorContainer = errorContainer,
-        onErrorContainer = onErrorContainer,
-    )
-}
-
-/**
- * The brand's roles replaced by the wallpaper [scheme]'s; the extended roles are derived from it so a
- * gold highlight never clashes with, say, a blue wallpaper palette.
- */
-internal fun QItColors.withDynamicColors(scheme: ColorScheme): QItColors = copy(
-    primary = scheme.primary,
-    onPrimary = scheme.onPrimary,
-    primaryContainer = scheme.primaryContainer,
-    onPrimaryContainer = scheme.onPrimaryContainer,
-    inversePrimary = scheme.inversePrimary,
-    secondary = scheme.secondary,
-    onSecondary = scheme.onSecondary,
-    secondaryContainer = scheme.secondaryContainer,
-    onSecondaryContainer = scheme.onSecondaryContainer,
-    tertiary = scheme.tertiary,
-    onTertiary = scheme.onTertiary,
-    tertiaryContainer = scheme.tertiaryContainer,
-    onTertiaryContainer = scheme.onTertiaryContainer,
-    background = scheme.background,
-    onBackground = scheme.onBackground,
-    surface = scheme.surface,
-    onSurface = scheme.onSurface,
-    surfaceVariant = scheme.surfaceVariant,
-    onSurfaceVariant = scheme.onSurfaceVariant,
-    surfaceDim = scheme.surfaceDim,
-    surfaceBright = scheme.surfaceBright,
-    surfaceContainerLowest = scheme.surfaceContainerLowest,
-    surfaceContainerLow = scheme.surfaceContainerLow,
-    surfaceContainer = scheme.surfaceContainer,
-    surfaceContainerHigh = scheme.surfaceContainerHigh,
-    surfaceContainerHighest = scheme.surfaceContainerHighest,
-    inverseSurface = scheme.inverseSurface,
-    inverseOnSurface = scheme.inverseOnSurface,
-    outline = scheme.outline,
-    outlineVariant = scheme.outlineVariant,
-    scrim = scheme.scrim,
-    error = scheme.error,
-    onError = scheme.onError,
-    errorContainer = scheme.errorContainer,
-    onErrorContainer = scheme.onErrorContainer,
-    arabicText = scheme.onSurface,
-    translationText = scheme.onSurfaceVariant,
-    playingAyahHighlight = scheme.tertiaryContainer,
-    onPlayingAyahHighlight = scheme.onTertiaryContainer,
-    currentWordHighlight = scheme.primary,
-    onCurrentWordHighlight = scheme.onPrimary,
-    upcomingWord = scheme.onSurfaceVariant,
-    // Quieter than the recited words, which are onTertiaryContainer in full.
-    upcomingWordOnHighlight = scheme.onTertiaryContainer.copy(alpha = UPCOMING_ON_HIGHLIGHT_ALPHA),
-    currentWord = scheme.primary,
-    currentWordOnHighlight = scheme.primary,
-    ornament = scheme.tertiary,
-    progressTrack = scheme.secondaryContainer,
-    divider = scheme.outlineVariant,
-)
-
-/** Upcoming words on the wallpaper's highlight: its full ink, faded, as the brand schemes do with a lighter tone. */
-private const val UPCOMING_ON_HIGHLIGHT_ALPHA = 0.7f

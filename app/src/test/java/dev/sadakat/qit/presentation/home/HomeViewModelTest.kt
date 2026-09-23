@@ -191,4 +191,21 @@ class HomeViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    @Test
+    fun `retry goes back to loading and then loads the surahs`() = runTest {
+        quranText.failure = IllegalStateException("disk on fire")
+        val viewModel = viewModel()
+        viewModel.uiState.test {
+            assertTrue(awaitWhere { it.loadFailed }.loadFailed)
+
+            quranText.failure = null
+            viewModel.retry()
+
+            assertTrue(awaitWhere { it.isLoading }.isLoading) // back to loading, not still failed
+            val state = awaitWhere { !it.isLoading && !it.loadFailed }
+            assertEquals(114, state.surahs.size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }

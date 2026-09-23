@@ -1,6 +1,7 @@
 package dev.sadakat.qit.presentation.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -19,13 +20,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.dp
 import dev.sadakat.qit.core.designsystem.QItTheme
+import dev.sadakat.qit.core.designsystem.component.ReaderTokens
 import dev.sadakat.qit.core.domain.model.ArabicWords
 import dev.sadakat.qit.core.domain.player.WordPointer
 
@@ -38,6 +40,9 @@ import dev.sadakat.qit.core.domain.player.WordPointer
  * [meanings] holds one meaning per word of [text] as [ArabicWords] splits it; a missing one leaves
  * its word alone. With [keepCurrentWordInView] the word being recited is scrolled into view by the
  * nearest scrolling parent. [onHighlight] and [recitedColor] work as in [RecitedArabicText].
+ *
+ * With [onWordClick] a tap on a word reports its index (to play from it); a long press then goes to
+ * [onWordLongPress], so pressing a word does what pressing its ayah does.
  */
 @Composable
 fun WordByWordText(
@@ -49,6 +54,8 @@ fun WordByWordText(
     onHighlight: Boolean = false,
     keepCurrentWordInView: Boolean = false,
     recitedColor: Color = Color.Unspecified,
+    onWordClick: ((Int) -> Unit)? = null,
+    onWordLongPress: () -> Unit = {},
 ) {
     val colors = QItTheme.colors
     val recited = recitedColor.takeOrElse { if (onHighlight) colors.onPlayingAyahHighlight else colors.arabicText }
@@ -78,6 +85,15 @@ fun WordByWordText(
                     style = style,
                     isCurrent = index == current,
                     keepInView = keepCurrentWordInView && index == current,
+                    modifier = if (onWordClick == null) {
+                        Modifier
+                    } else {
+                        // A gesture, not clickable: a word can be narrower than a touch target, and
+                        // the ayah around it is the accessible target (it plays from the ayah).
+                        Modifier.pointerInput(index, onWordClick) {
+                            detectTapGestures(onTap = { onWordClick(index) }, onLongPress = { onWordLongPress() })
+                        }
+                    },
                 )
             }
         }
@@ -95,6 +111,7 @@ private fun WordCell(
     style: TextStyle,
     isCurrent: Boolean,
     keepInView: Boolean,
+    modifier: Modifier = Modifier,
 ) {
     val requester = remember { BringIntoViewRequester() }
     if (keepInView) LaunchedEffect(Unit) { requester.bringIntoView() }
@@ -102,7 +119,7 @@ private fun WordCell(
     val shape = RoundedCornerShape(QItTheme.radius.sm)
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
+        modifier = modifier
             .bringIntoViewRequester(requester)
             .background(if (isCurrent) pill else Color.Transparent, shape)
             .padding(horizontal = QItTheme.spacing.xs, vertical = QItTheme.spacing.xxs),
@@ -117,13 +134,10 @@ private fun WordCell(
                 color = ink.meaning,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
-                    .widthIn(max = MeaningMaxWidth)
+                    .widthIn(max = ReaderTokens.WordMeaningMaxWidth)
                     // Clear of the marks some words carry low under their letters.
                     .padding(top = QItTheme.spacing.xs, bottom = QItTheme.spacing.xxs),
             )
         }
     }
 }
-
-/** A long meaning wraps under its word rather than pushing the row apart. */
-private val MeaningMaxWidth = 112.dp

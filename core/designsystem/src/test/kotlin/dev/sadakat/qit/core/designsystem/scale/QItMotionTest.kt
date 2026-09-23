@@ -36,4 +36,18 @@ class QItMotionTest {
         val spec = motion.spatial<Float>() as SpringSpec
         assertTrue(spec.dampingRatio >= 0.75f)
     }
+
+    @Test
+    fun `with springs every spec is a spring, spatial ones from the spatial pair`() {
+        val springy = QItMotion(springs = QItSprings.Expressive)
+
+        listOf(springy.standard<Float>(), springy.enter(), springy.exit()).forEach { spec ->
+            spec as SpringSpec
+            assertEquals(QItSprings.Expressive.effectsDamping, spec.dampingRatio)
+            assertEquals(QItSprings.Expressive.effectsStiffness, spec.stiffness)
+        }
+        val spatial = springy.spatial<Float>()
+        assertEquals(QItSprings.Expressive.spatialDamping, spatial.dampingRatio)
+        assertEquals(QItSprings.Expressive.spatialStiffness, spatial.stiffness)
+    }
 }

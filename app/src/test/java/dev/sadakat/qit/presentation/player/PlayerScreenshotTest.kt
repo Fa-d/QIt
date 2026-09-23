@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
+import dev.sadakat.qit.core.designsystem.skin.QItStyle
+import dev.sadakat.qit.core.designsystem.skin.QItTone
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.player.NowPlaying
@@ -31,13 +33,28 @@ class PlayerScreenshotTest {
     fun miniLight() = composeRule.snapshot("player_mini_light") { Mini() }
 
     @Test
-    fun miniDark() = composeRule.snapshot("player_mini_dark", darkTheme = true) { Mini() }
+    fun miniDark() = composeRule.snapshot("player_mini_dark", tone = QItTone.DARK) { Mini() }
+
+    @Test
+    fun miniGlass() = composeRule.snapshot("player_mini_glass", style = QItStyle.GLASS) { Mini() }
+
+    @Test
+    fun miniExpressive() = composeRule.snapshot("player_mini_expressive", style = QItStyle.EXPRESSIVE) { Mini() }
+
+    @Test
+    @Config(qualifiers = RobolectricDeviceQualifiers.Pixel5, fontScale = 2f)
+    fun miniLargeText() = composeRule.snapshot("player_mini_large_text") { Mini() }
+
+    @Test
+    fun fullGlassDark() = composeRule.snapshot("player_full_glass_dark", style = QItStyle.GLASS, tone = QItTone.DARK) {
+        Full(state())
+    }
 
     @Test
     fun fullLight() = composeRule.snapshot("player_full_light") { Full(state()) }
 
     @Test
-    fun fullDark() = composeRule.snapshot("player_full_dark", darkTheme = true) { Full(state()) }
+    fun fullDark() = composeRule.snapshot("player_full_dark", tone = QItTone.DARK) { Full(state()) }
 
     @Test
     fun fullWordByWord() = composeRule.snapshot("player_full_word_by_word") {

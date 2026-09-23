@@ -14,6 +14,9 @@ internal fun projectFiles(): List<KoFileDeclaration> = Konsist
 internal fun appMainFiles(): List<KoFileDeclaration> =
     projectFiles().filter { "/app/src/main/" in it.path || "/wear/src/main/" in it.path }
 
+/** Production sources of the phone's UI kit (`:core:ui`). */
+internal fun uiKitMainFiles(): List<KoFileDeclaration> = projectFiles().filter { "/core/ui/src/main/" in it.path }
+
 /** The file's code with comments and string literals blanked out, so rules only see code. */
 internal val KoFileDeclaration.code: String
     get() = text

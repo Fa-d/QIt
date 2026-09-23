@@ -9,6 +9,7 @@ import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.ThemeMode
+import dev.sadakat.qit.core.domain.model.UiStyle
 import dev.sadakat.qit.core.domain.model.WordByWord
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.repository.LastPosition
@@ -99,8 +100,9 @@ class DataStoreQuranSettingsTest {
             showTranslation = false,
             followAlong = false,
             wordByWord = WordByWord.BANGLA,
-            themeMode = ThemeMode.DARK,
+            themeMode = ThemeMode.SEPIA,
             dynamicColor = true,
+            uiStyle = UiStyle.GLASS,
         )
         settings.updateReadingPrefs { changed }
         settings.updateReadingPrefs { it.copy(showTranslation = true) }

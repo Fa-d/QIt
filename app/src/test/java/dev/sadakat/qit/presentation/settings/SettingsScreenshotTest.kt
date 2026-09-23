@@ -4,6 +4,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
+import dev.sadakat.qit.core.designsystem.skin.QItTone
+import dev.sadakat.qit.core.domain.model.ArabicTextSize
+import dev.sadakat.qit.core.domain.model.ReadingPrefs
+import dev.sadakat.qit.core.domain.model.ThemeMode
 import dev.sadakat.qit.testing.snapshot
 import org.junit.Rule
 import org.junit.Test
@@ -25,22 +29,32 @@ class SettingsScreenshotTest {
     }
 
     @Test
-    fun dark() = composeRule.snapshot("settings_dark", darkTheme = true) {
+    fun dark() = composeRule.snapshot("settings_dark", tone = QItTone.DARK) {
         Settings()
+    }
+
+    @Test
+    fun sepia() = composeRule.snapshot("settings_sepia", tone = QItTone.SEPIA) {
+        Settings(ReadingPrefs(themeMode = ThemeMode.SEPIA))
+    }
+
+    @Test
+    @Config(qualifiers = RobolectricDeviceQualifiers.Pixel5, fontScale = 1.3f)
+    fun largeText() = composeRule.snapshot("settings_large_text", arabicScale = ArabicTextSize.XXLARGE.scale) {
+        Settings(ReadingPrefs(arabicTextSize = ArabicTextSize.XXLARGE))
     }
 }
 
 @Composable
-private fun Settings() {
+private fun Settings(prefs: ReadingPrefs = ReadingPrefs()) {
     ReadingSettingsContent(
-        state = ReadingSettingsUiState(),
-        showDynamicColor = true,
+        state = ReadingSettingsUiState(prefs),
         onArabicTextSizeChange = {},
         onShowTranslationChange = {},
         onFollowAlongChange = {},
         onBanglaVoiceChange = {},
         onWordByWordChange = {},
         onThemeModeChange = {},
-        onDynamicColorChange = {},
+        onOpenAppearance = {},
     )
 }

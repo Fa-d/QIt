@@ -36,11 +36,11 @@ internal fun ProgressRow(row: ProgressRowUi, onClick: () -> Unit, modifier: Modi
             .fillMaxWidth()
             .heightIn(min = QItTheme.sizes.touchTarget)
             .testTag("progress_surah_${row.surah}")
-            .clickable(onClick = onClick)
+            .clickable(onClickLabel = stringResource(R.string.cd_open_surah), onClick = onClick)
             .padding(horizontal = QItTheme.spacing.screenGutter, vertical = QItTheme.spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        NumberBadge(row.surah)
+        NumberBadge(row.surah, label = stringResource(R.string.home_cd_surah_number, row.surah))
         Spacer(Modifier.width(QItTheme.spacing.md))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

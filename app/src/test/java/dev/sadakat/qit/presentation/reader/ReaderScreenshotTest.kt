@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
+import dev.sadakat.qit.core.designsystem.skin.QItStyle
+import dev.sadakat.qit.core.designsystem.skin.QItTone
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.SurahListening
 import dev.sadakat.qit.core.domain.player.WordPointer
@@ -29,8 +31,32 @@ class ReaderScreenshotTest {
     }
 
     @Test
-    fun dark() = composeRule.snapshot("reader_dark", darkTheme = true) {
+    fun dark() = composeRule.snapshot("reader_dark", tone = QItTone.DARK) {
         Reader(readerState())
+    }
+
+    @Test
+    fun glassSepia() = composeRule.snapshot("reader_glass_sepia", style = QItStyle.GLASS, tone = QItTone.SEPIA) {
+        Reader(readerState())
+    }
+
+    @Test
+    fun loadError() = composeRule.snapshot("reader_load_error") { Reader(SurahReaderUiState(loadFailed = true)) }
+
+    @Test
+    fun ayahActions() = composeRule.snapshot("reader_ayah_actions") {
+        AyahActionsContent(
+            ayah = AyahActionsUi(
+                ayah = 255,
+                arabic = TestQuran.ayahs(2).first().arabic,
+                translation = null,
+                words = TestQuran.ayahs(2).first().arabic.split(" ").mapIndexed { i, w ->
+                    GlossaryWord(w, "meaning $i")
+                },
+            ),
+            title = "Al-Baqarah · 2:255",
+            actions = AyahSheetActions({}, {}, {}, {}),
+        )
     }
 
     @Test

@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -19,32 +21,54 @@ import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
 import dev.sadakat.qit.core.designsystem.color.QItColors
-import dev.sadakat.qit.core.designsystem.color.darkQItColors
-import dev.sadakat.qit.core.designsystem.color.lightQItColors
 import dev.sadakat.qit.core.designsystem.color.watchQItColors
-import dev.sadakat.qit.core.designsystem.shape.OctagramShape
+import dev.sadakat.qit.core.designsystem.scale.QItRadius
+import dev.sadakat.qit.core.designsystem.shape.shape
+import dev.sadakat.qit.core.designsystem.skin.QItSkin
+import dev.sadakat.qit.core.designsystem.skin.QItSkins
+import dev.sadakat.qit.core.designsystem.skin.QItStyle
+import dev.sadakat.qit.core.designsystem.skin.QItTone
 import dev.sadakat.qit.core.designsystem.type.QItUiType
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** A visual specimen of the tokens: the roles of each scheme, the octagram and the Arabic scale. */
+/**
+ * A visual specimen of every skin: the roles of its scheme, its badge, type and radius, and the
+ * page's Arabic. The lead reviews the images; ContrastTest holds the numbers.
+ */
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(qualifiers = "w400dp-h900dp-xhdpi")
 class DesignSystemSpecimenTest {
 
     @Test
-    fun light() = capture("light", lightQItColors())
+    fun skins() {
+        QItStyle.entries.forEach { style ->
+            QItTone.entries.forEach { tone ->
+                val skin = QItSkins.of(style, tone)
+                // The mushaf light and dark specimens keep their original file names.
+                val name = if (style == QItStyle.MUSHAF && tone != QItTone.SEPIA) {
+                    tone.name.lowercase()
+                } else {
+                    "${style.name.lowercase()}_${tone.name.lowercase()}"
+                }
+                capture(name, skin)
+            }
+        }
+    }
 
     @Test
-    fun dark() = capture("dark", darkQItColors())
+    fun watch() = captureColors("watch", watchQItColors())
 
-    @Test
-    fun watch() = capture("watch", watchQItColors())
+    private fun capture(name: String, skin: QItSkin) {
+        captureRoboImage("src/test/screenshots/designsystem_specimen_$name.png") {
+            ProvideQItTokens(skin) { Specimen() }
+        }
+    }
 
-    private fun capture(name: String, colors: QItColors) {
+    private fun captureColors(name: String, colors: QItColors) {
         captureRoboImage("src/test/screenshots/designsystem_specimen_$name.png") {
             ProvideQItTokens(colors) { Specimen() }
         }
@@ -54,41 +78,37 @@ class DesignSystemSpecimenTest {
 @Composable
 private fun Specimen() {
     val colors = QItTheme.colors
+    val surfaces = QItTheme.surfaces
     val spacing = QItTheme.spacing
-    val ui = QItUiType()
+    val radius = QItTheme.radius
+    val ui = QItTheme.type
     Column(
         modifier = Modifier
             .background(colors.background)
             .padding(spacing.lg),
         verticalArrangement = Arrangement.spacedBy(spacing.md),
     ) {
+        ChromeBar(ui, radius)
         BasicText("Al-Baqarah", style = ui.headlineMedium.copy(color = colors.onSurface))
         BasicText("The Cow · 286 ayahs · Medinan", style = ui.bodyMedium.copy(color = colors.onSurfaceVariant))
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(QItTheme.sizes.numberBadge)
-                    .border(QItTheme.sizes.ornamentStroke, colors.ornament, OctagramShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                BasicText("255", style = ui.labelMedium.copy(color = colors.onSurface))
-            }
-            Swatch("primary", colors.primary, colors.onPrimary, ui.labelMedium)
-            Swatch("tertiary", colors.tertiary, colors.onTertiary, ui.labelMedium)
+            NumberBadge(ui)
+            Swatch("primary", colors.primary, colors.onPrimary, ui.labelMedium, radius)
+            Swatch("tertiary", colors.tertiary, colors.onTertiary, ui.labelMedium, radius)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-            Swatch("container", colors.primaryContainer, colors.onPrimaryContainer, ui.labelMedium)
-            Swatch("secondary", colors.secondaryContainer, colors.onSecondaryContainer, ui.labelMedium)
-            Swatch("gold", colors.tertiaryContainer, colors.onTertiaryContainer, ui.labelMedium)
+            Swatch("container", colors.primaryContainer, colors.onPrimaryContainer, ui.labelMedium, radius)
+            Swatch("secondary", colors.secondaryContainer, colors.onSecondaryContainer, ui.labelMedium, radius)
+            Swatch("gold", colors.tertiaryContainer, colors.onTertiaryContainer, ui.labelMedium, radius)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-            Swatch("low", colors.surfaceContainerLow, colors.onSurface, ui.labelMedium)
-            Swatch("mid", colors.surfaceContainer, colors.onSurface, ui.labelMedium)
-            Swatch("high", colors.surfaceContainerHigh, colors.onSurface, ui.labelMedium)
+            Swatch("low", colors.surfaceContainerLow, colors.onSurface, ui.labelMedium, radius)
+            Swatch("mid", colors.surfaceContainer, colors.onSurface, ui.labelMedium, radius)
+            Swatch("high", colors.surfaceContainerHigh, colors.onSurface, ui.labelMedium, radius)
         }
         Column(
             modifier = Modifier
-                .background(colors.playingAyahHighlight)
+                .background(colors.playingAyahHighlight, RoundedCornerShape(radius.lg))
                 .padding(spacing.md),
         ) {
             BasicText(
@@ -108,14 +128,68 @@ private fun Specimen() {
     }
 }
 
+/** A bar of chrome as the look makes it: frosted over the page when the look is glass. */
 @Composable
-private fun Swatch(label: String, container: Color, content: Color, style: TextStyle) {
+private fun ChromeBar(ui: QItUiType, radius: QItRadius) {
+    val colors = QItTheme.colors
+    val surfaces = QItTheme.surfaces
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                colors.surfaceContainer.compositeOver(colors.background, surfaces.chromeAlpha),
+                RoundedCornerShape(radius.xl),
+            )
+            .border(
+                surfaces.hairline,
+                colors.outline.copy(alpha = surfaces.hairlineAlpha),
+                RoundedCornerShape(radius.xl),
+            )
+            .padding(QItTheme.spacing.sm),
+    ) {
+        BasicText("QIt · Al-Baqarah", style = ui.titleMedium.copy(color = colors.onSurface))
+    }
+}
+
+/** The look's number badge: an ornament outline, or a filled tonal container. */
+@Composable
+private fun NumberBadge(ui: QItUiType) {
+    val colors = QItTheme.colors
+    val badge = QItTheme.badge
+    Box(
+        modifier = Modifier
+            .size(QItTheme.sizes.numberBadge)
+            .then(
+                if (badge.filled) {
+                    Modifier.background(colors.primaryContainer, badge.shape.shape)
+                } else {
+                    Modifier.border(QItTheme.sizes.ornamentStroke, colors.ornament, badge.shape.shape)
+                },
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        BasicText(
+            "255",
+            style = ui.labelMedium.copy(color = if (badge.filled) colors.onPrimaryContainer else colors.onSurface),
+        )
+    }
+}
+
+@Composable
+private fun Swatch(label: String, container: Color, content: Color, style: TextStyle, radius: QItRadius) {
     Box(
         modifier = Modifier
             .width(96.dp)
-            .background(container)
+            .background(container, RoundedCornerShape(radius.md))
             .padding(QItTheme.spacing.sm),
     ) {
         BasicText(label, style = style.copy(color = content))
     }
 }
+
+/** [surface] as a translucent layer at [alpha] over [backdrop], blended per sRGB channel. */
+private fun Color.compositeOver(backdrop: Color, alpha: Float): Color = Color(
+    red = red * alpha + backdrop.red * (1 - alpha),
+    green = green * alpha + backdrop.green * (1 - alpha),
+    blue = blue * alpha + backdrop.blue * (1 - alpha),
+)

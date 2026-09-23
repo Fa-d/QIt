@@ -1,16 +1,20 @@
 package dev.sadakat.qit.presentation.reader
 
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToKey
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -61,6 +65,10 @@ class SurahReaderScreenTest {
     private var sentToWatch = false
     private var pickedMode: RecitationMode? = null
     private var consumedMessage = false
+    private var longPressed = 0
+    private var wordClicked: Pair<Int, Int>? = null
+    private var repeated = 0
+    private var retries = 0
 
     private fun setContent(state: SurahReaderUiState) {
         composeRule.setContent {
@@ -77,6 +85,12 @@ class SurahReaderScreenTest {
                     onSendToWatch = { sentToWatch = true },
                     onModeChange = { pickedMode = it },
                     onConsumeMessage = { consumedMessage = true },
+                    ayahCallbacks = AyahCallbacks(
+                        onLongPress = { longPressed = it },
+                        onRepeat = { repeated = it },
+                        onWordClick = { ayah, word -> wordClicked = ayah to word },
+                    ),
+                    onRetry = { retries++ },
                 )
             }
         }
@@ -296,9 +310,94 @@ class SurahReaderScreenTest {
     private fun progressBar() = SemanticsMatcher("progress bar") {
         androidx.compose.ui.semantics.SemanticsProperties.ProgressBarRangeInfo in it.config
     }
+
+    @Test
+    fun `a long press on an ayah opens its options`() {
+        setContent(readerState())
+        composeRule.onNodeWithTag("ayah_list").performScrollToKey(3)
+        composeRule.onNodeWithTag("ayah_3").performTouchInput { longClick() }
+        assertEquals(3, longPressed)
+        assertEquals(0, tappedAyah)
+    }
+
+    @Test
+    fun `an ayah says what a tap and a long press do, and reads its number`() {
+        setContent(readerState())
+        composeRule.onNodeWithTag("ayah_list").performScrollToKey(2)
+        composeRule.onNodeWithTag("ayah_2").assert(
+            SemanticsMatcher("labelled actions") {
+                it.config.getOrNull(SemanticsActions.OnClick)?.label ==
+                    context.getString(R.string.ayah_cd_play_from_here) &&
+                    it.config.getOrNull(SemanticsActions.OnLongClick)?.label ==
+                    context.getString(R.string.ayah_cd_options)
+            },
+        )
+        composeRule.onNodeWithContentDescription("Ayah 2", useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun `a screen reader can repeat an ayah without a long press`() {
+        setContent(readerState())
+        composeRule.onNodeWithTag("ayah_list").performScrollToKey(3)
+        val actions = composeRule.onNodeWithTag("ayah_3").fetchSemanticsNode().config[SemanticsActions.CustomActions]
+        composeRule.runOnIdle { actions.first { it.label == context.getString(R.string.ayah_action_repeat) }.action() }
+        assertEquals(3, repeated)
+    }
+
+    @Test
+    fun `in word by word a tap on a word plays from that word`() {
+        val words = TestQuran.ayahs(2)[0].arabic.split(" ").size
+        setContent(readerState().copy(wordMeanings = mapOf(1 to List(words) { "m$it" })))
+        composeRule.onNodeWithTag("ayah_list").performScrollToKey(1)
+        composeRule.onNodeWithText("m0", useUnmergedTree = true).performClick()
+        assertEquals(1 to 0, wordClicked)
+        assertEquals(0, tappedAyah)
+    }
+
+    @Test
+    fun `a failed load can be retried`() {
+        setContent(SurahReaderUiState(loadFailed = true))
+        composeRule.onNodeWithText(context.getString(R.string.retry)).performClick()
+        assertEquals(1, retries)
+    }
+
+    @Test
+    fun `the options sheet shows the words with their meanings and does each action`() {
+        var done = ""
+        composeRule.setContent {
+            QItAppTheme {
+                AyahActionsContent(
+                    ayah = AyahActionsUi(
+                        ayah = 1,
+                        arabic = "بِسْمِ ٱللَّهِ",
+                        translation = "In the name of Allah",
+                        words = listOf(GlossaryWord("بِسْمِ", "In (the) name"), GlossaryWord("ٱللَّهِ", "(of) Allah")),
+                    ),
+                    title = "Al-Fatihah · 1:1",
+                    actions = AyahSheetActions(
+                        onPlay = { done += "play " },
+                        onRepeat = { done += "repeat " },
+                        onCopy = { done += "copy " },
+                        onShare = { done += "share" },
+                    ),
+                )
+            }
+        }
+        composeRule.onNodeWithText("(of) Allah").assertIsDisplayed()
+        listOf(
+            R.string.ayah_action_play,
+            R.string.ayah_action_repeat,
+            R.string.ayah_action_copy,
+            R.string.ayah_action_share,
+        )
+            .forEach { composeRule.onNodeWithText(context.getString(it)).performScrollTo().performClick() }
+        assertEquals("play repeat copy share", done)
+    }
 }
 
 /** Matches the ayah node that carries the playing semantics flag. */
 private fun isPlayingAyah() = SemanticsMatcher("ayah is playing") { it.config.getOrNull(AyahIsPlaying) == true }
 
-private fun isNotPlayingAyah() = SemanticsMatcher("ayah is not playing") { it.config.getOrNull(AyahIsPlaying) != true }
+private fun isNotPlayingAyah() = SemanticsMatcher("ayah is not playing") {
+    it.config.getOrNull(AyahIsPlaying) != true
+}

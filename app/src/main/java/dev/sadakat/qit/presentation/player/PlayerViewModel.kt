@@ -10,6 +10,7 @@ import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.player.NowPlaying
+import dev.sadakat.qit.core.domain.player.PlaybackError
 import dev.sadakat.qit.core.domain.player.PlaybackProgress
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.player.QuranPlayer
@@ -51,7 +52,7 @@ data class PlayerUiState(
     /** The meaning of each of its words (the basmala's too) while word by word is on; else empty. */
     val ayahMeanings: List<String> = emptyList(),
     val sleepTimer: SleepTimerStatus = SleepTimerStatus.Off,
-    val error: String? = null,
+    val error: PlaybackError? = null,
     /**
      * Where each ayah starts in the surah (ms), by ayah - 1 (the basmala comes before the first):
      * names the ayah under the time bar's thumb. Empty while the files' lengths are unknown.
@@ -67,7 +68,7 @@ data class PlayerUiState(
 
 @OptIn(ExperimentalCoroutinesApi::class) // flatMapLatest/mapLatest: drop a stale surah's lookups.
 @HiltViewModel
-@Suppress("TooManyFunctions") // One small passthrough per transport control, plus the new voice.
+@Suppress("TooManyFunctions") // One function per transport control, each a one-liner on the player.
 class PlayerViewModel @Inject constructor(
     private val player: QuranPlayer,
     private val quranText: QuranText,
@@ -77,7 +78,7 @@ class PlayerViewModel @Inject constructor(
 ) : ViewModel() {
 
     // The error the user dismissed; hidden until the player clears it (a retry) or reports another.
-    private val dismissedError = MutableStateFlow<String?>(null)
+    private val dismissedError = MutableStateFlow<PlaybackError?>(null)
 
     init {
         // Rebuild the queue from the last session, paused, so the player reappears where playback
@@ -146,8 +147,8 @@ class PlayerViewModel @Inject constructor(
     }
 
     private data class Status(
-        val error: String?,
-        val dismissed: String?,
+        val error: PlaybackError?,
+        val dismissed: PlaybackError?,
         val sleepTimer: SleepTimerStatus,
         val ayahStarts: List<Long>,
     )
@@ -198,6 +199,9 @@ class PlayerViewModel @Inject constructor(
     fun consumeError() {
         dismissedError.value = player.error.value
     }
+
+    /** Prepares the failed queue again and plays from where it stopped. */
+    fun retry() = player.retry()
 
     /** Persists [mode] and continues the playing ayah in it. */
     fun setMode(mode: RecitationMode) {

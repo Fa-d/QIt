@@ -21,7 +21,9 @@ import dev.sadakat.qit.core.domain.model.AyahRef
 import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.RecitationMode
+import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.player.NowPlaying
+import dev.sadakat.qit.core.domain.player.PlaybackError
 import dev.sadakat.qit.core.domain.player.PlaybackProgress
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.player.QuranPlayer
@@ -80,7 +82,8 @@ import kotlin.math.max
 // pauseAtEndOfMediaItems and ForwardingPlayer are marked unstable, but have been stable in practice since Media3 1.0.
 // flatMapLatest: a position change restarts the ticker; mapLatest: a new surah drops a stale lookup.
 @OptIn(UnstableApi::class, ExperimentalCoroutinesApi::class)
-@Suppress("LongParameterList") // Its collaborators, all injected: splitting them up would only hide that.
+// Its collaborators, all injected: splitting them up would only hide that.
+@Suppress("LongParameterList", "TooManyFunctions")
 class ExoQuranPlayer(
     private val context: Context,
     private val exoPlayer: ExoPlayer,
@@ -96,8 +99,8 @@ class ExoQuranPlayer(
     private val _nowPlaying = MutableStateFlow<NowPlaying?>(null)
     override val nowPlaying: StateFlow<NowPlaying?> = _nowPlaying.asStateFlow()
 
-    private val _error = MutableStateFlow<String?>(null)
-    override val error: StateFlow<String?> = _error.asStateFlow()
+    private val _error = MutableStateFlow<PlaybackError?>(null)
+    override val error: StateFlow<PlaybackError?> = _error.asStateFlow()
 
     private val _sleepTimer = MutableStateFlow<SleepTimerStatus>(SleepTimerStatus.Off)
     override val sleepTimer: StateFlow<SleepTimerStatus> = _sleepTimer.asStateFlow()
@@ -210,7 +213,7 @@ class ExoQuranPlayer(
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            _error.value = errorMessage(error.errorCode)
+            _error.value = errorOf(error.errorCode)
         }
     }
 
@@ -220,23 +223,86 @@ class ExoQuranPlayer(
     }
 
     /** Replaces the queue with [surah] in [mode] and starts at [fromAyah] (0 = basmala). */
-    override fun play(surah: Int, fromAyah: Int, mode: RecitationMode) {
-        _error.value = null
-        // A repeat belongs to its surah: moving within it follows the manual-move rules, a new surah drops it.
-        if (_nowPlaying.value?.surah == surah) {
-            moveRepeat(fromAyah)
+    override fun play(surah: Int, fromAyah: Int, mode: RecitationMode) = queue(surah, fromAyah, mode)
+
+    /** After an error, prepares the queue again and plays from where it stopped; a no-op otherwise. */
+    override fun retry() {
+        if (_error.value == null || exoPlayer.mediaItemCount == 0) return
+        // The queue, the item and the position survive the error; prepare() re-arms the player at
+        // them, and the error clears when playback resumes, as ever.
+        exoPlayer.prepare()
+        exoPlayer.play()
+    }
+
+    /**
+     * Plays from word [word] of [ayah]: seeks within the queued surah when it already plays in
+     * [mode], else queues it from that ayah. Unknown word timings start at the ayah instead.
+     */
+    override fun playFromWord(surah: Int, ayah: Int, word: Int, mode: RecitationMode) {
+        scope.launch {
+            val voice = settings.banglaVoice.first()
+            // The word's time in the recitation the queue plays: the voice picks the reciter.
+            val wordStartMs = wordStartMs(surah, ayah, word, mode.tracks(voice).first()) ?: 0L
+            val queued = _nowPlaying.value
+            if (queued?.surah == surah && queued.mode == mode && queued.voice == voice) {
+                moveRepeat(ayah)
+                exoPlayer.seekTo(QueuePlan.indexOfAyah(queueIds(), ayah), wordStartMs)
+                exoPlayer.play()
+                startPlaybackService()
+                updateBoundaryStop()
+                publish()
+            } else {
+                queue(surah, ayah, mode, positionMs = wordStartMs)
+            }
+        }
+    }
+
+    /**
+     * Plays [ayah] of [surah] on repeat, [times] times in all: the queue and the repeat are set
+     * together, so the reset a new surah means for a repeat can't lose this one.
+     */
+    override fun repeatAyah(surah: Int, ayah: Int, mode: RecitationMode, times: Int?) {
+        val queued = _nowPlaying.value
+        if (queued?.surah == surah && queued.mode == mode) {
+            seekToAyah(ayah)
+            setRepeat(RepeatSetting.Range(ayah, ayah, times))
         } else {
-            repeat = RepeatSetting.Off
-            repeatProgress = RepeatProgress()
+            queue(surah, ayah, mode, repeat = RepeatSetting.Range(ayah, ayah, times))
+        }
+    }
+
+    /**
+     * Replaces the queue with [surah] in [mode], starting [positionMs] into [fromAyah]'s first
+     * item, and applies [repeat] with it. The repeat is set in the same coroutine as the media
+     * items, so nothing can land between the queue and its repeat; with [RepeatSetting.Off] it
+     * follows [play]'s rules instead: a repeat belongs to its surah, so moving within it follows
+     * the manual-move rules and a new surah drops it.
+     */
+    private fun queue(
+        surah: Int,
+        fromAyah: Int,
+        mode: RecitationMode,
+        positionMs: Long = 0L,
+        repeat: RepeatSetting = RepeatSetting.Off,
+    ) {
+        _error.value = null
+        // The repeat that belongs to the new queue. A repeat belongs to its surah: moving within
+        // it follows the manual-move rules, a new surah drops it — unless one comes with the queue.
+        val (target, targetProgress) = when {
+            repeat != RepeatSetting.Off -> repeat to RepeatProgress()
+            _nowPlaying.value?.surah == surah -> RepeatPolicy.onManualMove(this.repeat, repeatProgress, fromAyah)
+            else -> RepeatSetting.Off to RepeatProgress()
         }
         scope.launch {
             this@ExoQuranPlayer.mode = mode
             voice = settings.banglaVoice.first()
             savedPosition = null
+            this@ExoQuranPlayer.repeat = target
+            repeatProgress = targetProgress
             applySpeed(settings.playbackSpeed.first())
             val items = QuranMediaItems.build(quranText.surah(surah), mode, voice)
             timeline = timelineOf(surah, mode, voice)
-            exoPlayer.setMediaItems(items, QueuePlan.indexOfAyah(ids(items), fromAyah), 0)
+            exoPlayer.setMediaItems(items, QueuePlan.indexOfAyah(ids(items), fromAyah), positionMs)
             exoPlayer.prepare()
             exoPlayer.play()
             startPlaybackService()
@@ -452,6 +518,13 @@ class ExoQuranPlayer(
         exoPlayer.seekTo(QueuePlan.indexOfAyah(queueIds(), ayah), 0)
     }
 
+    /** When word [word] of [ayah]'s Arabic starts in [reciter]'s file of it; null when it isn't known. */
+    private suspend fun wordStartMs(surah: Int, ayah: Int, word: Int, reciter: Track): Long? {
+        val timings = timings.wordTimings(surah, reciter)[ayah] ?: return null
+        if (word !in 0 until timings.wordCount) return null
+        return timings.startMs(word).toLong()
+    }
+
     private fun currentId(): QueueItemId? = exoPlayer.currentMediaItem?.mediaId?.let(QueueItemId::parse)
 
     /** [surah]'s queue in [mode] read by [voice] laid end to end, or null if any of its files' lengths is unknown. */
@@ -604,15 +677,14 @@ class ExoQuranPlayer(
 
         private val HIDDEN_SESSION_COMMANDS = setOf(Player.COMMAND_SET_REPEAT_MODE, Player.COMMAND_SET_SHUFFLE_MODE)
 
-        /** What to tell the user about [errorCode]; internal so the mapping can be tested. */
-        internal fun errorMessage(errorCode: Int): String = when (errorCode) {
+        /** What kind of failure [errorCode] is; internal so the mapping can be tested. */
+        internal fun errorOf(errorCode: Int): PlaybackError = when (errorCode) {
             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
             PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
-            ->
-                "Can't reach the audio. Check your connection or download this surah."
+            -> PlaybackError.NETWORK
 
-            else -> "Playback failed. Please try again."
+            else -> PlaybackError.FAILED
         }
     }
 }

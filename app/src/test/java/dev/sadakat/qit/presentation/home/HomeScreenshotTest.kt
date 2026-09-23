@@ -3,6 +3,8 @@ package dev.sadakat.qit.presentation.home
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
+import dev.sadakat.qit.core.designsystem.skin.QItStyle
+import dev.sadakat.qit.core.designsystem.skin.QItTone
 import dev.sadakat.qit.core.domain.model.AyahRef
 import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.Revelation
@@ -27,7 +29,7 @@ class HomeScreenshotTest {
     fun light() = composeRule.snapshot("home_light") { Home(home()) }
 
     @Test
-    fun dark() = composeRule.snapshot("home_dark", darkTheme = true) { Home(home()) }
+    fun dark() = composeRule.snapshot("home_dark", tone = QItTone.DARK) { Home(home()) }
 
     @Test
     fun searchWithJump() = composeRule.snapshot("home_search_jump") {
@@ -43,6 +45,29 @@ class HomeScreenshotTest {
     @Test
     fun juz() = composeRule.snapshot("home_juz") { Home(home().copy(browse = BrowseMode.JUZ)) }
 
+    @Test
+    fun emptySearch() = composeRule.snapshot("home_search_empty") {
+        Home(home().copy(query = "zzz", surahs = emptyList(), jumpTarget = null))
+    }
+
+    @Test
+    fun loadError() = composeRule.snapshot("home_load_error") {
+        Home(HomeUiState(isLoading = false, loadFailed = true))
+    }
+
+    @Test
+    fun glass() = composeRule.snapshot("home_glass", style = QItStyle.GLASS) { Home(home()) }
+
+    @Test
+    fun expressiveDark() =
+        composeRule.snapshot("home_expressive_dark", style = QItStyle.EXPRESSIVE, tone = QItTone.DARK) {
+            Home(home())
+        }
+
+    @Test
+    @Config(qualifiers = RobolectricDeviceQualifiers.Pixel5, fontScale = 1.3f)
+    fun largeText() = composeRule.snapshot("home_large_text") { Home(home()) }
+
     @androidx.compose.runtime.Composable
     private fun Home(state: HomeUiState) {
         HomeScreen(
@@ -53,6 +78,8 @@ class HomeScreenshotTest {
             onOpenProgress = {},
             onContinuePlayPause = {},
             onOpenReadingSettings = {},
+            onOpenAppearance = {},
+            onRetry = {},
         )
     }
 

@@ -5,6 +5,11 @@
     <string name="arabic_text_size">Arabic text size</string>
     <string name="arabic_size_small">A</string>
     <string name="arabic_size_large">A</string>
+    <string name="arabic_size_name_small">Small</string>
+    <string name="arabic_size_name_medium">Medium</string>
+    <string name="arabic_size_name_large">Large</string>
+    <string name="arabic_size_name_xlarge">Extra large</string>
+    <string name="arabic_size_name_xxlarge">Largest</string>
     <string name="arabic_size_preview">بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ</string>
     <string name="show_translation">Show translation</string>
     <string name="follow_along">Follow along</string>
@@ -27,6 +32,7 @@
     <string name="theme">Theme</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
+    <string name="theme_sepia">Sepia</string>
     <string name="theme_dark">Dark</string>
     <string name="wallpaper_colors">Wallpaper colors</string>
     <string name="wallpaper_colors_supporting">Use your wallpaper\'s colors instead of QIt\'s</string>

@@ -11,16 +11,11 @@ import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.Speed
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RangeSlider
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -42,6 +37,9 @@ import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.player.RepeatSetting
 import dev.sadakat.qit.core.domain.player.SleepOption
 import dev.sadakat.qit.core.domain.player.SleepTimerStatus
+import dev.sadakat.qit.core.ui.kit.QItAlertDialog
+import dev.sadakat.qit.core.ui.kit.QItMenu
+import dev.sadakat.qit.core.ui.kit.QItSegmentedToggle
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -59,7 +57,7 @@ fun SleepChip(status: SleepTimerStatus, onChange: (SleepOption?) -> Unit, modifi
             leadingIcon = { Icon(Icons.Rounded.Bedtime, contentDescription = null) },
             modifier = Modifier.testTag("player_sleep"),
         )
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        QItMenu(expanded = open, onDismissRequest = { open = false }) {
             SLEEP_MINUTES.forEach { minutes ->
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.player_sleep_minutes, minutes)) },
@@ -110,7 +108,7 @@ fun RepeatDialog(
         mutableStateOf((current as? RepeatSetting.Range)?.to ?: min(ayah + DEFAULT_RANGE_EXTRA, ayahCount))
     }
     var times by rememberSaveable { mutableStateOf(initialTimes(current)) }
-    AlertDialog(
+    QItAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.player_repeat_title)) },
         text = {
@@ -212,18 +210,7 @@ private fun repeatSetting(target: RepeatTarget, from: Int, to: Int, times: Int?)
 
 @Composable
 private fun <T> Segments(options: List<T>, selected: T, label: @Composable (T) -> String, onSelect: (T) -> Unit) {
-    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-        options.forEachIndexed { index, option ->
-            SegmentedButton(
-                selected = option == selected,
-                onClick = { onSelect(option) },
-                shape = SegmentedButtonDefaults.itemShape(index, options.size),
-                icon = {},
-            ) {
-                Text(label(option), maxLines = 1)
-            }
-        }
-    }
+    QItSegmentedToggle(options = options, selected = selected, onSelect = onSelect, label = label)
 }
 
 private val SLEEP_MINUTES = listOf(15, 30, 45, 60)

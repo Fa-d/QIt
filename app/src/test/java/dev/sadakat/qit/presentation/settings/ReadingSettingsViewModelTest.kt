@@ -121,9 +121,6 @@ class ReadingSettingsViewModelTest {
             viewModel.setThemeMode(ThemeMode.LIGHT)
             assertEquals(ThemeMode.LIGHT, awaitWhere { it.prefs.themeMode == ThemeMode.LIGHT }.prefs.themeMode)
 
-            viewModel.setDynamicColor(true)
-            assertEquals(true, awaitWhere { it.prefs.dynamicColor }.prefs.dynamicColor)
-
             cancelAndIgnoreRemainingEvents()
         }
     }

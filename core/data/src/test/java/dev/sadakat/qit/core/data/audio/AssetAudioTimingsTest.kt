@@ -61,10 +61,22 @@ class AssetAudioTimingsTest {
     }
 
     @Test
-    fun `a reciter without bundled timings, or a translation, has none`() = runTest {
-        assertEquals(emptyMap<Int, WordTimings>(), timings.wordTimings(2, Track.ARABIC_BASIT_MUJAWWAD))
-        assertEquals(emptyMap<Int, WordTimings>(), timings.wordTimings(2, Track.ARABIC_SUDAIS))
+    fun `every reciter a voice plays has word timings for every ayah, a translation has none`() = runTest {
+        for (reciter in BanglaVoice.entries.map { it.arabic }) {
+            val words = timings.wordTimings(2, reciter)
+            assertEquals("$reciter", (0..QuranMeta.ayahCount(2)).toSet(), words.keys)
+        }
         assertEquals(emptyMap<Int, WordTimings>(), timings.wordTimings(2, Track.BANGLA_TOHA))
+    }
+
+    @Test
+    fun `each reciter has timings of its own`() = runTest {
+        // 2:255 lasts a different time in each recording: the timings can't be one reciter's copied.
+        val ends = BanglaVoice.entries.map { voice ->
+            val words = timings.wordTimings(2, voice.arabic).getValue(255)
+            words.startMs(words.wordCount - 1)
+        }
+        assertEquals(ends.size, ends.distinct().size)
     }
 
     @Test

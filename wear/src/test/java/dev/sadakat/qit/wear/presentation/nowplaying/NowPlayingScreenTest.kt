@@ -11,6 +11,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.wear.compose.material3.AppScaffold
+import dev.sadakat.qit.core.domain.player.PlaybackError
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -49,9 +50,16 @@ class NowPlayingScreenTest {
 
     @Test
     fun `the playback error is shown`() {
-        composeRule.setContent { PlayerContent(playing(error = "No network")) }
+        composeRule.setContent { PlayerContent(playing(error = PlaybackError.NETWORK)) }
 
-        composeRule.onNodeWithText("No network").assertExists()
+        composeRule.onNodeWithText("No connection").assertExists()
+    }
+
+    @Test
+    fun `a failed recitation gets its own short line`() {
+        composeRule.setContent { PlayerContent(playing(error = PlaybackError.FAILED)) }
+
+        composeRule.onNodeWithText("Couldn't play").assertExists()
     }
 
     @Test
@@ -115,17 +123,18 @@ class NowPlayingScreenTest {
         composeRule.onNodeWithText("بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ").assertExists()
     }
 
-    private fun playing(ayah: Int = 255, isPlaying: Boolean = true, error: String? = null) = WearNowPlayingUiState(
-        surahNumber = 2,
-        surahName = "Al-Baqara",
-        ayah = ayah,
-        ayahText = if (ayah >= 1) "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ" else null,
-        translation = if (ayah >= 1) "Bangla 2:255" else null,
-        isPlaying = isPlaying,
-        error = error,
-        progress = 0.5f,
-        volume = 0.5f,
-    )
+    private fun playing(ayah: Int = 255, isPlaying: Boolean = true, error: PlaybackError? = null) =
+        WearNowPlayingUiState(
+            surahNumber = 2,
+            surahName = "Al-Baqara",
+            ayah = ayah,
+            ayahText = if (ayah >= 1) "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ" else null,
+            translation = if (ayah >= 1) "Bangla 2:255" else null,
+            isPlaying = isPlaying,
+            error = error,
+            progress = 0.5f,
+            volume = 0.5f,
+        )
 
     @Composable
     private fun PlayerContent(state: WearNowPlayingUiState) {

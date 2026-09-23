@@ -1,5 +1,6 @@
 package dev.sadakat.qit.presentation.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -9,18 +10,40 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import dev.sadakat.qit.core.designsystem.QItTheme
-import dev.sadakat.qit.core.designsystem.shape.OctagramShape
+import dev.sadakat.qit.core.designsystem.shape.shape
 
-/** A surah or ayah number inside the rub el hizb, the way printed mushafs mark their verses. */
+/**
+ * A surah or ayah number in the look's badge: the rub el hizb in the mushaf look, the way printed
+ * mushafs mark their verses, drawn as an ornament line or as a filled tonal shape.
+ *
+ * @param label what a screen reader says for it ("Ayah 5"); the bare number when null.
+ */
 @Composable
-fun NumberBadge(number: Int, modifier: Modifier = Modifier, size: Dp = QItTheme.sizes.numberBadge) {
+fun NumberBadge(
+    number: Int,
+    modifier: Modifier = Modifier,
+    size: Dp = QItTheme.sizes.numberBadge,
+    label: String? = null,
+) {
+    val badge = QItTheme.badge
+    val shape = badge.shape.shape
+    val colors = QItTheme.colors
     Box(
         modifier = modifier
             .size(size)
-            .border(QItTheme.sizes.ornamentStroke, QItTheme.colors.ornament, OctagramShape),
+            .then(
+                if (badge.filled) {
+                    Modifier.background(colors.secondaryContainer, shape)
+                } else {
+                    Modifier.border(QItTheme.sizes.ornamentStroke, colors.ornament, shape)
+                },
+            )
+            .then(if (label != null) Modifier.clearAndSetSemantics { contentDescription = label } else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -29,7 +52,7 @@ fun NumberBadge(number: Int, modifier: Modifier = Modifier, size: Dp = QItTheme.
                 fontSize = numberSize(size, digits = number.toString().length),
                 letterSpacing = TextUnit.Unspecified,
             ),
-            color = MaterialTheme.colorScheme.onSurface,
+            color = if (badge.filled) colors.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
         )
     }

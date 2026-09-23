@@ -122,6 +122,25 @@ provisions it if missing).
 ./gradlew :wear:installDebug       # install the watch app
 ```
 
+### Startup performance
+
+The phone app ships a **baseline profile** (`app/src/release/generated/baselineProfiles/`): the code
+it runs at startup and in its common journey (scroll the surahs, open one and read, open the full
+player) is precompiled at install, and `profileinstaller` applies it on sideloaded installs too.
+Regenerate it after larger UI changes, on an Android 13+ device (or a rooted one) connected over
+adb — with several devices connected, pick one with `ANDROID_SERIAL`:
+
+```bash
+ANDROID_SERIAL=<phone serial> ./gradlew :app:generateBaselineProfile
+```
+
+Measure cold start with and without the profile:
+
+```bash
+ANDROID_SERIAL=<phone serial> ./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest \
+    -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.enabledRules=Macrobenchmark
+```
+
 ## Test and verify
 
 One command runs formatting, static analysis, lint, all unit tests, architecture tests and the
@@ -155,6 +174,7 @@ python3 -m unittest scripts/test_build_quran_text.py scripts/test_build_audio_ti
 | `:app` | Android application | Phone UI (Compose, Material 3): home, reader, mini/full player, progress, reading settings; Hilt DI; `QuranPlaybackService`; the watch link |
 | `:wear` | Android application (Wear OS) | Watch UI (Compose for Wear OS, Material 3): hub, surah/juz lists, surah, now playing, options; the tile; Hilt DI; playback + message services; Wi-Fi binding for downloads |
 | `:architecture-test` | pure Kotlin/JVM | Konsist rules that enforce the architecture (domain purity, presentation isolation, ViewModel shape, design-token use, one Material per app) |
+| `:baselineprofile` | Android test module | Generates the phone app's baseline profile and benchmarks its cold start on a connected device (`BaselineProfileGenerator`, `StartupBenchmark`) |
 
 Dependencies point inward: `:app` and `:wear` → `:core:data` → `:core:domain`; both apps also use
 `:core:designsystem`, which depends on nothing of ours. See

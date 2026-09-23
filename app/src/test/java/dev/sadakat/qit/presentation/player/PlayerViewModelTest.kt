@@ -7,6 +7,7 @@ import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.model.WordByWord
 import dev.sadakat.qit.core.domain.player.NowPlaying
+import dev.sadakat.qit.core.domain.player.PlaybackError
 import dev.sadakat.qit.core.domain.player.PlaybackProgress
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.player.RepeatSetting
@@ -208,7 +209,7 @@ class PlayerViewModelTest {
     fun `a dismissed error stays hidden until the player reports a new failure`() = runTest {
         val viewModel = viewModel()
         viewModel.uiState.test {
-            player.error.value = "Can't reach the audio."
+            player.error.value = PlaybackError.NETWORK
             awaitWhere { it.error != null }
 
             viewModel.consumeError()
@@ -216,10 +217,19 @@ class PlayerViewModelTest {
 
             // A retry clears the error; the same failure again is shown again.
             player.error.value = null
-            player.error.value = "Can't reach the audio."
-            assertEquals("Can't reach the audio.", awaitWhere { it.error != null }.error)
+            player.error.value = PlaybackError.NETWORK
+            assertEquals(PlaybackError.NETWORK, awaitWhere { it.error != null }.error)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `retry goes to the player`() {
+        player.error.value = PlaybackError.NETWORK
+
+        viewModel().retry()
+
+        assertEquals(1, player.retryCalls)
     }
 
     @Test

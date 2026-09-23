@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
-import androidx.compose.material3.ElevatedSuggestionChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +32,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.res.stringResource
 import dev.sadakat.qit.R
 import dev.sadakat.qit.core.designsystem.QItTheme
+import dev.sadakat.qit.core.ui.kit.QItFloatingChip
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -120,7 +120,10 @@ fun JumpToRecitingChip(
             // Nothing to offer while the list is (or is about to be) mirroring the recitation.
             if (enabled && follow.following) return@derivedStateOf null
             val index = recitingAyahIndex(headerCount, ayah)
-            val visible = listState.layoutInfo.visibleItemsInfo
+            // Only what's clear of the bars counts: the list runs on behind them.
+            val info = listState.layoutInfo
+            val clearEnd = info.viewportEndOffset - info.afterContentPadding
+            val visible = info.visibleItemsInfo.filter { it.offset + it.size > 0 && it.offset < clearEnd }
             val first = visible.firstOrNull()?.index
             val last = visible.lastOrNull()?.index
             when {
@@ -137,9 +140,9 @@ fun JumpToRecitingChip(
         exit = fadeOut(motion.exit()) + slideOutVertically(motion.exit()) { it / 2 },
         modifier = modifier,
     ) {
-        ElevatedSuggestionChip(
+        QItFloatingChip(
             onClick = {
-                val ayah = playingAyah ?: return@ElevatedSuggestionChip
+                val ayah = playingAyah ?: return@QItFloatingChip
                 scope.launch {
                     follow.resume()
                     listState.animateScrollToItem(recitingAyahIndex(headerCount, ayah))
