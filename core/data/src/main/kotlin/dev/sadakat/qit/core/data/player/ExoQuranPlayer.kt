@@ -329,6 +329,9 @@ class ExoQuranPlayer(
             exoPlayer.pause()
         } else {
             exoPlayer.play()
+            // A queue restored or re-queued paused has no session service yet: playing needs one to
+            // keep going in the background and to show the media notification.
+            startPlaybackService()
         }
     }
 
