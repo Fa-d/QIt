@@ -69,10 +69,11 @@ interface QuranPlayer {
     val error: StateFlow<PlaybackError?>
 
     /**
-     * Replaces the queue with [surah] in [mode] and starts at [fromAyah] (0 = basmala). Arabic + Bangla
-     * uses the [dev.sadakat.qit.core.domain.repository.QuranSettings.banglaVoice] stored at the time.
+     * Replaces the queue with [surah] in [mode] and starts at [fromAyah] (0 = basmala), playing unless
+     * [playWhenReady] is false (then it waits, paused, at that ayah). Arabic + Bangla uses the
+     * [dev.sadakat.qit.core.domain.repository.QuranSettings.banglaVoice] stored at the time.
      */
-    fun play(surah: Int, fromAyah: Int = 1, mode: RecitationMode)
+    fun play(surah: Int, fromAyah: Int = 1, mode: RecitationMode, playWhenReady: Boolean = true)
 
     /** After an [error], prepares the queue again and plays from where it stopped; a no-op otherwise. */
     fun retry()

@@ -144,6 +144,27 @@ class PlayerViewModelTest {
     }
 
     @Test
+    fun `changing the voice while paused re-queues it paused`() = runTest {
+        val viewModel = viewModel()
+        player.nowPlaying.value = NowPlaying(
+            2,
+            7,
+            Track.ARABIC,
+            RecitationMode.ARABIC_BANGLA,
+            isPlaying = false,
+            isBuffering = false,
+            voice = BanglaVoice.DEFAULT,
+        )
+
+        viewModel.setVoice(BanglaVoice.SAYED_ISMAT_TOHA)
+
+        assertEquals(
+            FakeQuranPlayer.PlayCall(2, 7, RecitationMode.ARABIC_BANGLA, playWhenReady = false),
+            player.playCalls.last(),
+        )
+    }
+
+    @Test
     fun `voice changes only restart arabic and bangla, and only another voice`() = runTest {
         val viewModel = viewModel()
 

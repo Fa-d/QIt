@@ -49,13 +49,17 @@ class ReadingSettingsViewModel @Inject constructor(
         updateReadingPrefs { it.copy(followAlong = follow) }
     }
 
-    /** Persists [voice]; if Arabic + Bangla is playing, restarts it at the current ayah with it. */
+    /**
+     * Persists [voice]; if Arabic + Bangla is queued, re-queues it at the current ayah with it,
+     * playing or paused as it was.
+     */
     fun setBanglaVoice(voice: BanglaVoice) {
         viewModelScope.launch {
             settings.setBanglaVoice(voice)
             player.nowPlaying.value?.let { current ->
                 if (current.mode == RecitationMode.ARABIC_BANGLA && current.voice != voice) {
-                    player.play(current.surah, current.ayah, current.mode)
+                    // Re-queued in the new voice at the same ayah, playing or paused as it was.
+                    player.play(current.surah, current.ayah, current.mode, playWhenReady = current.isPlaying)
                 }
             }
         }

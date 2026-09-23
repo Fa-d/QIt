@@ -212,13 +212,14 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    /** Persists [voice] and continues the playing ayah with it. */
+    /** Persists [voice] and continues the queued ayah with it, playing or paused as it was. */
     fun setVoice(voice: BanglaVoice) {
         viewModelScope.launch {
             settings.setBanglaVoice(voice)
             player.nowPlaying.value?.let { current ->
                 if (current.mode == RecitationMode.ARABIC_BANGLA && current.voice != voice) {
-                    player.play(current.surah, current.ayah, current.mode)
+                    // Re-queued in the new voice at the same ayah, playing or paused as it was.
+                    player.play(current.surah, current.ayah, current.mode, playWhenReady = current.isPlaying)
                 }
             }
         }

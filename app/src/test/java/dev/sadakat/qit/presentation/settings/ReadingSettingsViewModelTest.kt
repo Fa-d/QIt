@@ -65,6 +65,23 @@ class ReadingSettingsViewModelTest {
     }
 
     @Test
+    fun `picking a voice while paused doesn't start playback`() = runTest {
+        player.nowPlaying.value = NowPlaying(2, 10, Track.ARABIC, RecitationMode.ARABIC_BANGLA, false, false)
+        val viewModel = viewModel()
+        viewModel.uiState.test {
+            awaitWhere { it.prefs == ReadingPrefs() }
+
+            viewModel.setBanglaVoice(BanglaVoice.SHAREEF_BAEZEED_MAHMOOD)
+
+            assertEquals(
+                listOf(FakeQuranPlayer.PlayCall(2, 10, RecitationMode.ARABIC_BANGLA, playWhenReady = false)),
+                player.playCalls,
+            )
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `picking the playing voice, or another mode's playback, does not restart`() = runTest {
         val viewModel = viewModel()
         viewModel.uiState.test {

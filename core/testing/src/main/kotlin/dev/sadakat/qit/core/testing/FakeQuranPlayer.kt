@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 @Suppress("TooManyFunctions") // One override per command of the port it fakes.
 class FakeQuranPlayer : QuranPlayer {
 
-    data class PlayCall(val surah: Int, val fromAyah: Int, val mode: RecitationMode)
+    data class PlayCall(val surah: Int, val fromAyah: Int, val mode: RecitationMode, val playWhenReady: Boolean = true)
 
     data class PlayFromWordCall(val surah: Int, val ayah: Int, val word: Int, val mode: RecitationMode)
 
@@ -51,10 +51,18 @@ class FakeQuranPlayer : QuranPlayer {
     var sleepOption: SleepOption? = null
         private set
 
-    override fun play(surah: Int, fromAyah: Int, mode: RecitationMode) {
-        playCalls += PlayCall(surah, fromAyah, mode)
+    override fun play(surah: Int, fromAyah: Int, mode: RecitationMode, playWhenReady: Boolean) {
+        playCalls += PlayCall(surah, fromAyah, mode, playWhenReady)
         nowPlaying.value =
-            NowPlaying(surah, fromAyah, Track.ARABIC, mode, isPlaying = true, isBuffering = false, speed = speed)
+            NowPlaying(
+                surah,
+                fromAyah,
+                Track.ARABIC,
+                mode,
+                isPlaying = playWhenReady,
+                isBuffering = false,
+                speed = speed,
+            )
     }
 
     /** Plays from that word's ayah, like [play] there. */

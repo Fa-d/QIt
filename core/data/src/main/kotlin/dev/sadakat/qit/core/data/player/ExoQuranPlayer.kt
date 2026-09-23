@@ -223,7 +223,8 @@ class ExoQuranPlayer(
     }
 
     /** Replaces the queue with [surah] in [mode] and starts at [fromAyah] (0 = basmala). */
-    override fun play(surah: Int, fromAyah: Int, mode: RecitationMode) = queue(surah, fromAyah, mode)
+    override fun play(surah: Int, fromAyah: Int, mode: RecitationMode, playWhenReady: Boolean) =
+        queue(surah, fromAyah, mode, playWhenReady = playWhenReady)
 
     /** After an error, prepares the queue again and plays from where it stopped; a no-op otherwise. */
     override fun retry() {
@@ -284,6 +285,7 @@ class ExoQuranPlayer(
         mode: RecitationMode,
         positionMs: Long = 0L,
         repeat: RepeatSetting = RepeatSetting.Off,
+        playWhenReady: Boolean = true,
     ) {
         _error.value = null
         // The repeat that belongs to the new queue. A repeat belongs to its surah: moving within
@@ -304,8 +306,8 @@ class ExoQuranPlayer(
             timeline = timelineOf(surah, mode, voice)
             exoPlayer.setMediaItems(items, QueuePlan.indexOfAyah(ids(items), fromAyah), positionMs)
             exoPlayer.prepare()
-            exoPlayer.play()
-            startPlaybackService()
+            exoPlayer.playWhenReady = playWhenReady
+            if (playWhenReady) startPlaybackService()
         }
     }
 
