@@ -75,6 +75,11 @@
                     android:scheme="wear"
                     android:host="*"
                     android:pathPrefix="/quran/listening" />
+                <!-- The phone's Bangla voice (WearPaths.BANGLA_VOICE). -->
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:path="/quran/bangla-voice" />
             </intent-filter>
         </service>
 
