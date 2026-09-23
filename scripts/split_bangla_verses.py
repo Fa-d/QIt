@@ -70,6 +70,7 @@ HOP = 160          # 20 ms MFCC hop for the DTW fallback
 GAP_BN, GAP_AR = 0.15, 1.5  # DTW cost of leaving a frame unmatched when it sounds Bangla / Arabic
                             # (matching speech costs ~0.25, a different take ~0.4, non-matching ~0.45)
 SNAP = 2.5         # seconds a DTW boundary may move to reach a splice
+WIDEN_GROUPED = 1200  # seconds past the cursor a loose verse is searched for, in the grouped voices' files
 
 
 def decode(path, sr, channels, fmt="f32le", out=None):
@@ -336,7 +337,10 @@ def locate_arabic(surah, x, cum2, db):
         win = int(max(180.0, 6 * len(v) / SR) * SR)
         pos, conf = find_verse(x, cum2, v, cursor, cursor + win)
         if conf < LOW_CONF:  # widen to the rest of the file before giving up
-            pos2, conf2 = find_verse(x, cum2, v, cursor, len(x))
+            # The grouped voices' surah files run to hours (a mujawwad recitation plus its translation),
+            # and many of their verses match loosely: widen only so far, and let DTW place the rest.
+            reach = len(x) if not GROUPED else min(len(x), cursor + int(WIDEN_GROUPED * SR))
+            pos2, conf2 = find_verse(x, cum2, v, cursor, reach)
             if conf2 > conf:
                 pos, conf = pos2, conf2
         if conf < LOW_CONF and k == 0:  # muqatta'at: the file may reuse another surah's recording
