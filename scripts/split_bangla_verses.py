@@ -16,7 +16,7 @@ verses by speech recognition and forced alignment (scripts/bangla_asr_split.py),
 tell the verses apart; the others share the file of the group's last verse. Afterwards,
 --shared-table regenerates :core:domain's SharedTranslationsData.kt from their TSVs.
 """
-import argparse, glob, json, os, subprocess, sys, tempfile
+import argparse, glob, json, os, shutil, subprocess, sys, tempfile
 from multiprocessing import Pool
 
 import numpy as np
@@ -36,7 +36,9 @@ VOICES = {
     # Baezeed's Sudais is another recording than everyayah's: his Arabic is found by voice, not waveform.
     "baezeed": dict(src="bangla/baezeed-src", pattern="{:03d}.mp3", arabic="arabic/sudais-192k",
                     out="bangla/baezeed-verses", work="bangla/.work-baezeed", name="baezeed", grouped=True,
-                    track="BANGLA_BAEZEED", by_voice=True),
+                    track="BANGLA_BAEZEED", by_voice=True,
+                    # Every copy of his Saba stops after 34:31; the rest take the Islamic Foundation files.
+                    partial={34: 31}),
 }
 # The voice comes from the environment so that Pool workers (spawned, not forked, on macOS) see it too.
 if __name__ == "__main__" and "--voice" in sys.argv[:-1]:
@@ -695,7 +697,12 @@ def basmala_meaning(out_path, surah=112):
 def split_surah_by_voice(surah):
     import bangla_asr_split as asr
 
-    n, first = VERSES[surah - 1], FIRST_AYAH[surah - 1]
+    first = FIRST_AYAH[surah - 1]
+    # A surah whose recording stops early: split the verses it has; the others borrow the Islamic
+    # Foundation voice's files, so no verse goes without its meaning.
+    n = _CFG.get("partial", {}).get(surah, VERSES[surah - 1])
+    for k in range(n, VERSES[surah - 1]):
+        shutil.copyfile(f"{ROOT}/{VOICES['if']['out']}/{first + k:05d}.mp3", f"{OUT}/{first + k:05d}.mp3")
     tsv = f"{WORK}/{surah:03d}.tsv"
     src = source_file(surah)
     if src is None:
