@@ -725,6 +725,11 @@ def split_surah_by_voice(surah):
             kept.append(c)
     if kept and asr.matching_words(kept[-1][4], everything) < 1:
         kept.pop()
+    # More "chunks" than verses: a pause in the Arabic passed for translation. Fold the chunk holding
+    # the least of the verses' meaning into the Arabic around it until each chunk can have a verse.
+    while len(kept) > n:
+        i = min(range(len(kept) - 1), key=lambda j: asr.matching_words(kept[j][4], everything))
+        kept[i:i + 2] = [[kept[i][0], kept[i + 1][1], kept[i + 1][2], kept[i + 1][3], kept[i + 1][4]]]
     if not kept:
         return surah, None, "no translation found"
 
