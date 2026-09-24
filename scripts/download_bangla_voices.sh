@@ -3,8 +3,9 @@
 # - Surah files with the Arabic and its Bangla translation, from archive.org, saved as NNN.mp3:
 #     Sayed Ismat Toha (with Abdul Basit, mujawwad)  -> quran_audio/bangla/toha-src/
 #     Shareef Baezeed Mahmood (with Sudais)          -> quran_audio/bangla/baezeed-src/
-#   The Baezeed item lacks surahs 104 and 111; `alquranwithbanglaaudio` is the same production
-#   (mislabelled there as Toha) and fills them.
+#   The Baezeed item lacks surahs 104 and 111 and has 14, 29, 46 and 69 cut short;
+#   `alquranwithbanglaaudio` is the same production (mislabelled there as Toha) and has them whole,
+#   so it is fetched first for those. Every copy of 34 stops after verse 31.
 # - The matching verse-by-verse Arabic from everyayah, saved by global ayah number (00001.mp3 …):
 #     Abdul Basit mujawwad 128k -> quran_audio/arabic/abdul-basit-mujawwad-128k/
 #     Sudais 192k               -> quran_audio/arabic/sudais-192k/
@@ -66,9 +67,9 @@ everyayah_set Abdul_Basit_Mujawwad_128kbps "$ROOT/arabic/abdul-basit-mujawwad-12
 everyayah_set Abdurrahmaan_As-Sudais_192kbps "$ROOT/arabic/sudais-192k" &
 echo "[$(date)] archive.org: Toha, Baezeed"
 archive_item Al-QuranArabicToBanglaAudio "$ROOT/bangla/toha-src" &
-archive_item bangla-quran-audio-shareef-baezid "$ROOT/bangla/baezeed-src" &
+archive_item alquranwithbanglaaudio "$ROOT/bangla/baezeed-src" 14,29,46,69,104,111 &
 wait
-archive_item alquranwithbanglaaudio "$ROOT/bangla/baezeed-src" 104,111
+archive_item bangla-quran-audio-shareef-baezid "$ROOT/bangla/baezeed-src"  # skips the ones already there
 for d in arabic/abdul-basit-mujawwad-128k arabic/sudais-192k bangla/toha-src bangla/baezeed-src; do
   echo "$d: $(ls "$ROOT/$d" | grep -c '\.mp3$') mp3, $(ls "$ROOT/$d" | grep -c '\.aria2$') partial"
 done
