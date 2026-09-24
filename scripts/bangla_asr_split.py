@@ -195,6 +195,8 @@ def verse_scores(words, ayahs):
     return raw
 
 
+REAL_MEANING = 4  # words of the verses' meaning that show a repetitive chunk is real translation
+
 # Words too common in any translation to show that a gap holds the meaning of particular verses.
 COMMON = set(norm_words("মধ্যে একটি এবং তারা তাদের আমরা আমাদের তোমরা তোমাদের তিনি তিনিই আল্লাহ আল্লাহর জন্য "
                         "জন্যে থেকে কোন কোনো করে করেন হয় হবে হয়েছে যারা যাদের এই সেই এর তার তাঁর তাকে না কি আর "
@@ -207,12 +209,16 @@ def matching_words(words, ayahs):
     themselves. Speech recognition makes up Bangla over breaths and the crowd between Arabic verses,
     often a phrase over and over, and rarely one that means what the verses do."""
     tokens = [t for w, _, _ in words for t in norm_words(w)]
-    if not tokens or len(set(tokens)) < 0.5 * len(tokens):
+    if not tokens:
         return 0
     vocab = set().union(*(c for g in ayahs for c in content_words(g))) if ayahs else set()
     prefixes = {u[:4] for u in vocab if len(u) >= 5}
-    return sum(1 for t in set(tokens)
-               if len(t) >= 3 and t not in COMMON and (t in vocab or (len(t) >= 5 and t[:4] in prefixes)))
+    matched = sum(1 for t in set(tokens)
+                  if len(t) >= 3 and t not in COMMON and (t in vocab or (len(t) >= 5 and t[:4] in prefixes)))
+    # A made-up phrase repeats and means little; a repetitive meaning (Al-Kafirun) still means a lot.
+    if matched < REAL_MEANING and len(set(tokens)) < 0.5 * len(tokens):
+        return 0
+    return matched
 
 
 def content_words(g):
