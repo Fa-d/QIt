@@ -28,9 +28,20 @@ def main():
         for i, src in enumerate(todo, 1):
             name = os.path.basename(src)
             wav = os.path.join(td, "e.wav")
-            vf.restore(input=src, output=wav, cuda=False, mode=0)
+            trim = []
+            try:
+                vf.restore(input=src, output=wav, cuda=False, mode=0)
+            except RuntimeError:
+                # VoiceFixer works in 30 s segments and fails on a last one of a few ms (a 30.005 s verse):
+                # pad a second of silence, then trim the result back to the verse's length
+                padded = os.path.join(td, "p.wav")
+                subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", src, "-af", "apad=pad_dur=1", padded], check=True)
+                vf.restore(input=padded, output=wav, cuda=False, mode=0)
+                length = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
+                                         src], check=True, capture_output=True, text=True).stdout.strip()
+                trim = ["-t", length]
             part = f"{a.out}/{name}.part"
-            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", wav, "-ac", "1", "-c:a", "libmp3lame",
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", wav, *trim, "-ac", "1", "-c:a", "libmp3lame",
                             "-b:a", BITRATE, "-f", "mp3", part], check=True)
             os.replace(part, f"{a.out}/{name}")
             if i % 50 == 0 or i == len(todo):
