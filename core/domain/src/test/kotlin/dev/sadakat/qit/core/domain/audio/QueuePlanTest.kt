@@ -1,6 +1,7 @@
 package dev.sadakat.qit.core.domain.audio
 
 import dev.sadakat.qit.core.domain.model.BanglaVoice
+import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
 import org.junit.Assert.assertEquals
@@ -77,14 +78,21 @@ class QueuePlanTest {
     fun `plan of surah 2 with Toha pairs Abdul Basit with Toha and prefixes both basmalas`() {
         val queue = QueuePlan.plan(2, RecitationMode.ARABIC_BANGLA, BanglaVoice.SAYED_ISMAT_TOHA)
 
-        assertEquals(574, queue.size) // 2 basmalas + 286 ayahs x 2 tracks
+        // Every ayah's Arabic; Toha's Bangla only where the verse has a file of its own.
+        val ownBangla = (1..286).count { QuranAudioUrls.hasOwnFile(Track.BANGLA_TOHA, QuranMeta.globalAyah(2, it)) }
+        assertEquals(2 + 286 + ownBangla, queue.size)
         assertEquals(QueueItemId(2, 0, Track.ARABIC_BASIT_MUJAWWAD), queue[0].id)
         assertEquals(QueueItemId(2, 0, Track.BANGLA_TOHA), queue[1].id)
         // Their basmala is 1:1, the basmala and its meaning.
         assertEquals(QuranAudioUrls.verse(Track.ARABIC_BASIT_MUJAWWAD, 1), queue[0].file)
         assertEquals(QuranAudioUrls.verse(Track.BANGLA_TOHA, 1), queue[1].file)
         assertEquals(QuranAudioUrls.verse(Track.ARABIC_BASIT_MUJAWWAD, 8), queue[2].file)
-        assertEquals(QuranAudioUrls.verse(Track.BANGLA_TOHA, 8), queue[3].file)
+        // Each Bangla entry follows its own ayah's Arabic, and the surah ends on a translation.
+        for ((index, entry) in queue.withIndex().drop(2)) {
+            if (entry.id.track == Track.BANGLA_TOHA) {
+                assertEquals(QueueItemId(2, entry.id.ayah, Track.ARABIC_BASIT_MUJAWWAD), queue[index - 1].id)
+            }
+        }
         assertEquals(QueueItemId(2, 286, Track.BANGLA_TOHA), queue.last().id)
     }
 

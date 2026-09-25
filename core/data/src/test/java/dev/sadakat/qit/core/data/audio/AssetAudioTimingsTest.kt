@@ -80,6 +80,17 @@ class AssetAudioTimingsTest {
     }
 
     @Test
+    fun `every file of every voice's queues has a length`() = runTest {
+        for (voice in BanglaVoice.entries) {
+            for (surah in 1..QuranMeta.SURAH_COUNT) {
+                for (entry in QueuePlan.plan(surah, RecitationMode.ARABIC_BANGLA, voice)) {
+                    assertNotNull("${entry.file.id} of $surah read by $voice", timings.durationMs(entry.file.id))
+                }
+            }
+        }
+    }
+
+    @Test
     fun `every file of the default voice's queues has a length`() = runTest {
         for (surah in 1..QuranMeta.SURAH_COUNT) {
             for (mode in RecitationMode.entries) {
