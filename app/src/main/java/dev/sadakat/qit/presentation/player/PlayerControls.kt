@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDropDown
@@ -18,9 +19,9 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,11 +42,13 @@ import androidx.compose.ui.semantics.semantics
 import dev.sadakat.qit.R
 import dev.sadakat.qit.core.designsystem.QItTheme
 import dev.sadakat.qit.core.designsystem.component.PlayerTokens
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.player.NowPlaying
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.player.RepeatSetting
 import dev.sadakat.qit.core.domain.player.SleepTimerStatus
+import dev.sadakat.qit.core.ui.kit.QItMenu
 import kotlin.math.max
 
 /**
@@ -184,7 +187,7 @@ private fun SpeedButton(speed: PlaybackSpeed, onSpeedChange: (PlaybackSpeed) -> 
                 },
             )
         }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        QItMenu(expanded = open, onDismissRequest = { open = false }) {
             PlaybackSpeed.entries.forEach { option ->
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.player_speed, speedFactor(option))) },
@@ -199,10 +202,14 @@ private fun SpeedButton(speed: PlaybackSpeed, onSpeedChange: (PlaybackSpeed) -> 
     }
 }
 
-/** What plays after the Arabic (a menu of the three modes), and the sleep timer: one quiet row. */
+/**
+ * What plays after the Arabic (a menu of the three modes, and of the Bangla voices under them while
+ * Bangla plays, [voice] checked), and the sleep timer: one quiet row.
+ */
 @Composable
 fun ModeAndSleepRow(
     mode: RecitationMode,
+    voice: BanglaVoice,
     sleepTimer: SleepTimerStatus,
     actions: NowPlayingActions,
     modifier: Modifier = Modifier,
@@ -212,13 +219,18 @@ fun ModeAndSleepRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(QItTheme.spacing.sm, Alignment.CenterHorizontally),
     ) {
-        ModeChip(mode, actions.onModeChange)
+        ModeChip(mode, voice, actions.onModeChange, actions.onVoiceChange)
         SleepChip(sleepTimer, actions.onSleepTimerChange)
     }
 }
 
 @Composable
-private fun ModeChip(mode: RecitationMode, onModeChange: (RecitationMode) -> Unit) {
+private fun ModeChip(
+    mode: RecitationMode,
+    voice: BanglaVoice,
+    onModeChange: (RecitationMode) -> Unit,
+    onVoiceChange: (BanglaVoice) -> Unit,
+) {
     var open by remember { mutableStateOf(false) }
     val description = stringResource(R.string.player_cd_mode_chip, modeName(mode))
     Box {
@@ -230,7 +242,7 @@ private fun ModeChip(mode: RecitationMode, onModeChange: (RecitationMode) -> Uni
                 .testTag("player_mode")
                 .semantics { contentDescription = description },
         )
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        QItMenu(expanded = open, onDismissRequest = { open = false }) {
             RecitationMode.entries.forEach { option ->
                 DropdownMenuItem(
                     text = { Text(modeName(option)) },
@@ -240,6 +252,30 @@ private fun ModeChip(mode: RecitationMode, onModeChange: (RecitationMode) -> Uni
                         if (option != mode) onModeChange(option)
                     },
                 )
+            }
+            // The voices only matter while Bangla plays.
+            if (mode == RecitationMode.ARABIC_BANGLA) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = QItTheme.spacing.xs))
+                Text(
+                    text = stringResource(R.string.bangla_voice),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(
+                        start = QItTheme.spacing.lg,
+                        end = QItTheme.spacing.lg,
+                        bottom = QItTheme.spacing.xs,
+                    ),
+                )
+                BanglaVoice.entries.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(banglaVoiceName(option)) },
+                        trailingIcon = { if (option == voice) Icon(Icons.Rounded.Check, contentDescription = null) },
+                        onClick = {
+                            open = false
+                            if (option != voice) onVoiceChange(option)
+                        },
+                    )
+                }
             }
         }
     }

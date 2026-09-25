@@ -10,6 +10,9 @@ import com.github.takahirom.roborazzi.RoborazziATFAccessibilityChecker
 import com.github.takahirom.roborazzi.RoborazziOptions
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.github.takahirom.roborazzi.checkRoboAccessibility
+import dev.sadakat.qit.core.designsystem.skin.QItStyle
+import dev.sadakat.qit.core.designsystem.skin.QItTone
+import dev.sadakat.qit.core.ui.kit.glass.QItSurfaceMode
 import dev.sadakat.qit.ui.theme.QItAppTheme
 
 /**
@@ -22,12 +25,15 @@ import dev.sadakat.qit.ui.theme.QItAppTheme
  */
 fun ComposeContentTestRule.snapshot(
     name: String,
-    darkTheme: Boolean = false,
     arabicScale: Float = 1f,
+    style: QItStyle = QItStyle.MUSHAF,
+    tone: QItTone = QItTone.LIGHT,
     content: @Composable () -> Unit,
 ) {
     setContent {
-        QItAppTheme(darkTheme = darkTheme, arabicScale = arabicScale) {
+        // Glass is pinned to its unblurred tint: goldens stay the same on every machine (the kit's
+        // own goldens cover real blur).
+        QItAppTheme(arabicScale = arabicScale, style = style, tone = tone, surfaceMode = QItSurfaceMode.TINTED) {
             Surface(color = MaterialTheme.colorScheme.background, content = content)
         }
     }

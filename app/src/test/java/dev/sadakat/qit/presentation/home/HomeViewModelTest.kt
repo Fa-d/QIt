@@ -2,6 +2,7 @@ package dev.sadakat.qit.presentation.home
 
 import app.cash.turbine.test
 import dev.sadakat.qit.core.domain.model.AyahRef
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.player.NowPlaying
@@ -13,6 +14,8 @@ import dev.sadakat.qit.core.testing.FakeQuranText
 import dev.sadakat.qit.core.testing.FakeSurahDownloads
 import dev.sadakat.qit.core.testing.MainDispatcherRule
 import dev.sadakat.qit.presentation.awaitWhere
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -21,6 +24,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class) // runCurrent: pump the shared uiState between scripted states.
 class HomeViewModelTest {
 
     @get:Rule
@@ -115,6 +119,30 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `download state follows the voice's tracks too`() = runTest {
+        settings.banglaVoice.value = BanglaVoice.SAYED_ISMAT_TOHA
+        val viewModel = viewModel()
+        viewModel.uiState.test {
+            awaitWhere { !it.isLoading }
+
+            downloads.setState(2, Track.ARABIC, SurahDownloadState.Downloaded)
+            downloads.setState(2, Track.BANGLA, SurahDownloadState.Downloaded)
+            runCurrent()
+            // Alafasy + the Islamic Foundation pair is not what plays now.
+            assertEquals(SurahDownloadState.NotDownloaded, viewModel.uiState.value.surahs[1].download)
+
+            downloads.setState(2, Track.ARABIC_BASIT_MUJAWWAD, SurahDownloadState.Downloaded)
+            downloads.setState(2, Track.BANGLA_TOHA, SurahDownloadState.Downloaded)
+
+            val row = awaitWhere { state ->
+                state.surahs.getOrNull(1)?.download is SurahDownloadState.Downloaded
+            }.surahs[1]
+            assertEquals(SurahDownloadState.Downloaded, row.download)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `the card shows the saved position until something is queued, then what's queued`() = runTest {
         settings.lastPosition.value = LastPosition(AyahRef(2, 255), RecitationMode.ARABIC_ENGLISH)
         val viewModel = viewModel()
@@ -160,6 +188,23 @@ class HomeViewModelTest {
         quranText.failure = IllegalStateException("disk on fire")
         viewModel().uiState.test {
             assertTrue(awaitWhere { it.loadFailed }.loadFailed)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `retry goes back to loading and then loads the surahs`() = runTest {
+        quranText.failure = IllegalStateException("disk on fire")
+        val viewModel = viewModel()
+        viewModel.uiState.test {
+            assertTrue(awaitWhere { it.loadFailed }.loadFailed)
+
+            quranText.failure = null
+            viewModel.retry()
+
+            assertTrue(awaitWhere { it.isLoading }.isLoading) // back to loading, not still failed
+            val state = awaitWhere { !it.isLoading && !it.loadFailed }
+            assertEquals(114, state.surahs.size)
             cancelAndIgnoreRemainingEvents()
         }
     }

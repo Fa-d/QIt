@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Appearance -->
+    <string name="appearance_title">Appearance</string>
+    <string name="appearance_cd_open">Appearance</string>
+    <string name="appearance_more">More appearance options</string>
+    <string name="appearance_style">Style</string>
+    <string name="appearance_style_supporting">Changes the app around the Quran; the Quran\'s text always looks the same</string>
+    <string name="appearance_page">Page</string>
+    <string name="style_mushaf">Mushaf</string>
+    <string name="style_mushaf_supporting">Paper, green and gold, like a printed mushaf</string>
+    <string name="style_material">Material</string>
+    <string name="style_material_supporting">Android\'s Material 3, calm and familiar</string>
+    <string name="style_expressive">Expressive</string>
+    <string name="style_expressive_supporting">Bolder shapes and lively motion</string>
+    <string name="style_glass">Glass</string>
+    <string name="style_glass_supporting">Frosted, see-through bars over a soft glow</string>
+    <string name="wallpaper_colors_sepia_supporting">Your wallpaper colors the accents; the page stays sepia</string>
+    <string name="preview_title">Quran</string>
+    <string name="preview_surah_1">Al-Fatihah</string>
+    <string name="preview_surah_2">Al-Baqarah</string>
+    <string name="preview_now_playing">Al-Fatihah 1:3</string>
+</resources>

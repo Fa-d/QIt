@@ -2,6 +2,7 @@ package dev.sadakat.qit.core.domain.model
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ModelsTest {
@@ -35,10 +36,41 @@ class ModelsTest {
     }
 
     @Test
-    fun `a mode's translation is its non-Arabic track`() {
+    fun `bangla voices round-trip through their codes`() {
+        BanglaVoice.entries.forEach { assertEquals(it, BanglaVoice.fromCode(it.code)) }
+        assertNull(BanglaVoice.fromCode("xx"))
+    }
+
+    @Test
+    fun `a mode's translation is the language shown, whatever the voice`() {
         assertNull(RecitationMode.ARABIC_ONLY.translation)
         assertEquals(Track.ENGLISH, RecitationMode.ARABIC_ENGLISH.translation)
         assertEquals(Track.BANGLA, RecitationMode.ARABIC_BANGLA.translation)
+    }
+
+    @Test
+    fun `arabic and bangla plays the voice's own arabic, then the voice`() {
+        for (voice in BanglaVoice.entries) {
+            assertEquals(listOf(voice.arabic, voice.bangla), RecitationMode.ARABIC_BANGLA.tracks(voice))
+            assertTrue(voice.arabic.isArabic)
+            assertEquals(Language.BANGLA, voice.bangla.language)
+            assertEquals(listOf(Track.ARABIC), RecitationMode.ARABIC_ONLY.tracks(voice))
+            assertEquals(listOf(Track.ARABIC, Track.ENGLISH), RecitationMode.ARABIC_ENGLISH.tracks(voice))
+        }
+        assertEquals(listOf(Track.ARABIC, Track.BANGLA), RecitationMode.ARABIC_BANGLA.tracks(BanglaVoice.DEFAULT))
+    }
+
+    @Test
+    fun `every bangla voice shows the bangla text`() {
+        val ayah = Ayah(1, 1, 1, "ar", "en", "bn")
+        for (track in Track.entries) {
+            val expected = when (track.language) {
+                Language.ARABIC -> null
+                Language.ENGLISH -> "en"
+                Language.BANGLA -> "bn"
+            }
+            assertEquals(expected, ayah.translation(track))
+        }
     }
 
     @Test
@@ -47,5 +79,6 @@ class ModelsTest {
         assertEquals(ArabicTextSize.MEDIUM, prefs.arabicTextSize)
         assertEquals(1f, prefs.arabicTextSize.scale)
         assertEquals(ThemeMode.SYSTEM, prefs.themeMode)
+        assertEquals(UiStyle.MUSHAF, prefs.uiStyle)
     }
 }

@@ -32,4 +32,17 @@
     <string name="reader_heard_ayahs">%1$d of %2$d ayahs heard</string>
     <string name="reader_heard_rounds">Heard in full %1$d×</string>
     <string name="reader_heard_rounds_next">Heard in full %1$d× · %2$d%% into the next round</string>
+    <!-- Ayah actions (long-press) -->
+    <string name="ayah_cd_play_from_here">Play from this ayah</string>
+    <string name="ayah_cd_options">Ayah options</string>
+    <string name="ayah_cd_number">Ayah %1$d</string>
+    <string name="ayah_actions_title">%1$s · %2$d:%3$d</string>
+    <string name="ayah_actions_words">Word by word</string>
+    <string name="ayah_action_play">Play from here</string>
+    <string name="ayah_action_repeat">Repeat this ayah</string>
+    <string name="ayah_action_copy">Copy</string>
+    <string name="ayah_action_share">Share</string>
+    <string name="ayah_copied">Ayah copied</string>
+    <string name="ayah_share_reference">— %1$s %2$d:%3$d</string>
+    <string name="word_cd_play_from">Play from this word</string>
 </resources>

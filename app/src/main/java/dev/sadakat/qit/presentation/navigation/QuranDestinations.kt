@@ -16,3 +16,7 @@ data class ReaderDestination(val surah: Int, val ayah: Int = 0)
 /** The Progress screen: which surahs and ayahs you've heard, and how often. */
 @Serializable
 data object ProgressDestination
+
+/** Appearance: the style, the page tone and wallpaper colors. */
+@Serializable
+data object AppearanceDestination

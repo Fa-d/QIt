@@ -25,22 +25,12 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material.icons.rounded.Stop
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,8 +41,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import dev.sadakat.qit.R
@@ -62,13 +55,15 @@ import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.player.NowPlaying
 import dev.sadakat.qit.core.domain.player.PlaybackProgress
 import dev.sadakat.qit.core.domain.player.WordPointer
+import dev.sadakat.qit.core.ui.kit.QItMenu
+import dev.sadakat.qit.core.ui.kit.QItSheet
+import dev.sadakat.qit.core.ui.kit.rememberQItSheetState
 import dev.sadakat.qit.presentation.components.RecitedArabicText
 import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.roundToInt
 
 /** The full player, slid up over the app from the mini player. */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NowPlayingSheet(
     state: PlayerUiState,
@@ -78,13 +73,14 @@ fun NowPlayingSheet(
     pointer: WordPointer = WordPointer.Off,
     progress: () -> PlaybackProgress = { PlaybackProgress.START },
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberQItSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
-    ModalBottomSheet(
+    QItSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
+        state = sheetState,
         containerColor = MaterialTheme.colorScheme.surface,
-        modifier = modifier,
+        // The sheet is its own window: expose its test tags as resource ids too (baseline profile).
+        modifier = modifier.semantics { testTagsAsResourceId = true },
     ) {
         NowPlayingContent(
             state = state,
@@ -134,6 +130,7 @@ fun NowPlayingContent(
         TransportRow(nowPlaying, actions, Modifier.padding(top = QItTheme.spacing.sm))
         ModeAndSleepRow(
             mode = nowPlaying.mode,
+            voice = state.voice,
             sleepTimer = state.sleepTimer,
             actions = actions,
             modifier = Modifier.padding(top = QItTheme.spacing.md),
@@ -168,13 +165,15 @@ private fun Header(state: PlayerUiState, nowPlaying: NowPlaying, actions: NowPla
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                // Announced as the recitation moves on, without interrupting what's being read out.
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
         Box {
             IconButton(onClick = { menuOpen = true }) {
                 Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.player_cd_more))
             }
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            QItMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.player_open_in_reader)) },
                     leadingIcon = { Icon(Icons.AutoMirrored.Rounded.MenuBook, contentDescription = null) },

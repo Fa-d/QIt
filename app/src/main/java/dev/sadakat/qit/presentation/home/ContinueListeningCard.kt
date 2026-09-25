@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -28,6 +26,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import dev.sadakat.qit.R
 import dev.sadakat.qit.core.designsystem.QItTheme
 import dev.sadakat.qit.core.designsystem.component.PlayerTokens
+import dev.sadakat.qit.core.ui.kit.QItCard
+import dev.sadakat.qit.core.ui.kit.QItEmphasis
 
 /**
  * Where listening stands: surah, ayah and progress through the surah, with one tap to play or pause.
@@ -40,13 +40,9 @@ fun ContinueListeningCard(
     onPlayPause: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(
+    QItCard(
         onClick = onOpen,
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        ),
+        emphasis = QItEmphasis.PRIMARY,
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = QItTheme.spacing.screenGutter, vertical = QItTheme.spacing.sm)

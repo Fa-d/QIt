@@ -17,10 +17,12 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
-import dev.sadakat.qit.core.domain.model.ThemeMode
+import dev.sadakat.qit.core.designsystem.skin.QItTone
 import dev.sadakat.qit.presentation.AppViewModel
 import dev.sadakat.qit.presentation.QuranApp
+import dev.sadakat.qit.presentation.appearance.tone
 import dev.sadakat.qit.ui.theme.QItAppTheme
+import dev.sadakat.qit.ui.theme.toQItStyle
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -44,11 +46,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             val appViewModel: AppViewModel = hiltViewModel()
             val app by appViewModel.uiState.collectAsStateWithLifecycle()
-            val darkTheme = when (app.themeMode) {
-                ThemeMode.SYSTEM -> isSystemInDarkTheme()
-                ThemeMode.LIGHT -> false
-                ThemeMode.DARK -> true
-            }
+            val tone = app.themeMode.tone(systemDark = isSystemInDarkTheme())
+            val darkTheme = tone == QItTone.DARK
             // The in-app theme can differ from the system's, so the system bar icons follow it.
             DisposableEffect(darkTheme) {
                 enableEdgeToEdge(
@@ -60,9 +59,10 @@ class MainActivity : ComponentActivity() {
             // Until the settings are read the window's page color shows, so there's no theme flash.
             if (app.isReady) {
                 QItAppTheme(
-                    darkTheme = darkTheme,
                     dynamicColor = app.dynamicColor,
                     arabicScale = app.arabicTextSize.scale,
+                    style = app.uiStyle.toQItStyle(),
+                    tone = tone,
                 ) {
                     QuranApp()
                 }

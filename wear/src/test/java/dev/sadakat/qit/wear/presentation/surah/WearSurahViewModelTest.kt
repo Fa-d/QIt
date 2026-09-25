@@ -3,6 +3,7 @@ package dev.sadakat.qit.wear.presentation.surah
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.TurbineTestContext
 import app.cash.turbine.test
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState
@@ -141,6 +142,23 @@ class WearSurahViewModelTest {
 
             viewModel.remove()
             assertEquals(listOf(2 to listOf(Track.ARABIC, Track.ENGLISH)), downloads.removeRequests)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `download and remove follow the voice the phone picked`() = runTest {
+        settings.banglaVoice.value = BanglaVoice.SAYED_ISMAT_TOHA
+        val viewModel = viewModel(mapOf("number" to 2))
+        viewModel.uiState.test {
+            awaitLoaded()
+
+            viewModel.download()
+            viewModel.remove()
+
+            val tracks = listOf(Track.ARABIC_BASIT_MUJAWWAD, Track.BANGLA_TOHA)
+            assertEquals(listOf(2 to tracks), downloads.downloadRequests)
+            assertEquals(listOf(2 to tracks), downloads.removeRequests)
             cancelAndIgnoreRemainingEvents()
         }
     }

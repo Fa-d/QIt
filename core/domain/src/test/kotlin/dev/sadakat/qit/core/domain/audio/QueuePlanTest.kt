@@ -1,5 +1,7 @@
 package dev.sadakat.qit.core.domain.audio
 
+import dev.sadakat.qit.core.domain.model.BanglaVoice
+import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
 import org.junit.Assert.assertEquals
@@ -10,7 +12,7 @@ class QueuePlanTest {
 
     @Test
     fun `plan of surah 1 has no basmala prefix`() {
-        val queue = QueuePlan.plan(1, RecitationMode.ARABIC_BANGLA)
+        val queue = QueuePlan.plan(1, RecitationMode.ARABIC_BANGLA, BanglaVoice.DEFAULT)
 
         assertEquals(14, queue.size) // 7 ayahs x 2 tracks
         assertEquals(QueueItemId(1, 1, Track.ARABIC), queue[0].id)
@@ -20,7 +22,7 @@ class QueuePlanTest {
 
     @Test
     fun `plan of surah 2 arabic only prefixes the basmala`() {
-        val queue = QueuePlan.plan(2, RecitationMode.ARABIC_ONLY)
+        val queue = QueuePlan.plan(2, RecitationMode.ARABIC_ONLY, BanglaVoice.DEFAULT)
 
         assertEquals(287, queue.size) // basmala + 286 ayahs
         assertEquals(QueueItemId(2, 0, Track.ARABIC), queue[0].id)
@@ -30,7 +32,7 @@ class QueuePlanTest {
 
     @Test
     fun `plan of surah 2 arabic and english prefixes both basmalas`() {
-        val queue = QueuePlan.plan(2, RecitationMode.ARABIC_ENGLISH)
+        val queue = QueuePlan.plan(2, RecitationMode.ARABIC_ENGLISH, BanglaVoice.DEFAULT)
 
         assertEquals(574, queue.size) // 2 basmalas + 286 ayahs x 2 tracks
         assertEquals(QueueItemId(2, 0, Track.ARABIC), queue[0].id)
@@ -41,7 +43,7 @@ class QueuePlanTest {
 
     @Test
     fun `plan of surah 2 arabic and bangla prefixes only the bangla intro`() {
-        val queue = QueuePlan.plan(2, RecitationMode.ARABIC_BANGLA)
+        val queue = QueuePlan.plan(2, RecitationMode.ARABIC_BANGLA, BanglaVoice.DEFAULT)
 
         assertEquals(573, queue.size) // intro + 286 ayahs x 2 tracks
         assertEquals(QueueItemId(2, 0, Track.BANGLA), queue[0].id)
@@ -55,7 +57,7 @@ class QueuePlanTest {
 
     @Test
     fun `plan of surah 9 arabic and bangla has no basmala`() {
-        val queue = QueuePlan.plan(9, RecitationMode.ARABIC_BANGLA)
+        val queue = QueuePlan.plan(9, RecitationMode.ARABIC_BANGLA, BanglaVoice.DEFAULT)
 
         assertEquals(258, queue.size) // 129 ayahs x 2 tracks
         assertEquals(QueueItemId(9, 1, Track.ARABIC), queue[0].id)
@@ -64,7 +66,7 @@ class QueuePlanTest {
 
     @Test
     fun `plan plays each ayah's tracks contiguously with the verse files`() {
-        val queue = QueuePlan.plan(2, RecitationMode.ARABIC_BANGLA)
+        val queue = QueuePlan.plan(2, RecitationMode.ARABIC_BANGLA, BanglaVoice.DEFAULT)
 
         // 2:1 is global ayah 8; after the intro come 1:ar, 1:bn, 2:ar, 2:bn...
         assertEquals(QuranAudioUrls.verse(Track.ARABIC, 8), queue[1].file)
@@ -72,8 +74,44 @@ class QueuePlanTest {
         assertEquals(QuranAudioUrls.verse(Track.ARABIC, 9), queue[3].file)
     }
 
+    @Test
+    fun `plan of surah 2 with Toha pairs Abdul Basit with Toha and prefixes both basmalas`() {
+        val queue = QueuePlan.plan(2, RecitationMode.ARABIC_BANGLA, BanglaVoice.SAYED_ISMAT_TOHA)
+
+        // Every ayah's Arabic; Toha's Bangla only where the verse has a file of its own.
+        val ownBangla = (1..286).count { QuranAudioUrls.hasOwnFile(Track.BANGLA_TOHA, QuranMeta.globalAyah(2, it)) }
+        assertEquals(2 + 286 + ownBangla, queue.size)
+        assertEquals(QueueItemId(2, 0, Track.ARABIC_BASIT_MUJAWWAD), queue[0].id)
+        assertEquals(QueueItemId(2, 0, Track.BANGLA_TOHA), queue[1].id)
+        // Their basmala is 1:1, the basmala and its meaning.
+        assertEquals(QuranAudioUrls.verse(Track.ARABIC_BASIT_MUJAWWAD, 1), queue[0].file)
+        assertEquals(QuranAudioUrls.verse(Track.BANGLA_TOHA, 1), queue[1].file)
+        assertEquals(QuranAudioUrls.verse(Track.ARABIC_BASIT_MUJAWWAD, 8), queue[2].file)
+        // Each Bangla entry follows its own ayah's Arabic, and the surah ends on a translation.
+        for ((index, entry) in queue.withIndex().drop(2)) {
+            if (entry.id.track == Track.BANGLA_TOHA) {
+                assertEquals(QueueItemId(2, entry.id.ayah, Track.ARABIC_BASIT_MUJAWWAD), queue[index - 1].id)
+            }
+        }
+        assertEquals(QueueItemId(2, 286, Track.BANGLA_TOHA), queue.last().id)
+    }
+
+    @Test
+    fun `the Bangla voice only changes Arabic and Bangla`() {
+        for (voice in BanglaVoice.entries) {
+            assertEquals(
+                QueuePlan.plan(2, RecitationMode.ARABIC_ENGLISH, BanglaVoice.DEFAULT),
+                QueuePlan.plan(2, RecitationMode.ARABIC_ENGLISH, voice),
+            )
+            assertEquals(
+                QueuePlan.plan(2, RecitationMode.ARABIC_ONLY, BanglaVoice.DEFAULT),
+                QueuePlan.plan(2, RecitationMode.ARABIC_ONLY, voice),
+            )
+        }
+    }
+
     private val alBaqaraEnglish =
-        QueuePlan.plan(2, RecitationMode.ARABIC_ENGLISH).map { it.id }
+        QueuePlan.plan(2, RecitationMode.ARABIC_ENGLISH, BanglaVoice.DEFAULT).map { it.id }
 
     @Test
     fun `indexOfAyah finds the first item of the ayah`() {

@@ -92,4 +92,20 @@ class QuranMetaTest {
         assertThrows(IllegalArgumentException::class.java) { QuranMeta.juzStart(0) }
         assertThrows(IllegalArgumentException::class.java) { QuranMeta.juzStart(31) }
     }
+
+    @Test
+    fun `ayahRef is the inverse of globalAyah`() {
+        assertEquals(AyahRef(1, 1), QuranMeta.ayahRef(1))
+        assertEquals(AyahRef(1, 7), QuranMeta.ayahRef(7))
+        assertEquals(AyahRef(2, 1), QuranMeta.ayahRef(8))
+        assertEquals(AyahRef(2, 255), QuranMeta.ayahRef(262))
+        assertEquals(AyahRef(114, 6), QuranMeta.ayahRef(QuranMeta.TOTAL_AYAHS))
+        for (surah in 1..QuranMeta.SURAH_COUNT) {
+            for (ayah in 1..QuranMeta.ayahCount(surah)) {
+                assertEquals(AyahRef(surah, ayah), QuranMeta.ayahRef(QuranMeta.globalAyah(surah, ayah)))
+            }
+        }
+        assertThrows(IllegalArgumentException::class.java) { QuranMeta.ayahRef(0) }
+        assertThrows(IllegalArgumentException::class.java) { QuranMeta.ayahRef(QuranMeta.TOTAL_AYAHS + 1) }
+    }
 }

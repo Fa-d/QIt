@@ -9,7 +9,14 @@ enum class ArabicTextSize(val scale: Float) {
     XXLARGE(1.75f),
 }
 
-enum class ThemeMode { SYSTEM, LIGHT, DARK }
+/** The page: follow the system's light or dark, or always light, a warm sepia, or dark. */
+enum class ThemeMode { SYSTEM, LIGHT, SEPIA, DARK }
+
+/**
+ * The app's visual language: the brand's mushaf look, stock Material 3, Material 3 Expressive or
+ * frosted glass. It changes the chrome (surfaces, shapes, type, motion), never the Quran's text.
+ */
+enum class UiStyle { MUSHAF, MATERIAL, EXPRESSIVE, GLASS }
 
 /** The language of the meaning shown under each Arabic word, or [OFF] for the ayah's text alone. */
 enum class WordByWord { OFF, ENGLISH, BANGLA }
@@ -26,4 +33,5 @@ data class ReadingPrefs(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     /** Wallpaper colors (Android 12+) instead of the brand's. */
     val dynamicColor: Boolean = false,
+    val uiStyle: UiStyle = UiStyle.MUSHAF,
 )

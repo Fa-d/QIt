@@ -3,6 +3,7 @@ package dev.sadakat.qit.wear.presentation.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.player.QuranPlayer
 import dev.sadakat.qit.core.domain.repository.QuranSettings
@@ -40,18 +41,23 @@ class WearHomeViewModel @Inject constructor(
 
     private val surahsFlow = flow { emit(runCatching { quranText.surahs() }.getOrDefault(emptyList())) }
 
+    /** The mode with the voice that plays with it: together they name the downloaded tracks. */
+    private data class Recitation(val mode: RecitationMode, val voice: BanglaVoice)
+
+    private val recitation = combine(settings.mode, settings.banglaVoice, ::Recitation)
+
     val uiState: StateFlow<WearHomeUiState> = combine(
         surahsFlow,
-        settings.mode,
+        recitation,
         surahDownloads.states,
         player.nowPlaying,
         settings.lastPosition,
-    ) { surahs, mode, downloads, nowPlaying, lastPosition ->
+    ) { surahs, recitation, downloads, nowPlaying, lastPosition ->
         WearHomeUiState(
             loaded = surahs.isNotEmpty(),
-            mode = mode,
+            mode = recitation.mode,
             downloadedCount = surahs.count {
-                downloads.stateOf(it.number, mode.tracks) is SurahDownloadState.Downloaded
+                downloads.stateOf(it.number, recitation.mode.tracks(recitation.voice)) is SurahDownloadState.Downloaded
             },
             isQueued = nowPlaying != null,
             continuePosition = if (nowPlaying == null) lastPosition?.let { "${it.ref.surah}:${it.ref.ayah}" } else null,

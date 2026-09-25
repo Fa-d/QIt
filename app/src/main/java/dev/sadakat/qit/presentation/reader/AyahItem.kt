@@ -4,7 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,9 +25,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
@@ -51,6 +53,10 @@ var SemanticsPropertyReceiver.ayahIsPlaying by AyahIsPlaying
  * shown. With [wordMeanings] the Arabic is laid out word by word, each word over its meaning. The
  * reciting ayah is highlighted and carries the word [pointer]; with [followWords] its recited line
  * is kept on screen. A deep link pulses the same gold wash once so the eye finds the landed-on ayah.
+ *
+ * A tap plays from the ayah ([onClick]); a long press opens its options ([onLongClick]), which a
+ * screen reader also offers as [accessibilityActions]. In word by word, [onWordClick] plays from the
+ * tapped word.
  */
 @Composable
 fun AyahItem(
@@ -60,6 +66,9 @@ fun AyahItem(
     pulsed: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onLongClick: () -> Unit = {},
+    onWordClick: ((Int) -> Unit)? = null,
+    accessibilityActions: List<CustomAccessibilityAction> = emptyList(),
     pointer: WordPointer = WordPointer.Off,
     heardTimes: Int = 0,
     followWords: Boolean = false,
@@ -67,26 +76,7 @@ fun AyahItem(
 ) {
     val colors = QItTheme.colors
     val motion = QItTheme.motion
-    val background by animateColorAsState(
-        targetValue = if (isPlaying) colors.playingAyahHighlight else Color.Transparent,
-        animationSpec = motion.standard(),
-        label = "ayahBackground",
-    )
-    val arabicColor by animateColorAsState(
-        targetValue = if (isPlaying) colors.onPlayingAyahHighlight else colors.arabicText,
-        animationSpec = motion.standard(),
-        label = "ayahArabic",
-    )
-    val translating = isPlaying && pointer == WordPointer.Translating
-    val translationColor by animateColorAsState(
-        targetValue = when {
-            translating -> colors.currentWordOnHighlight
-            isPlaying -> colors.onPlayingAyahHighlight
-            else -> colors.translationText
-        },
-        animationSpec = motion.standard(),
-        label = "ayahTranslation",
-    )
+    val inks = animatedInks(isPlaying = isPlaying, translating = isPlaying && pointer == WordPointer.Translating)
     val pulse = remember { Animatable(0f) }
     LaunchedEffect(pulsed) {
         if (pulsed) {
@@ -96,6 +86,8 @@ fun AyahItem(
     }
     // The highlight is colour alone; announce the state so it isn't colour-only information.
     val recitingState = stringResource(R.string.reciting_ayah_state)
+    val playLabel = stringResource(R.string.ayah_cd_play_from_here)
+    val optionsLabel = stringResource(R.string.ayah_cd_options)
 
     Column(
         modifier = modifier
@@ -104,17 +96,27 @@ fun AyahItem(
             .semantics {
                 ayahIsPlaying = isPlaying
                 if (isPlaying) stateDescription = recitingState
+                if (accessibilityActions.isNotEmpty()) customActions = accessibilityActions
             }
             .clip(RoundedCornerShape(QItTheme.radius.lg))
-            .background(background)
+            .background(inks.background)
             .background(colors.tertiaryContainer.copy(alpha = pulse.value))
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClickLabel = playLabel,
+                onLongClickLabel = optionsLabel,
+                onLongClick = onLongClick,
+                onClick = onClick,
+            )
             .padding(horizontal = QItTheme.spacing.md, vertical = QItTheme.spacing.lg),
     ) {
         // The number sits beside the ayah, not on a line of its own: more of the surah fits on screen.
         Row {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                NumberBadge(number = ayah.number, size = QItTheme.sizes.numberBadgeSmall)
+                NumberBadge(
+                    number = ayah.number,
+                    size = QItTheme.sizes.numberBadgeSmall,
+                    label = stringResource(R.string.ayah_cd_number, ayah.number),
+                )
                 if (heardTimes > 0) HeardTimes(heardTimes, onHighlight = isPlaying)
             }
             Spacer(Modifier.width(QItTheme.spacing.md))
@@ -124,15 +126,17 @@ fun AyahItem(
                     wordMeanings = wordMeanings,
                     pointer = if (isPlaying) pointer else WordPointer.Off,
                     isPlaying = isPlaying,
-                    color = arabicColor,
+                    color = inks.arabic,
                     followWords = isPlaying && followWords,
+                    onWordClick = onWordClick,
+                    onWordLongPress = onLongClick,
                 )
                 translationTrack?.let { track ->
                     ayah.translation(track)?.let { translation ->
                         Text(
                             text = translation,
                             style = MaterialTheme.typography.bodyLarge,
-                            color = translationColor,
+                            color = inks.translation,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = QItTheme.spacing.xs),
@@ -144,6 +148,35 @@ fun AyahItem(
     }
 }
 
+/** An ayah's colors, animated as it starts and stops being recited. */
+private class AyahInks(val background: Color, val arabic: Color, val translation: Color)
+
+@Composable
+private fun animatedInks(isPlaying: Boolean, translating: Boolean): AyahInks {
+    val colors = QItTheme.colors
+    val motion = QItTheme.motion
+    val background by animateColorAsState(
+        targetValue = if (isPlaying) colors.playingAyahHighlight else Color.Transparent,
+        animationSpec = motion.standard(),
+        label = "ayahBackground",
+    )
+    val arabic by animateColorAsState(
+        targetValue = if (isPlaying) colors.onPlayingAyahHighlight else colors.arabicText,
+        animationSpec = motion.standard(),
+        label = "ayahArabic",
+    )
+    val translation by animateColorAsState(
+        targetValue = when {
+            translating -> colors.currentWordOnHighlight
+            isPlaying -> colors.onPlayingAyahHighlight
+            else -> colors.translationText
+        },
+        animationSpec = motion.standard(),
+        label = "ayahTranslation",
+    )
+    return AyahInks(background, arabic, translation)
+}
+
 /** The ayah's Arabic: word by word over [wordMeanings] when there are any, else as one flowing text. */
 @Composable
 private fun AyahArabic(
@@ -153,6 +186,8 @@ private fun AyahArabic(
     isPlaying: Boolean,
     color: Color,
     followWords: Boolean,
+    onWordClick: ((Int) -> Unit)?,
+    onWordLongPress: () -> Unit,
 ) {
     if (wordMeanings != null) {
         WordByWordText(
@@ -163,6 +198,8 @@ private fun AyahArabic(
             recitedColor = color,
             onHighlight = isPlaying,
             keepCurrentWordInView = followWords,
+            onWordClick = onWordClick,
+            onWordLongPress = onWordLongPress,
             modifier = Modifier.fillMaxWidth(),
         )
     } else {

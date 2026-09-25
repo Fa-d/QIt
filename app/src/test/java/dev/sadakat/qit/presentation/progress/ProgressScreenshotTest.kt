@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
+import dev.sadakat.qit.core.designsystem.skin.QItStyle
+import dev.sadakat.qit.core.designsystem.skin.QItTone
 import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.testing.TestQuran
 import dev.sadakat.qit.testing.snapshot
@@ -25,7 +27,12 @@ class ProgressScreenshotTest {
     fun light() = composeRule.snapshot("progress_light") { Progress(progress(rounds = 2)) }
 
     @Test
-    fun dark() = composeRule.snapshot("progress_dark", darkTheme = true) { Progress(progress()) }
+    fun material() = composeRule.snapshot("progress_material", style = QItStyle.MATERIAL) {
+        Progress(progress(rounds = 2))
+    }
+
+    @Test
+    fun dark() = composeRule.snapshot("progress_dark", tone = QItTone.DARK) { Progress(progress()) }
 
     @Test
     fun empty() = composeRule.snapshot("progress_empty") { Progress(ProgressUiState(isLoading = false)) }

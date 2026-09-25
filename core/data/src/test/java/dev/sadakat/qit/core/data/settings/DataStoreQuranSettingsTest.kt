@@ -5,9 +5,11 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.sadakat.qit.core.domain.model.ArabicTextSize
 import dev.sadakat.qit.core.domain.model.AyahRef
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.ReadingPrefs
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.ThemeMode
+import dev.sadakat.qit.core.domain.model.UiStyle
 import dev.sadakat.qit.core.domain.model.WordByWord
 import dev.sadakat.qit.core.domain.player.PlaybackSpeed
 import dev.sadakat.qit.core.domain.repository.LastPosition
@@ -34,6 +36,11 @@ class DataStoreQuranSettingsTest {
     @Before
     fun setUp() {
         settings = DataStoreQuranSettings(ApplicationProvider.getApplicationContext<Context>())
+    }
+
+    @Test
+    fun `banglaVoice defaults to the islamic foundation`() = runTest {
+        assertEquals(BanglaVoice.ISLAMIC_FOUNDATION, settings.banglaVoice.first())
     }
 
     @Test
@@ -73,6 +80,13 @@ class DataStoreQuranSettingsTest {
     }
 
     @Test
+    fun `setBanglaVoice round trips the chosen voice`() = runTest {
+        settings.setBanglaVoice(BanglaVoice.SAYED_ISMAT_TOHA)
+
+        assertEquals(BanglaVoice.SAYED_ISMAT_TOHA, settings.banglaVoice.first())
+    }
+
+    @Test
     fun `setPlaybackSpeed round trips the chosen speed`() = runTest {
         settings.setPlaybackSpeed(PlaybackSpeed.X1_25)
 
@@ -86,8 +100,9 @@ class DataStoreQuranSettingsTest {
             showTranslation = false,
             followAlong = false,
             wordByWord = WordByWord.BANGLA,
-            themeMode = ThemeMode.DARK,
+            themeMode = ThemeMode.SEPIA,
             dynamicColor = true,
+            uiStyle = UiStyle.GLASS,
         )
         settings.updateReadingPrefs { changed }
         settings.updateReadingPrefs { it.copy(showTranslation = true) }

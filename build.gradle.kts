@@ -8,6 +8,8 @@ import kotlinx.kover.gradle.plugin.dsl.KoverReportFiltersConfig
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.android.library) apply false
+    alias(libs.plugins.android.test) apply false
+    alias(libs.plugins.baselineprofile) apply false
     alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.kotlin.compose) apply false
@@ -102,6 +104,7 @@ val coverageFloors = mapOf(
     ":core:domain" to CoverageFloor(lines = 96, branches = 92),
     ":core:data" to CoverageFloor(lines = 91, branches = 76),
     ":core:designsystem" to CoverageFloor(lines = 94, branches = 45),
+    ":core:ui" to CoverageFloor(lines = 80, branches = 45),
     ":app" to CoverageFloor(lines = 85, branches = 60),
     ":wear" to CoverageFloor(lines = 80, branches = 50),
 )
@@ -149,6 +152,7 @@ dependencies {
     kover(project(":core:domain"))
     kover(project(":core:data"))
     kover(project(":core:designsystem"))
+    kover(project(":core:ui"))
     kover(project(":app"))
     kover(project(":wear"))
 }
@@ -182,10 +186,12 @@ tasks.register("qualityGate") {
         ":wear:lintDebug",
         ":core:data:lintDebug",
         ":core:designsystem:lintDebug",
+        ":core:ui:lintDebug",
         // Unit tests, including screenshot verification (debug variant only for the Android modules).
         ":core:domain:test",
         ":core:data:testDebugUnitTest",
         ":core:designsystem:testDebugUnitTest",
+        ":core:ui:testDebugUnitTest",
         ":app:testDebugUnitTest",
         ":wear:testDebugUnitTest",
         ":architecture-test:test",
@@ -193,6 +199,7 @@ tasks.register("qualityGate") {
         ":core:domain:koverVerify",
         ":core:data:koverVerifyDebug",
         ":core:designsystem:koverVerifyDebug",
+        ":core:ui:koverVerifyDebug",
         ":app:koverVerifyDebug",
         ":wear:koverVerifyDebug",
         ":koverVerify",

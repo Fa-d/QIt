@@ -3,6 +3,7 @@ package dev.sadakat.qit.wear.presentation.nowplaying
 import app.cash.turbine.TurbineTestContext
 import app.cash.turbine.test
 import dev.sadakat.qit.core.domain.model.RecitationMode
+import dev.sadakat.qit.core.domain.player.PlaybackError
 import dev.sadakat.qit.core.testing.FakeQuranPlayer
 import dev.sadakat.qit.core.testing.FakeQuranText
 import dev.sadakat.qit.core.testing.MainDispatcherRule
@@ -88,10 +89,10 @@ class NowPlayingViewModelTest {
     @Test
     fun `exposes the playback error alongside the position`() = runTest {
         player.play(112, 3, RecitationMode.ARABIC_ONLY)
-        player.error.value = "No network"
+        player.error.value = PlaybackError.NETWORK
 
         viewModel().uiState.test {
-            assertEquals("No network", awaitLoaded().error)
+            assertEquals(PlaybackError.NETWORK, awaitLoaded().error)
             cancelAndIgnoreRemainingEvents()
         }
     }

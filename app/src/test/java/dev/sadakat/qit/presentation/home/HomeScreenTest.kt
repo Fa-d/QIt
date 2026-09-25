@@ -1,5 +1,9 @@
 package dev.sadakat.qit.presentation.home
 
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -39,6 +43,8 @@ class HomeScreenTest {
     private var browse: BrowseMode? = null
     private var playPauses = 0
     private var openedProgress = false
+    private var openedAppearance = false
+    private var retries = 0
 
     private fun setContent(state: HomeUiState) {
         composeRule.setContent {
@@ -51,6 +57,8 @@ class HomeScreenTest {
                     onOpenProgress = { openedProgress = true },
                     onContinuePlayPause = { playPauses++ },
                     onOpenReadingSettings = {},
+                    onOpenAppearance = { openedAppearance = true },
+                    onRetry = { retries++ },
                 )
             }
         }
@@ -141,5 +149,42 @@ class HomeScreenTest {
         setContent(HomeUiState(isLoading = false, loadFailed = true))
 
         composeRule.onNodeWithText("Couldn't load the Quran text.").assertIsDisplayed()
+    }
+
+    @Test
+    fun `a failed load can be retried`() {
+        setContent(HomeUiState(isLoading = false, loadFailed = true))
+
+        composeRule.onNodeWithText("Retry").performClick()
+        assertEquals(1, retries)
+    }
+
+    @Test
+    fun `an empty search teaches the syntax, and its examples fill the field`() {
+        setContent(loaded(query = "zzz").copy(surahs = emptyList()))
+
+        composeRule.onNodeWithText("Try a name, a number, or a verse like 2:255").assertIsDisplayed()
+        composeRule.onNodeWithText("2:255").performClick()
+        assertEquals("2:255", queries.last())
+    }
+
+    @Test
+    fun `the palette action opens Appearance`() {
+        setContent(loaded())
+
+        composeRule.onNodeWithContentDescription("Appearance").performClick()
+        assertEquals(true, openedAppearance)
+    }
+
+    @Test
+    fun `rows say what a tap does and read their number with its kind`() {
+        setContent(loaded())
+
+        composeRule.onNodeWithTag("surah_1").assert(
+            SemanticsMatcher("opens the surah") {
+                it.config.getOrNull(SemanticsActions.OnClick)?.label == "Open surah"
+            },
+        )
+        composeRule.onNodeWithContentDescription("Surah 1", useUnmergedTree = true).assertExists()
     }
 }

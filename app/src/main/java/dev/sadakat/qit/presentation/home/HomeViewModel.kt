@@ -5,7 +5,9 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sadakat.qit.core.domain.model.AyahRef
 import dev.sadakat.qit.core.domain.model.AyahRefParser
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.QuranMeta
+import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Surah
 import dev.sadakat.qit.core.domain.player.NowPlaying
 import dev.sadakat.qit.core.domain.player.QuranPlayer
@@ -15,12 +17,14 @@ import dev.sadakat.qit.core.domain.repository.QuranText
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState
 import dev.sadakat.qit.core.domain.repository.SurahDownloads
 import dev.sadakat.qit.core.domain.repository.stateOf
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -65,6 +69,7 @@ data class HomeUiState(
     val isSearching: Boolean get() = query.isNotBlank()
 }
 
+@OptIn(ExperimentalCoroutinesApi::class) // flatMapLatest: a retry restarts the load, dropping the stale one.
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     quranText: QuranText,
@@ -76,13 +81,26 @@ class HomeViewModel @Inject constructor(
     private val query = MutableStateFlow("")
     private val browse = MutableStateFlow(BrowseMode.SURAH)
 
+    /** Bumped by [retry] to restart the load. */
+    private val retries = MutableStateFlow(0)
+
     private data class Load(val surahs: List<Surah> = emptyList(), val failed: Boolean = false)
 
-    private val load = flow { emit(Load(surahs = quranText.surahs())) }.catch { emit(Load(failed = true)) }
+    private val load = retries.flatMapLatest { retry ->
+        flow {
+            if (retry > 0) emit(Load()) // a retry goes back to loading first
+            emit(Load(surahs = quranText.surahs()))
+        }.catch { emit(Load(failed = true)) }
+    }
 
     private data class Listening(val nowPlaying: NowPlaying?, val lastPosition: LastPosition?)
 
     private val listening = combine(player.nowPlaying, settings.lastPosition, ::Listening)
+
+    /** The mode with the voice that plays with it: together they name the tracks acted on. */
+    private data class Recitation(val mode: RecitationMode, val voice: BanglaVoice)
+
+    private val recitation = combine(settings.mode, settings.banglaVoice, ::Recitation)
 
     private data class Browsing(val query: String, val browse: BrowseMode)
 
@@ -91,10 +109,10 @@ class HomeViewModel @Inject constructor(
     val uiState: StateFlow<HomeUiState> = combine(
         load,
         browsing,
-        settings.mode,
+        recitation,
         downloads.states,
         listening,
-    ) { load, browsing, mode, downloadStates, listening ->
+    ) { load, browsing, recitation, downloadStates, listening ->
         val byNumber = load.surahs.associateBy { it.number }
         val playingSurah = listening.nowPlaying?.surah
         HomeUiState(
@@ -108,7 +126,13 @@ class HomeViewModel @Inject constructor(
             browse = browsing.browse,
             surahs = load.surahs
                 .filter { SurahSearch.matches(it, browsing.query) }
-                .map { SurahRowUi(it, downloadStates.stateOf(it.number, mode.tracks), it.number == playingSurah) },
+                .map {
+                    SurahRowUi(
+                        it,
+                        downloadStates.stateOf(it.number, recitation.mode.tracks(recitation.voice)),
+                        it.number == playingSurah,
+                    )
+                },
             juz = if (byNumber.isEmpty()) emptyList() else juzRows(byNumber),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
@@ -119,6 +143,11 @@ class HomeViewModel @Inject constructor(
 
     fun onBrowseChange(mode: BrowseMode) {
         browse.value = mode
+    }
+
+    /** Loads the surahs again after a failure. */
+    fun retry() {
+        retries.value++
     }
 
     /** The card's play button: pauses or resumes what is queued, else resumes the saved position. */

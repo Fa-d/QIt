@@ -29,17 +29,19 @@ class AudioTimingParserTest {
 
     @Test
     fun `durations by file id`() {
-        val durations = AudioTimingParser.parseDurations("""{"ar":[100,0],"en":[200],"bn":[300],"bnIntro":[0,400]}""")
+        val durations = AudioTimingParser.parseDurations(
+            """{"verses":{"ar":[100,0],"bn.toha":[500]},"intros":{"bn":[0,400]}}""",
+        )
         assertEquals(100L, durations.durationMs("ar/1"))
         assertEquals(null, durations.durationMs("ar/2")) // 0 = unknown
-        assertEquals(200L, durations.durationMs("en/1"))
-        assertEquals(300L, durations.durationMs("bn/1"))
+        assertEquals(500L, durations.durationMs("bn.toha/1"))
         assertEquals(400L, durations.durationMs("bn/intro/2"))
         assertEquals(null, durations.durationMs("bn/outro/2"))
+        assertEquals(null, durations.durationMs("xx/1")) // a code with no durations
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun `malformed durations are rejected`() {
-        AudioTimingParser.parseDurations("""{"ar":[]}""")
+        AudioTimingParser.parseDurations("""{"verses":{}}""")
     }
 }

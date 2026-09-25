@@ -2,15 +2,18 @@
 """Builds the recitation timing assets for :core:data.
 
 Writes (compact UTF-8 JSON):
-  core/data/src/main/assets/quran/timing/ar.alafasy/001..114.json
+  core/data/src/main/assets/quran/timing/{ar.alafasy,ar.basit-mujawwad,ar.sudais}/001..114.json
       per surah: [[ayah, [start0, end0, start1, end1, ...]], ...] - where each display word of the
-      ayah's Arabic text is recited (ms) in the verse-by-verse Alafasy 128 kbps file.
+      ayah's Arabic text is recited (ms) in the reciter's verse-by-verse file (Alafasy 128 kbps,
+      Abdul Basit mujawwad 128 kbps, Sudais 192 kbps).
   core/data/src/main/assets/quran/audio/durations.json
-      {"ar": [6236], "en": [6236], "bn": [6236], "bnIntro": [114]} - the length (ms) of every audio
-      file the app plays, by global ayah (bnIntro by surah; 0 for surahs 1 and 9, which have none).
+      {"verses": {"ar": [6236], "en": [6236], "bn": [6236], ...}, "intros": {"bn": [114]}} - the length
+      (ms) of every audio file the app plays, by track code: verses by global ayah, a track's own
+      basmala files by surah (0 for surahs 1 and 9, which have none).
 
 Word timings come from quran-align by Collin Fair (https://github.com/cpfair/quran-align), release
-2016-11-24, file Alafasy_128kbps.json, licensed CC BY 4.0. The islamic.network files the app plays
+2016-11-24, files Alafasy_128kbps.json, Abdul_Basit_Mujawwad_128kbps.json and
+Abdurrahmaan_As-Sudais_192kbps.json, licensed CC BY 4.0. The islamic.network files the app plays
 are byte-identical to the everyayah.com files it was aligned against, so the timings apply as-is.
 
 Display words are the Arabic text split on whitespace, with a token made only of pause marks
@@ -45,8 +48,13 @@ ASSETS_DIR = os.path.join(REPO, "core", "data", "src", "main", "assets", "quran"
 
 ALIGN_URL = ("https://github.com/cpfair/quran-align/releases/download/"
              "release-2016-11-24/quran-align-data-2016-11-24.zip")
-ALIGN_FILE = "Alafasy_128kbps.json"
-ALIGN_SHA1 = "167bfc53255152aaf8c9a2e5e79c1160134c77a4"  # from the release's README
+# Each reciter with word timings: its timing asset folder, its quran-align file and that file's sha1
+# (from the release's README). The app plays the same everyayah recordings the files were aligned on.
+RECITERS = {
+    "ar.alafasy": ("ar", "Alafasy_128kbps.json", "167bfc53255152aaf8c9a2e5e79c1160134c77a4"),
+    "ar.basit-mujawwad": ("ar.basit", "Abdul_Basit_Mujawwad_128kbps.json", "d0c5d63917c0a2d59f0d86ce27936251b6d76f90"),
+    "ar.sudais": ("ar.sudais", "Abdurrahmaan_As-Sudais_192kbps.json", "4315194bc88db14192201426fb4f6617bffac4ac"),
+}
 
 VERSES = [7, 286, 200, 176, 120, 165, 206, 75, 129, 109, 123, 111, 43, 52, 99, 128, 111, 110, 98, 135,
           112, 78, 118, 64, 77, 227, 93, 88, 69, 60, 34, 30, 73, 54, 45, 83, 182, 88, 75, 85, 54, 53,
@@ -68,8 +76,15 @@ AUDIO_TRACKS = {
     "ar": os.path.join("arabic", "alafasy-128k"),
     "en": os.path.join("english", "saheeh-intl-walk-192k"),
     "bn": os.path.join("bangla", "bangla-translation-verses"),
+    "ar.basit": os.path.join("arabic", "abdul-basit-mujawwad-128k"),
+    "bn.toha": os.path.join("bangla", "toha-verses"),
+    "ar.sudais": os.path.join("arabic", "sudais-192k"),
+    "bn.baezeed": os.path.join("bangla", "baezeed-verses"),
 }
-BANGLA_INTRO = os.path.join("bangla", "bangla-translation-verses", "intro")
+# Tracks whose basmala is a file of its own per surah (the others reuse 1:1).
+INTRO_TRACKS = {
+    "bn": os.path.join("bangla", "bangla-translation-verses", "intro"),
+}
 
 
 def is_pause_mark(token):
@@ -172,6 +187,8 @@ def build_timings(texts, alignments, durations_ar):
         rows = []
         for ayah in range(1, count + 1):
             key = (surah, ayah)
+            if key not in alignments:  # the aligner gave up on it: no word pointer there
+                continue
             text = texts[key]
             spans = word_spans(surah, ayah, text, alignments[key],
                                durations_ar[FIRST_AYAH[surah - 1] + ayah - 2])
@@ -185,14 +202,16 @@ def dump(obj):
     return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
 
 
-def write_assets(out_root, per_surah, durations):
-    timing_dir = os.path.join(out_root, "timing", "ar.alafasy")
+def write_assets(out_root, timings, durations):
+    """timings: {reciter folder: per-surah rows}."""
     audio_dir = os.path.join(out_root, "audio")
-    os.makedirs(timing_dir, exist_ok=True)
     os.makedirs(audio_dir, exist_ok=True)
-    for surah, rows in enumerate(per_surah, 1):
-        with open(os.path.join(timing_dir, f"{surah:03d}.json"), "w", encoding="utf-8") as f:
-            f.write(dump(rows))
+    for folder, per_surah in timings.items():
+        timing_dir = os.path.join(out_root, "timing", folder)
+        os.makedirs(timing_dir, exist_ok=True)
+        for surah, rows in enumerate(per_surah, 1):
+            with open(os.path.join(timing_dir, f"{surah:03d}.json"), "w", encoding="utf-8") as f:
+                f.write(dump(rows))
     with open(os.path.join(audio_dir, "durations.json"), "w", encoding="utf-8") as f:
         f.write(dump(durations))
 
@@ -206,16 +225,22 @@ def read_texts():
     return texts
 
 
-def read_alignments(zip_path):
+def read_alignments(zip_path, name="Alafasy_128kbps.json", sha1="167bfc53255152aaf8c9a2e5e79c1160134c77a4"):
     with zipfile.ZipFile(zip_path) as archive:
-        raw = archive.read(ALIGN_FILE)
+        raw = archive.read(name)
     digest = hashlib.sha1(raw).hexdigest()
-    if digest != ALIGN_SHA1:
-        raise ValueError(f"{ALIGN_FILE}: sha1 {digest}, expected {ALIGN_SHA1}")
-    return {(row["surah"], row["ayah"]): row["segments"] for row in json.loads(raw)}
+    if digest != sha1:
+        raise ValueError(f"{name}: sha1 {digest}, expected {sha1}")
+    # The Sudais file opens with the log of an aligner crash (on 26:69) before its JSON.
+    text = raw.decode("utf-8")
+    rows = json.loads(text[text.index("\n[") + 1:] if not text.startswith("[") else text)
+    return {(row["surah"], row["ayah"]): row["segments"] for row in rows}
 
 
 def probe_ms(path):
+    """The file's length in ms; 0 for a file that doesn't exist (a verse that shares its translation's file)."""
+    if not os.path.exists(path):
+        return 0
     out = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path],
         check=True, capture_output=True, text=True,
@@ -224,18 +249,21 @@ def probe_ms(path):
 
 
 def measure_durations(audio_root):
+    """{"verses": {track code: [ms by global ayah - 1]}, "intros": {track code: [ms by surah - 1, 0 = none]}}."""
     jobs = {}
     for track, folder in AUDIO_TRACKS.items():
         for g in range(1, 6237):
             jobs[(track, g)] = os.path.join(audio_root, folder, f"{g:05d}.mp3")
-    for surah in range(1, 115):
-        if surah not in (1, 9):
-            jobs[("bnIntro", surah)] = os.path.join(audio_root, BANGLA_INTRO, f"{surah:03d}.mp3")
+    for track, folder in INTRO_TRACKS.items():
+        for surah in range(1, 115):
+            if surah not in (1, 9):
+                jobs[(track + "/intro", surah)] = os.path.join(audio_root, folder, f"{surah:03d}.mp3")
     with ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as pool:
         results = dict(zip(jobs, pool.map(probe_ms, jobs.values())))
-    durations = {track: [results[(track, g)] for g in range(1, 6237)] for track in AUDIO_TRACKS}
-    durations["bnIntro"] = [results.get(("bnIntro", s), 0) for s in range(1, 115)]
-    return durations
+    return {
+        "verses": {track: [results[(track, g)] for g in range(1, 6237)] for track in AUDIO_TRACKS},
+        "intros": {track: [results.get((track + "/intro", s), 0) for s in range(1, 115)] for track in INTRO_TRACKS},
+    }
 
 
 def main():
@@ -250,15 +278,17 @@ def main():
             zip_path = os.path.join(tmp, "quran-align.zip")
             print(f"Downloading {ALIGN_URL}…")
             urllib.request.urlretrieve(ALIGN_URL, zip_path)
-        alignments = read_alignments(zip_path)
+        alignments = {folder: read_alignments(zip_path, name, sha1) for folder, (_, name, sha1) in RECITERS.items()}
 
     print(f"Measuring audio durations under {args.audio} (ffprobe)…")
     durations = measure_durations(args.audio)
-    per_surah = build_timings(read_texts(), alignments, durations["ar"])
-    write_assets(ASSETS_DIR, per_surah, durations)
-    words = sum(len(row[1]) // 2 for rows in per_surah for row in rows)
-    print(f"Wrote timings for {words} words and {sum(len(v) for v in durations.values())} durations "
-          f"to {ASSETS_DIR}")
+    texts = read_texts()
+    timings = {folder: build_timings(texts, alignments[folder], durations["verses"][track])
+               for folder, (track, _, _) in RECITERS.items()}
+    write_assets(ASSETS_DIR, timings, durations)
+    words = sum(len(row[1]) // 2 for per_surah in timings.values() for rows in per_surah for row in rows)
+    count = sum(len(v) for group in durations.values() for v in group.values())
+    print(f"Wrote timings for {words} words and {count} durations to {ASSETS_DIR}")
 
 
 if __name__ == "__main__":

@@ -37,10 +37,11 @@ data class Ayah(
     /** Muhiuddin Khan */
     val bangla: String,
 ) {
-    fun translation(track: Track): String? = when (track) {
-        Track.ENGLISH -> english
-        Track.BANGLA -> bangla
-        Track.ARABIC -> null
+    /** The translation's text in [track]'s language (every Bangla voice shows [bangla]); null for Arabic. */
+    fun translation(track: Track): String? = when (track.language) {
+        Language.ENGLISH -> english
+        Language.BANGLA -> bangla
+        Language.ARABIC -> null
     }
 }
 

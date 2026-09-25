@@ -2,22 +2,24 @@ package dev.sadakat.qit.core.designsystem.color
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import dev.sadakat.qit.core.designsystem.skin.QItSkins
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.max
 import kotlin.math.min
 
 /**
- * WCAG 2 contrast of every pair of roles that is drawn on top of each other. Text needs 4.5:1, the
- * Quran's Arabic 7:1 (AAA: it is read for long stretches, often at night), and UI shapes 3:1.
+ * WCAG 2 contrast of every pair of roles that is drawn on top of each other, over every skin. Text
+ * needs 4.5:1, the Quran's Arabic 7:1 (AAA: it is read for long stretches, often at night), and UI
+ * shapes 3:1.
  */
 class ContrastTest {
 
-    private val schemes = mapOf(
-        "light" to lightQItColors(),
-        "dark" to darkQItColors(),
-        "watch" to watchQItColors(),
-    )
+    private val schemes: Map<String, QItColors> =
+        QItSkins.all.associate { skin ->
+            "${skin.style.name.lowercase()} ${skin.tone.name.lowercase()}" to skin.colors
+        } +
+            ("watch" to watchQItColors())
 
     @Test
     fun `body text is readable on every surface`() = assertEach(TEXT) { c ->

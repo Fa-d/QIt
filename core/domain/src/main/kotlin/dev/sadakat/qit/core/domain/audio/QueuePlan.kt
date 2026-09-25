@@ -1,5 +1,6 @@
 package dev.sadakat.qit.core.domain.audio
 
+import dev.sadakat.qit.core.domain.model.BanglaVoice
 import dev.sadakat.qit.core.domain.model.QuranMeta
 import dev.sadakat.qit.core.domain.model.RecitationMode
 import dev.sadakat.qit.core.domain.model.Track
@@ -37,20 +38,16 @@ object QueuePlan {
     private const val RESTART_AYAH_AFTER_MS = 3_000L
 
     /**
-     * The queue for [surah] in [mode]: a basmala prefix (ayah 0) for surahs with one, then for each
-     * ayah one entry per track of [mode], in the mode's order.
-     * Basmala prefix: Arabic only → ar basmala; Arabic + English → ar then en basmala;
-     * Arabic + Bangla → only the Bangla intro (it already contains the Arabic basmala).
+     * The queue for [surah] in [mode] (Arabic + Bangla read by [voice]): a basmala prefix (ayah 0) for
+     * surahs with one, then for each ayah one entry per track of the mode, in the mode's order.
+     * The prefix is each track's basmala, except that a translation basmala which already contains
+     * the Arabic ([QuranAudioUrls.basmalaIncludesArabic], the Islamic Foundation intro) plays alone.
+     * A verse whose translation is read with the next verse's has no entry on that track
+     * ([QuranAudioUrls.hasOwnFile]): the next verse's file holds both.
      */
-    fun plan(surah: Int, mode: RecitationMode): List<QueueEntry> {
-        val prefixTracks = when (mode) {
-            RecitationMode.ARABIC_ONLY -> listOf(Track.ARABIC)
-
-            RecitationMode.ARABIC_ENGLISH -> listOf(Track.ARABIC, Track.ENGLISH)
-
-            // The Bangla intro already contains the Arabic basmala, so no separate Arabic prefix.
-            RecitationMode.ARABIC_BANGLA -> listOf(Track.BANGLA)
-        }
+    fun plan(surah: Int, mode: RecitationMode, voice: BanglaVoice): List<QueueEntry> {
+        val tracks = mode.tracks(voice)
+        val prefixTracks = tracks.firstOrNull(QuranAudioUrls::basmalaIncludesArabic)?.let(::listOf) ?: tracks
         val prefix = if (QuranMeta.hasBasmalaPrefix(surah)) {
             prefixTracks.mapNotNull { track ->
                 QuranAudioUrls.basmala(track, surah)?.let { file ->
@@ -62,7 +59,7 @@ object QueuePlan {
         }
         val verses = (1..QuranMeta.ayahCount(surah)).flatMap { ayah ->
             val globalAyah = QuranMeta.globalAyah(surah, ayah)
-            mode.tracks.map { track ->
+            tracks.filter { QuranAudioUrls.hasOwnFile(it, globalAyah) }.map { track ->
                 QueueEntry(QueueItemId(surah, ayah, track), QuranAudioUrls.verse(track, globalAyah))
             }
         }

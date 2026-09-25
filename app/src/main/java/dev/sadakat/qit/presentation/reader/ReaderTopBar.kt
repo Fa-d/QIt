@@ -7,16 +7,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.FormatSize
 import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,19 +23,21 @@ import androidx.compose.ui.text.style.TextOverflow
 import dev.sadakat.qit.R
 import dev.sadakat.qit.core.domain.model.Surah
 import dev.sadakat.qit.core.domain.repository.SurahDownloadState
+import dev.sadakat.qit.core.ui.kit.QItMenu
+import dev.sadakat.qit.core.ui.kit.QItTopBar
+import dev.sadakat.qit.core.ui.kit.QItTopBarScroll
 import dev.sadakat.qit.presentation.components.DownloadIndicator
 import kotlin.math.roundToInt
 
 /**
- * The reader's app bar: it hides while reading down and returns on scroll up ([scrollBehavior],
+ * The reader's app bar: it hides while reading down and returns on scroll up ([scroll],
  * wired by the screen). Back, the surah's identity, the "Aa" reading-settings action and a labelled
  * overflow menu for the download and watch actions.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderTopBar(
     surah: Surah?,
-    scrollBehavior: TopAppBarScrollBehavior,
+    scroll: QItTopBarScroll,
     onBack: () -> Unit,
     onOpenReadingSettings: () -> Unit,
     downloadState: SurahDownloadState,
@@ -49,7 +46,7 @@ fun ReaderTopBar(
     onSendToWatch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    TopAppBar(
+    QItTopBar(
         title = {
             Column {
                 Text(
@@ -91,9 +88,7 @@ fun ReaderTopBar(
                 onSendToWatch = onSendToWatch,
             )
         },
-        scrollBehavior = scrollBehavior,
-        // Inset paddings come from the app scaffold; don't apply them twice.
-        windowInsets = WindowInsets(0, 0, 0, 0),
+        scroll = scroll,
         modifier = modifier,
     )
 }
@@ -114,7 +109,7 @@ private fun ReaderOverflowMenu(
                 contentDescription = stringResource(R.string.cd_more_options),
             )
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        QItMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DownloadMenuItem(
                 state = downloadState,
                 onDownload = {

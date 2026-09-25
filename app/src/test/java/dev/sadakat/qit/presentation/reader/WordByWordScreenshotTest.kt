@@ -9,6 +9,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import dev.sadakat.qit.core.designsystem.QItTheme
+import dev.sadakat.qit.core.designsystem.skin.QItTone
 import dev.sadakat.qit.core.domain.model.Ayah
 import dev.sadakat.qit.core.domain.model.Track
 import dev.sadakat.qit.core.domain.player.WordPointer
@@ -32,7 +33,7 @@ class WordByWordScreenshotTest {
     fun banglaLight() = composeRule.snapshot("reader_word_by_word_bangla") { Ayahs(BANGLA, Track.BANGLA) }
 
     @Test
-    fun englishDark() = composeRule.snapshot("reader_word_by_word_english_dark", darkTheme = true) {
+    fun englishDark() = composeRule.snapshot("reader_word_by_word_english_dark", tone = QItTone.DARK) {
         Ayahs(ENGLISH, Track.ENGLISH)
     }
 }
