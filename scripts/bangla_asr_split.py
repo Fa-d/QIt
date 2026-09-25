@@ -376,8 +376,9 @@ def split_chunk(db, s, e, ayahs, words, keep_apart=()):
             elif verbatim[k] is not None:
                 h = verbatim[k]
                 cut = quietest(db, words[h - 1][2], words[h][1]) if words[h][1] > words[h - 1][2] else words[h][1]
-                pieces.append((start, cut, held))
-                held, start = [], cut
+                if start + MIN_PIECE <= cut <= e - MIN_PIECE:  # else the verses share a piece
+                    pieces.append((start, cut, held))
+                    held, start = [], cut
         return pieces, [None if c is None else float("inf") for c in verbatim]
     # candidates: the chunk's ends and every gap between consecutive words
     times, gaps = [s], [0.0]
@@ -427,6 +428,9 @@ def split_chunk(db, s, e, ayahs, words, keep_apart=()):
             pieces.append((start, e, held))
         elif k in keep_apart or (margins[k] is not None and margins[k] >= CONFIDENT):
             cut = float(times[idx[k + 1]])
-            pieces.append((start, cut, held))
-            held, start = [], cut
+            # Each cut moved to its own longest pause may cross or meet its neighbour's: keep the cuts
+            # in order, with room for a piece between them, else the verses share a piece.
+            if start + MIN_PIECE <= cut <= e - MIN_PIECE:
+                pieces.append((start, cut, held))
+                held, start = [], cut
     return pieces, margins

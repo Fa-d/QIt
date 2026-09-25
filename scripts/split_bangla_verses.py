@@ -468,6 +468,16 @@ def loud_span(v):
     return loud[0] / 100, (loud[-1] + 1) / 100
 
 
+def saved_words(surah):
+    """The words heard in [surah]'s translation chunks on an earlier run (WORK/SSS.words.json), by chunk,
+    so a re-cut needn't transcribe again; {} when there are none. Delete the file to transcribe anew."""
+    path = f"{WORK}/{surah:03d}.words.json"
+    if not os.path.exists(path):
+        return {}
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
 def split_surah_grouped(surah):
     import bangla_asr_split as asr
 
@@ -476,7 +486,9 @@ def split_surah_grouped(surah):
     src = source_file(surah)
     if src is None:
         return surah, None, "source file not found"
-    asr.start_server()
+    saved = saved_words(surah)
+    if not saved:
+        asr.start_server()
     x = decode(src, SR, 1)
     dur = len(x) / SR
     cum2 = np.concatenate([[0.0], np.cumsum(x * x)])
@@ -501,7 +513,7 @@ def split_surah_grouped(surah):
         s, e = trim(db, g0, max(g0, g1))
         if e - s < 1.0:
             continue
-        words = asr.words_in(pcm16, db, s, e)
+        words = [tuple(w) for w in saved[str(k)]] if str(k) in saved else asr.words_in(pcm16, db, s, e)
         matched = asr.matching_words(words, [first + j for j in range(group_start, k + 1)])
         if matched >= TRANSLATION_WORDS or (e - s >= TRANSLATION_MIN and matched >= 1):
             chunks[k] = (s, e, words)
@@ -707,7 +719,9 @@ def split_surah_by_voice(surah):
     src = source_file(surah)
     if src is None:
         return surah, None, "source file not found"
-    asr.start_server()
+    saved = saved_words(surah)
+    if not saved:
+        asr.start_server()
     x = decode(src, SR, 1)
     dur = len(x) / SR
     db = frame_db(x)
@@ -721,7 +735,11 @@ def split_surah_by_voice(surah):
     chunks = []
     for i, (a, b) in enumerate(blocks):
         s, e = trim(db, b, blocks[i + 1][0] if i + 1 < len(blocks) else dur)
-        words = asr.words_in(pcm16, db, s, e) if e - s >= CHUNK_MIN else []
+        key = f"{s:.2f}"
+        if key in saved:
+            words = [tuple(w) for w in saved[key]]
+        else:
+            words = asr.words_in(pcm16, db, s, e) if e - s >= CHUNK_MIN else []
         chunks.append([a, b, s, e, words])
     everything = range(first, first + n)
     kept = []
