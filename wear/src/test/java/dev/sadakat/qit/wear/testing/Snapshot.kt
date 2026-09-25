@@ -7,7 +7,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.onRoot
+import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.MaterialTheme
+import androidx.wear.compose.material3.TimeSource
+import androidx.wear.compose.material3.TimeText
 import com.github.takahirom.roborazzi.RoborazziATFAccessibilityCheckOptions
 import com.github.takahirom.roborazzi.RoborazziATFAccessibilityChecker
 import com.github.takahirom.roborazzi.RoborazziOptions
@@ -26,17 +29,26 @@ import dev.sadakat.qit.wear.presentation.theme.QItWearTheme
 fun ComposeContentTestRule.wearSnapshot(name: String, content: @Composable () -> Unit) {
     setContent {
         QItWearTheme {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background),
-            ) { content() }
+            // The time at the top is the clock's: fix it, or every golden would change by the minute.
+            AppScaffold(timeText = { TimeText(timeSource = FixedTime) }) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background),
+                ) { content() }
+            }
         }
     }
     onRoot().captureRoboImage("src/test/screenshots/$name.png", roborazziOptions = SnapshotOptions)
     onRoot().checkRoboAccessibility(
         RoborazziATFAccessibilityCheckOptions(failureLevel = RoborazziATFAccessibilityChecker.CheckLevel.Error),
     )
+}
+
+/** The time the goldens show. */
+private object FixedTime : TimeSource {
+    @Composable
+    override fun currentTime(): String = "10:09"
 }
 
 /** Tolerates sub-percent anti-aliasing differences between machines. */
