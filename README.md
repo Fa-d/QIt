@@ -117,6 +117,19 @@ The bundled text assets (`core/data/src/main/assets/quran/`) are generated from 
 - `en.sahih` — English (Saheeh International)
 - `bn.bengali` — Bangla (Muhiuddin Khan)
 
+## Logo
+
+The mark is a qandeel: its glass is the rub el hizb (the octagram around surah and ayah numbers),
+with a flame at its heart, hung from a chain, in the mushaf gold on deep green.
+`scripts/build_logo.py` draws it from one geometry into the launcher icon (whose one-colour
+foreground is also the themed icon), the status-bar icon, `docs/store/logo.svg`, and the Play
+Store's `docs/store/icon-512.png` and `feature-graphic-1024x500.png` (rendered with headless Chrome,
+the wordmark in the bundled Amiri Quran). Edit the script, not the generated drawables:
+
+```bash
+python3 scripts/build_logo.py --preview /tmp   # also writes /tmp/preview.png: every size and mask
+```
+
 ## Build and run
 
 Requirements: Android SDK (compileSdk 37, targetSdk 36), minSdk 26. AGP 9 with built-in Kotlin,
@@ -185,7 +198,7 @@ scripts/install-git-hooks.sh
 The Python script `scripts/build_quran_text.py` has its own unittest suite:
 
 ```bash
-python3 -m unittest scripts/test_build_quran_text.py scripts/test_build_audio_timing.py -v
+python3 -m unittest scripts/test_build_quran_text.py scripts/test_build_audio_timing.py scripts/test_build_logo.py -v
 ```
 
 ## Module map
@@ -221,4 +234,6 @@ Dependencies point inward: `:app` and `:wear` → `:core:data` → `:core:domain
 | `scripts/test_build_quran_text.py` | Unit tests for the text builder's pure functions |
 | `scripts/test_build_audio_timing.py` | Unit tests for the timing builder's pure functions |
 | `scripts/test_build_word_meanings.py` | Unit tests for the meaning builder's pure functions |
+| `scripts/build_logo.py` | Draw the logo into the launcher, Wear and notification icons and the Play Store graphics |
+| `scripts/test_build_logo.py` | Unit tests for the logo's geometry (inside the safe circle) and drawables |
 | `scripts/install-git-hooks.sh` | Point git at `scripts/git-hooks/` (spotless + detekt before each commit) |
