@@ -6,6 +6,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import dev.sadakat.qit.core.designsystem.skin.QItSkins
 import dev.sadakat.qit.core.designsystem.skin.QItStyle
@@ -34,7 +35,9 @@ fun QItAppTheme(
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
-    val skin = remember(style, tone, dynamicColor) {
+
+    val configuration = LocalConfiguration.current
+    val skin = remember(style, tone, dynamicColor, configuration) {
         val skin = QItSkins.of(style, tone)
         if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val wallpaper = if (tone ==

@@ -1,2 +1,4 @@
-i need to know the progress of suras of mine, so can track which surah & ayat I've listend to how many times.
-i also need pointer in texts currently the one that's been read (find proper dataset)
+i need ayat share option, deeplink, that will open that ayat on a different phone highinlighint that ayat
+like spotify lyrics, the poisiton of reading mode must auto scroll
+
+in reading mode tapping on a text must repeat that word
