@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Mirrors of design tokens for what draws before Compose does (window, launcher icon).
-         Values come from QandeelPalettes: neutral 98 (paper), primary 30 (green), tertiary 80 (gold). -->
+         Values come from QandeelPalettes: neutral 98 (paper), primary 30 (green), primary 35 and 25 (the
+         icon's glow and edges), tertiary 80 (gold). -->
     <color name="qandeel_window_background">#FFFFF8F1</color>
     <color name="qandeel_icon_background">#FF195039</color>
     <color name="qandeel_icon_foreground">#FFEFC055</color>
+    <color name="qandeel_icon_glow">#FF275C44</color>
+    <color name="qandeel_icon_edge">#FF09442E</color>
 </resources>

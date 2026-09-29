@@ -76,7 +76,7 @@ internal object DownloadNotifications {
         val name = name(context, names, surah)
         return NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(
-                if (failed) android.R.drawable.stat_notify_error else android.R.drawable.stat_sys_download_done,
+                if (failed) android.R.drawable.stat_notify_error else R.drawable.ic_notification,
             )
             .setContentTitle(
                 context.getString(if (failed) R.string.quran_download_failed else R.string.quran_download_done, name),
