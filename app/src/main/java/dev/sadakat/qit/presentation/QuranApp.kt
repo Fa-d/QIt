@@ -25,8 +25,10 @@ import androidx.navigation.compose.rememberNavController
 import dev.sadakat.qit.R
 import dev.sadakat.qit.core.designsystem.QItTheme
 import dev.sadakat.qit.core.ui.kit.QItAppShell
+import dev.sadakat.qit.presentation.about.AboutRoute
 import dev.sadakat.qit.presentation.appearance.AppearanceRoute
 import dev.sadakat.qit.presentation.home.HomeRoute
+import dev.sadakat.qit.presentation.navigation.AboutDestination
 import dev.sadakat.qit.presentation.navigation.AppearanceDestination
 import dev.sadakat.qit.presentation.navigation.HomeDestination
 import dev.sadakat.qit.presentation.navigation.ProgressDestination
@@ -118,6 +120,9 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
             composable<AppearanceDestination> {
                 AppearanceRoute(onBack = { navController.popBackStack() }, contentPadding = contentPadding)
             }
+            composable<AboutDestination> {
+                AboutRoute(onBack = { navController.popBackStack() }, contentPadding = contentPadding)
+            }
             composable<ProgressDestination> {
                 ProgressRoute(
                     onBack = { navController.popBackStack() },
@@ -161,6 +166,10 @@ fun QuranApp(modifier: Modifier = Modifier, playerViewModel: PlayerViewModel = h
             onOpenAppearance = {
                 showReadingSettings = false
                 openAppearance()
+            },
+            onOpenAbout = {
+                showReadingSettings = false
+                navController.navigate(AboutDestination) { launchSingleTop = true }
             },
         )
     }

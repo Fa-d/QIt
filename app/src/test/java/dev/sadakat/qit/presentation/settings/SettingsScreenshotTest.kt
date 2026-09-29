@@ -56,5 +56,6 @@ private fun Settings(prefs: ReadingPrefs = ReadingPrefs()) {
         onWordByWordChange = {},
         onThemeModeChange = {},
         onOpenAppearance = {},
+        onOpenAbout = {},
     )
 }

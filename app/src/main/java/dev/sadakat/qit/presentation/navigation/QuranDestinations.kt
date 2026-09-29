@@ -20,3 +20,7 @@ data object ProgressDestination
 /** Appearance: the style, the page tone and wallpaper colors. */
 @Serializable
 data object AppearanceDestination
+
+/** About: the version, the credits for every source, and the privacy note. */
+@Serializable
+data object AboutDestination

@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -46,12 +47,13 @@ import kotlin.math.roundToInt
  * The reading-comfort sheet (Arabic size, translation, follow-along, the Bangla voice, word by word,
  * the page tone),
  * opened from the home screen and the reader. The rest of the look (the style, wallpaper colors)
- * lives in Appearance, one tap away.
+ * lives in Appearance, one tap away; the credits and privacy note in About, at the bottom.
  */
 @Composable
 fun ReadingSettingsSheet(
     onDismiss: () -> Unit,
     onOpenAppearance: () -> Unit,
+    onOpenAbout: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ReadingSettingsViewModel = hiltViewModel(),
 ) {
@@ -66,14 +68,15 @@ fun ReadingSettingsSheet(
             onWordByWordChange = viewModel::setWordByWord,
             onThemeModeChange = viewModel::setThemeMode,
             onOpenAppearance = onOpenAppearance,
+            onOpenAbout = onOpenAbout,
         )
     }
 }
 
 /**
  * The sheet's stateless content: the Arabic text size with a live preview, the translation and
- * follow-along switches, the Bangla voice, the word-by-word language, the page tone, and the way to
- * Appearance. Kept
+ * follow-along switches, the Bangla voice, the word-by-word language, the page tone, and the ways to
+ * Appearance and About. Kept
  * separate from the sheet so tests and goldens render it without a window.
  */
 @Composable
@@ -86,6 +89,7 @@ fun ReadingSettingsContent(
     onWordByWordChange: (WordByWord) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onOpenAppearance: () -> Unit,
+    onOpenAbout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val prefs = state.prefs
@@ -172,13 +176,15 @@ fun ReadingSettingsContent(
             Text(stringResource(R.string.appearance_more))
         }
 
-        // The word pointer's timings are CC BY: credit them where the reading is set up.
-        Text(
-            text = stringResource(R.string.word_timings_credit),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = QItTheme.spacing.md, start = gutter, end = gutter),
-        )
+        // Where every voice, text and timing comes from (the word pointer's timings are CC BY).
+        TextButton(
+            onClick = onOpenAbout,
+            modifier = Modifier.padding(start = QItTheme.spacing.sm, top = QItTheme.spacing.sm),
+        ) {
+            Icon(Icons.Rounded.Info, contentDescription = null, modifier = Modifier.size(QItTheme.sizes.iconSmall))
+            Spacer(Modifier.size(QItTheme.spacing.sm))
+            Text(stringResource(R.string.about_open))
+        }
         Spacer(Modifier.height(QItTheme.spacing.xl))
     }
 }

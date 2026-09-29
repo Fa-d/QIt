@@ -44,6 +44,7 @@ class ReadingSettingsContentTest {
     private var wordByWord: WordByWord? = null
     private var pickedTheme: ThemeMode? = null
     private var openedAppearance = false
+    private var openedAbout = false
 
     private fun setContent(prefs: ReadingPrefs = ReadingPrefs(), voice: BanglaVoice = BanglaVoice.DEFAULT) {
         composeRule.setContent {
@@ -57,6 +58,7 @@ class ReadingSettingsContentTest {
                     onWordByWordChange = { wordByWord = it },
                     onThemeModeChange = { pickedTheme = it },
                     onOpenAppearance = { openedAppearance = true },
+                    onOpenAbout = { openedAbout = true },
                 )
             }
         }
@@ -155,6 +157,13 @@ class ReadingSettingsContentTest {
         setContent()
         composeRule.onNodeWithText(context.getString(R.string.appearance_more)).performScrollTo().performClick()
         assertEquals(true, openedAppearance)
+    }
+
+    @Test
+    fun `the sheet leads on to About`() {
+        setContent()
+        composeRule.onNodeWithText(context.getString(R.string.about_open)).performScrollTo().performClick()
+        assertEquals(true, openedAbout)
     }
 
     @Test
