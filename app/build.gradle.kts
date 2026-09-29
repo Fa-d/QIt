@@ -9,6 +9,8 @@ plugins {
     alias(libs.plugins.baselineprofile)
 }
 
+val qitVersionCode = providers.gradleProperty("qit.versionCode").get().toInt()
+
 android {
     namespace = "dev.sadakat.qit"
     compileSdk = 37
@@ -17,15 +19,31 @@ android {
         applicationId = "dev.sadakat.qit"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        // gradle.properties holds the release; the phone app's versionCode ends in 0 (see there).
+        versionCode = qitVersionCode * 10
+        versionName = providers.gradleProperty("qit.versionName").get()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        // The upload key from the root build (keystore.properties or QIT_UPLOAD_*), when present.
+        @Suppress("UNCHECKED_CAST")
+        (rootProject.extra["uploadSigning"] as Map<String, String>?)?.let { key ->
+            create("release") {
+                storeFile = file(key.getValue("storeFile"))
+                storePassword = key.getValue("storePassword")
+                keyAlias = key.getValue("keyAlias")
+                keyPassword = key.getValue("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.findByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -49,6 +67,8 @@ android {
     }
     buildFeatures {
         compose = true
+        // AboutScreen shows the version name.
+        buildConfig = true
     }
     lint {
         checkReleaseBuilds = false

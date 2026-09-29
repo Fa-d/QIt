@@ -122,6 +122,25 @@ provisions it if missing).
 ./gradlew :wear:installDebug       # install the watch app
 ```
 
+### Release builds
+
+Both apps ship from one version in `gradle.properties` (`qit.versionCode`, `qit.versionName`). Bump
+`qit.versionCode` for every Play upload: the phone app becomes `versionCode × 10` and the watch app
+`versionCode × 10 + 1`, since they share the applicationId `dev.sadakat.qit`.
+
+Release builds are shrunk with R8 and signed with the Play upload key: copy
+`keystore.properties.example` to `keystore.properties` (gitignored) and fill it in, or set the
+`QIT_UPLOAD_*` environment variables. Without either, the release comes out unsigned.
+
+```bash
+./gradlew :app:bundleRelease :wear:bundleRelease   # app/build/outputs/bundle/release/*.aab
+```
+
+Upload the R8 mapping file (`<module>/build/outputs/mapping/release/mapping.txt`) with each bundle
+if Play doesn't pick it up from the bundle, so crash reports show real names. The privacy policy
+the store listing links to is [docs/PRIVACY.md](docs/PRIVACY.md); it has to be hosted at a public
+URL (the repository is private).
+
 ### Startup performance
 
 The phone app ships a **baseline profile** (`app/src/release/generated/baselineProfiles/`): the code

@@ -8,6 +8,8 @@ plugins {
     alias(libs.plugins.roborazzi)
 }
 
+val qitVersionCode = providers.gradleProperty("qit.versionCode").get().toInt()
+
 android {
     namespace = "dev.sadakat.qit.wear"
     compileSdk = 37
@@ -16,16 +18,35 @@ android {
         applicationId = "dev.sadakat.qit"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        // gradle.properties holds the release; the watch app's versionCode ends in 1 (see there).
+        versionCode = qitVersionCode * 10 + 1
+        versionName = providers.gradleProperty("qit.versionName").get()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        // The upload key from the root build (keystore.properties or QIT_UPLOAD_*), when present.
+        @Suppress("UNCHECKED_CAST")
+        (rootProject.extra["uploadSigning"] as Map<String, String>?)?.let { key ->
+            create("release") {
+                storeFile = file(key.getValue("storeFile"))
+                storePassword = key.getValue("storePassword")
+                keyAlias = key.getValue("keyAlias")
+                keyPassword = key.getValue("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.findByName("release")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
     // Built-in Kotlin takes its jvmTarget from targetCompatibility.

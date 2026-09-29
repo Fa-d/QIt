@@ -35,7 +35,8 @@ jobs:
 
       - name: Quality gate + assemble
         if: ${{ !inputs.record }}
-        run: ./gradlew qualityGate assembleDebug
+        # The release bundles (unsigned here) catch what only R8 breaks.
+        run: ./gradlew qualityGate assembleDebug :app:bundleRelease :wear:bundleRelease
 
       - name: Record screenshot goldens
         if: ${{ inputs.record }}

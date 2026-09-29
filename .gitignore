@@ -103,3 +103,6 @@ quran_audio/
 
 # Python bytecode
 __pycache__/
+
+# Release signing (see keystore.properties.example)
+keystore.properties

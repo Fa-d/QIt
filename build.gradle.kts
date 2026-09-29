@@ -4,6 +4,7 @@ import io.gitlab.arturbosch.detekt.extensions.DetektExtension
 import kotlinx.kover.gradle.plugin.dsl.CoverageUnit
 import kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension
 import kotlinx.kover.gradle.plugin.dsl.KoverReportFiltersConfig
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application) apply false
@@ -18,6 +19,24 @@ plugins {
     alias(libs.plugins.kover)
     alias(libs.plugins.roborazzi) apply false
 }
+
+/**
+ * The Play upload key both apps sign their release builds with: keystore.properties at the root
+ * (gitignored, see keystore.properties.example), else the QIT_UPLOAD_* environment variables (CI).
+ * With neither, release builds come out unsigned.
+ */
+val uploadSigning: Map<String, String>? = run {
+    val file = rootProject.file("keystore.properties")
+    val props = Properties().apply { if (file.exists()) file.inputStream().use(::load) }
+    val keys = mapOf(
+        "storeFile" to "QIT_UPLOAD_STORE_FILE",
+        "storePassword" to "QIT_UPLOAD_STORE_PASSWORD",
+        "keyAlias" to "QIT_UPLOAD_KEY_ALIAS",
+        "keyPassword" to "QIT_UPLOAD_KEY_PASSWORD",
+    ).mapValues { (name, env) -> props.getProperty(name) ?: System.getenv(env) }
+    keys.takeIf { it.values.none { value -> value.isNullOrBlank() } }?.mapValues { it.value!! }
+}
+extra["uploadSigning"] = uploadSigning
 
 subprojects {
     apply(plugin = "com.diffplug.spotless")
