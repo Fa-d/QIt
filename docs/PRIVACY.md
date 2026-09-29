@@ -1,19 +1,19 @@
-# QIt privacy policy
+# Qandeel privacy policy
 
 _Last updated: 30 September 2026_
 
-QIt is a Quran player for Android phones and Wear OS watches. This policy covers both apps.
+Qandeel is a Quran player for Android phones and Wear OS watches. This policy covers both apps.
 
-## What QIt collects
+## What Qandeel collects
 
-Nothing. QIt has no account, no analytics, no advertising and no crash-reporting SDK, and it sends
+Nothing. Qandeel has no account, no analytics, no advertising and no crash-reporting SDK, and it sends
 no data about you to its developer or to anyone else.
 
 ## What stays on your device
 
 - **Settings** (text size, recitation mode, Bangla voice, theme, and so on) and **listening
   progress** (which ayahs you have heard and for how long) are stored only on your device. If you
-  use Android's backup, they are included in your own Google backup, which QIt cannot read.
+  use Android's backup, they are included in your own Google backup, which Qandeel cannot read.
 - **Downloaded audio** is stored in the app's private storage and is never backed up.
 - **Phone and watch:** when you use both apps, they exchange your settings, listening progress and
   download requests directly over Google Play services' Wearable Data Layer. Nothing passes through
@@ -21,7 +21,7 @@ no data about you to its developer or to anyone else.
 
 ## Network requests
 
-QIt streams and downloads recitation audio directly from these hosts:
+Qandeel streams and downloads recitation audio directly from these hosts:
 
 - `cdn.islamic.network` (Alafasy's Arabic and the English translation audio)
 - `everyayah.com` (Abdul Basit and As-Sudais)
@@ -41,7 +41,7 @@ timings are bundled in the app and need no network.
 
 ## Children
 
-QIt collects no data from anyone, children included.
+Qandeel collects no data from anyone, children included.
 
 ## Changes
 

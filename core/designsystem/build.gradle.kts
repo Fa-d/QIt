@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "dev.sadakat.qit.core.designsystem"
+    namespace = "dev.sadakat.qandeel.core.designsystem"
     compileSdk = 37
 
     defaultConfig {

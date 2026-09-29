@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Mirrors of design tokens for what draws before Compose does (window, launcher icon).
-         Values come from QItPalettes: neutral 98 (paper), primary 30 (green), tertiary 80 (gold). -->
-    <color name="qit_window_background">#FFFFF8F1</color>
-    <color name="qit_icon_background">#FF195039</color>
-    <color name="qit_icon_foreground">#FFEFC055</color>
+         Values come from QandeelPalettes: neutral 98 (paper), primary 30 (green), tertiary 80 (gold). -->
+    <color name="qandeel_window_background">#FFFFF8F1</color>
+    <color name="qandeel_icon_background">#FF195039</color>
+    <color name="qandeel_icon_foreground">#FFEFC055</color>
 </resources>

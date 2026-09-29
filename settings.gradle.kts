@@ -16,7 +16,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "QIt"
+rootProject.name = "Qandeel"
 include(":app")
 include(":wear")
 include(":core:domain")

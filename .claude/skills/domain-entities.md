@@ -1,6 +1,6 @@
 # Domain Entities
 
-All in `:core:domain`, package `dev.sadakat.qit.core.domain`. Pure Kotlin — these types must never
+All in `:core:domain`, package `dev.sadakat.qandeel.core.domain`. Pure Kotlin — these types must never
 import Android (`DomainIsolationTest`).
 
 ## `model/QuranMeta.kt`

@@ -1,4 +1,4 @@
-// The phone's UI kit: QIt's tokens mapped onto Material 3, and the components screens are built
+// The phone's UI kit: Qandeel's tokens mapped onto Material 3, and the components screens are built
 // from. Every look (mushaf, material, expressive, glass) comes from the tokens a skin provides, so
 // screens never ask which style is on. The one place Haze (backdrop blur) is used.
 plugins {
@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "dev.sadakat.qit.core.ui"
+    namespace = "dev.sadakat.qandeel.core.ui"
     compileSdk = 37
 
     defaultConfig {

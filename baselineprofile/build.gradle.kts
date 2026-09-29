@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "dev.sadakat.qit.baselineprofile"
+    namespace = "dev.sadakat.qandeel.baselineprofile"
     compileSdk = 37
 
     defaultConfig {

@@ -10,12 +10,12 @@ everywhere: **unidirectional data flow**.
 - Screens: stateless composables take `(state: XxxUiState, callbacks..., modifier: Modifier =
   Modifier)`; a thin `XxxRoute` composable collects the state (`collectAsStateWithLifecycle`) and
   wires the ViewModel. Every composable that emits UI takes `modifier`.
-- Presentation imports domain ports only — never `dev.sadakat.qit.core.data`
+- Presentation imports domain ports only — never `dev.sadakat.qandeel.core.data`
   (`PresentationIsolationTest`).
 - State is usually built with `combine(...).stateIn(viewModelScope, WhileSubscribed(5_000), initial)`;
   one-shot loads are `flow { emit(...) }.catch { emit(failed) }`.
 
-## Phone UI (`app/src/main/java/dev/sadakat/qit/presentation/`)
+## Phone UI (`app/src/main/java/dev/sadakat/qandeel/presentation/`)
 
 - `QuranApp.kt` — root: `NavHost` between surah list and reader, player bar as the `bottomBar`
   whenever something is queued, snackbar for playback errors
@@ -35,7 +35,7 @@ everywhere: **unidirectional data flow**.
 - `ui/theme/` — Material 3 theme, colors, types (Amiri Quran typeface for Arabic;
   `AmiriQuran` is used by the reader)
 
-## Watch UI (`wear/src/main/java/dev/sadakat/qit/wear/presentation/`)
+## Watch UI (`wear/src/main/java/dev/sadakat/qandeel/wear/presentation/`)
 
 - `WearQuranApp.kt` — root: `SwipeDismissableNavHost` over routes `home`, `surah/{number}`,
   `nowplaying`

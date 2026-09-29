@@ -9,19 +9,19 @@ plugins {
     alias(libs.plugins.baselineprofile)
 }
 
-val qitVersionCode = providers.gradleProperty("qit.versionCode").get().toInt()
+val qandeelVersionCode = providers.gradleProperty("qandeel.versionCode").get().toInt()
 
 android {
-    namespace = "dev.sadakat.qit"
+    namespace = "dev.sadakat.qandeel"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "dev.sadakat.qit"
+        applicationId = "dev.sadakat.qandeel"
         minSdk = 26
         targetSdk = 36
         // gradle.properties holds the release; the phone app's versionCode ends in 0 (see there).
-        versionCode = qitVersionCode * 10
-        versionName = providers.gradleProperty("qit.versionName").get()
+        versionCode = qandeelVersionCode * 10
+        versionName = providers.gradleProperty("qandeel.versionName").get()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

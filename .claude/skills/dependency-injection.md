@@ -3,7 +3,7 @@
 Hilt 2.51. Each app has its own modules; `:core:data` adapters are bound there. `:core:domain` and
 `:core:testing` know nothing about Hilt.
 
-## Phone (`app/src/main/java/dev/sadakat/qit/di/`)
+## Phone (`app/src/main/java/dev/sadakat/qandeel/di/`)
 
 **`QuranModule.kt`** (all `@Singleton`):
 - `QuranCache` ← `QuranCache.get(context)` (singleton by process, not by DI)
@@ -22,7 +22,7 @@ Hilt 2.51. Each app has its own modules; `:core:data` adapters are bound there. 
 
 **`WatchModule.kt`** (`@Binds`): `WatchLink` as `WatchConnection`.
 
-## Watch (`wear/src/main/java/dev/sadakat/qit/wear/di/`)
+## Watch (`wear/src/main/java/dev/sadakat/qandeel/wear/di/`)
 
 **`QuranModule.kt`** — same shape as the phone's: `QuranCache`, `QuranText`, `QuranSettings`,
 `SurahDownloads`, `ExoQuranPlayer` (+`QuranPlayer` binding). The watch builds its `MediaSession`
@@ -31,7 +31,7 @@ itself in `service/QuranPlaybackService` (released in `onDestroy`).
 **`MediaModule.kt`** — the `ExoPlayer` provider, identical settings to the phone's.
 
 ## Entry points
-- `QItApplication` / `WearApplication` are `@HiltAndroidApp`; the watch app additionally injects
+- `QandeelApplication` / `WearApplication` are `@HiltAndroidApp`; the watch app additionally injects
   and starts `WifiForDownloads` in `onCreate`
 - `MainActivity` (both apps) is `@AndroidEntryPoint`
 - Services: `QuranPlaybackService` (both apps) and `wear`'s `QuranMessageService` are

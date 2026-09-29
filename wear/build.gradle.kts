@@ -8,19 +8,19 @@ plugins {
     alias(libs.plugins.roborazzi)
 }
 
-val qitVersionCode = providers.gradleProperty("qit.versionCode").get().toInt()
+val qandeelVersionCode = providers.gradleProperty("qandeel.versionCode").get().toInt()
 
 android {
-    namespace = "dev.sadakat.qit.wear"
+    namespace = "dev.sadakat.qandeel.wear"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "dev.sadakat.qit"
+        applicationId = "dev.sadakat.qandeel"
         minSdk = 26
         targetSdk = 36
         // gradle.properties holds the release; the watch app's versionCode ends in 1 (see there).
-        versionCode = qitVersionCode * 10 + 1
-        versionName = providers.gradleProperty("qit.versionName").get()
+        versionCode = qandeelVersionCode * 10 + 1
+        versionName = providers.gradleProperty("qandeel.versionName").get()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

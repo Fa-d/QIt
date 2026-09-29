@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generates the non-brand tonal palettes into ref/QItPalettes.kt (core/designsystem).
+"""Generates the non-brand tonal palettes into ref/QandeelPalettes.kt (core/designsystem).
 
 Every palette is an HCT (Material Color Utilities) tonal palette: a tone is the same CIE L* in
 every palette, so tone contrast predicts text contrast. The brand tables in that file (primary,
@@ -19,9 +19,9 @@ page's container surfaces sit.
 
 The tones come from materialyoucolor, the Python port of Material Color Utilities. It is not a
 project dependency, so install it into a throwaway venv and run the script with that interpreter:
-  python3 -m venv /tmp/qit-palettes-venv
-  /tmp/qit-palettes-venv/bin/pip install materialyoucolor
-  /tmp/qit-palettes-venv/bin/python scripts/build_palettes.py
+  python3 -m venv /tmp/qandeel-palettes-venv
+  /tmp/qandeel-palettes-venv/bin/pip install materialyoucolor
+  /tmp/qandeel-palettes-venv/bin/python scripts/build_palettes.py
 
 Usage (from the repo root):
   python3 scripts/build_palettes.py
@@ -34,7 +34,7 @@ import sys
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PALETTES_KT = os.path.join(
     REPO, "core", "designsystem", "src", "main", "kotlin", "dev", "sadakat", "qit", "core",
-    "designsystem", "ref", "QItPalettes.kt",
+    "designsystem", "ref", "QandeelPalettes.kt",
 )
 
 BASELINE_SEED = 0xFF6750A4
@@ -119,12 +119,12 @@ def kotlin_palette(name, doc, tones):
 
 
 def generated_region(blocks):
-    """The whole region, markers included, as it sits inside `object QItPalettes`."""
+    """The whole region, markers included, as it sits inside `object QandeelPalettes`."""
     return "    %s\n\n%s\n\n    %s" % (REGION_START, "\n\n".join(blocks), REGION_END)
 
 
 def replace_region(source, region):
-    """Puts [region] between the region markers of QItPalettes.kt's [source]; everything outside
+    """Puts [region] between the region markers of QandeelPalettes.kt's [source]; everything outside
     the markers stays byte-identical. Raises ValueError when the markers are missing or unpaired."""
     lines = source.split("\n")
     starts = [i for i, line in enumerate(lines) if line.strip() == REGION_START]

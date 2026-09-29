@@ -1,8 +1,8 @@
-# QIt Claude Skills Index
+# Qandeel Claude Skills Index
 
 ## Quick Reference
 
-This directory contains Claude skills for the QIt project — a Quran player for phone and Wear OS.
+This directory contains Claude skills for the Qandeel project — a Quran player for phone and Wear OS.
 
 ## Available Skills
 
@@ -24,14 +24,14 @@ This directory contains Claude skills for the QIt project — a Quran player for
 ## Quick Lookups
 
 ### Module Namespaces
-- Domain: `dev.sadakat.qit.core.domain` (`:core:domain`, pure Kotlin/JVM)
-- Data: `dev.sadakat.qit.core.data` (`:core:data`, Android library)
-- Phone app: `dev.sadakat.qit` (`:app`)
-- Wear app: `dev.sadakat.qit.wear` (`:wear`)
-- Test fakes: `dev.sadakat.qit.core.testing` (`:core:testing`)
+- Domain: `dev.sadakat.qandeel.core.domain` (`:core:domain`, pure Kotlin/JVM)
+- Data: `dev.sadakat.qandeel.core.data` (`:core:data`, Android library)
+- Phone app: `dev.sadakat.qandeel` (`:app`)
+- Wear app: `dev.sadakat.qandeel.wear` (`:wear`)
+- Test fakes: `dev.sadakat.qandeel.core.testing` (`:core:testing`)
 
 ### Key Entry Points
-- Phone: `QItApplication`, `MainActivity`
+- Phone: `QandeelApplication`, `MainActivity`
 - Wear: `WearApplication` (starts `WifiForDownloads`), `presentation/MainActivity`
 
 ### Key Domain Types

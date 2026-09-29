@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Mirrors of design tokens for the launcher icon (QItPalettes primary 30, tertiary 80). -->
-    <color name="qit_icon_background">#FF195039</color>
-    <color name="qit_icon_foreground">#FFEFC055</color>
-    <!-- QItPalettes primary 90, the watch's primary: the tile preview's edge button. -->
-    <color name="qit_tile_button">#FFB6EFD0</color>
+    <!-- Mirrors of design tokens for the launcher icon (QandeelPalettes primary 30, tertiary 80). -->
+    <color name="qandeel_icon_background">#FF195039</color>
+    <color name="qandeel_icon_foreground">#FFEFC055</color>
+    <!-- QandeelPalettes primary 90, the watch's primary: the tile preview's edge button. -->
+    <color name="qandeel_tile_button">#FFB6EFD0</color>
 </resources>

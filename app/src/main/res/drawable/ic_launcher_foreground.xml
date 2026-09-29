@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The rub el hizb (octagram) in gold: QIt's mark. Drawn inside the adaptive icon's 66dp safe zone. -->
+<!-- The rub el hizb (octagram) in gold: Qandeel's mark. Drawn inside the adaptive icon's 66dp safe zone. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:fillColor="@color/qit_icon_foreground"
+        android:fillColor="@color/qandeel_icon_foreground"
         android:fillType="evenOdd"
         android:pathData="M54.00,24.00 L62.79,32.79 L75.21,32.79 L75.21,45.21 L84.00,54.00 L75.21,62.79 L75.21,75.21 L62.79,75.21 L54.00,84.00 L45.21,75.21 L32.79,75.21 L32.79,62.79 L24.00,54.00 L32.79,45.21 L32.79,32.79 L45.21,32.79 Z M54.00,29.50 L61.18,36.68 L71.32,36.68 L71.32,46.82 L78.50,54.00 L71.32,61.18 L71.32,71.32 L61.18,71.32 L54.00,78.50 L46.82,71.32 L36.68,71.32 L36.68,61.18 L29.50,54.00 L36.68,46.82 L36.68,36.68 L46.82,36.68 Z" />
     <path
-        android:fillColor="@color/qit_icon_foreground"
+        android:fillColor="@color/qandeel_icon_foreground"
         android:pathData="M54,44 A10,10 0 1,1 53.99,44 Z" />
 </vector>

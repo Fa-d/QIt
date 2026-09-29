@@ -1,5 +1,5 @@
 #!/bin/bash
-# QIt pre-commit hook: fast quality gates (formatting + static analysis).
+# Qandeel pre-commit hook: fast quality gates (formatting + static analysis).
 # Install with: scripts/install-git-hooks.sh
 # Bypass (last resort): SKIP_QUALITY_HOOK=1 git commit ...
 set -u

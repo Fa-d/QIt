@@ -12,13 +12,13 @@
     <string name="credit_walk">Ibrahim Walk</string>
     <string name="credit_walk_detail">English translation (Saheeh International), 192 kbps, from cdn.islamic.network</string>
     <string name="credit_islamic_foundation">Islamic Foundation Bangladesh</string>
-    <string name="credit_islamic_foundation_detail">Bangla translation audio, split verse by verse for QIt</string>
+    <string name="credit_islamic_foundation_detail">Bangla translation audio, split verse by verse for Qandeel</string>
     <string name="credit_toha">Sayed Ismat Toha</string>
-    <string name="credit_toha_detail">Bangla translation by Hafiz Munir Uddin Ahmad (Al Quran Academy London), split verse by verse for QIt</string>
+    <string name="credit_toha_detail">Bangla translation by Hafiz Munir Uddin Ahmad (Al Quran Academy London), split verse by verse for Qandeel</string>
     <string name="credit_basit">Abdul Basit Abdul Samad</string>
     <string name="credit_basit_detail">Arabic, mujawwad, 128 kbps, from everyayah.com</string>
     <string name="credit_baezeed">Shareef Baezeed Mahmood</string>
-    <string name="credit_baezeed_detail">Bangla translation by Muhiuddin Khan, split verse by verse for QIt</string>
+    <string name="credit_baezeed_detail">Bangla translation by Muhiuddin Khan, split verse by verse for Qandeel</string>
     <string name="credit_sudais">Abdur-Rahman As-Sudais</string>
     <string name="credit_sudais_detail">Arabic, 192 kbps, from everyayah.com</string>
 
@@ -32,7 +32,7 @@
 
     <string name="about_section_words">Word by word</string>
     <string name="credit_quran_align">Word timings: quran-align</string>
-    <string name="credit_quran_align_detail">By Collin Fair, licensed CC BY 4.0 (creativecommons.org/licenses/by/4.0). Mapped onto QIt\'s text; the timings are otherwise unchanged.</string>
+    <string name="credit_quran_align_detail">By Collin Fair, licensed CC BY 4.0 (creativecommons.org/licenses/by/4.0). Mapped onto Qandeel\'s text; the timings are otherwise unchanged.</string>
     <string name="credit_quran_com">Word meanings: Quran.com</string>
     <string name="credit_quran_com_detail">English and Bangla word-by-word translations from the Quran.com API (Quran Foundation)</string>
 
@@ -43,5 +43,5 @@
     <string name="credit_libraries_detail">Jetpack Compose, AndroidX, Media3, Room, Hilt, Wear OS and kotlinx, under the Apache License 2.0</string>
 
     <string name="about_section_privacy">Privacy</string>
-    <string name="about_privacy">QIt collects no personal data: no account, no analytics, no ads. Your settings and listening progress stay on your device and in your own Android backup; the phone and your watch share them over Google Play services. Audio streams and downloads come straight from the hosts above, which see your IP address as any website does.</string>
+    <string name="about_privacy">Qandeel collects no personal data: no account, no analytics, no ads. Your settings and listening progress stay on your device and in your own Android backup; the phone and your watch share them over Google Play services. Audio streams and downloads come straight from the hosts above, which see your IP address as any website does.</string>
 </resources>

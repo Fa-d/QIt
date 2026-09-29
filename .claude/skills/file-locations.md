@@ -3,7 +3,7 @@
 Paths are relative to the repo root. Test files mirror the main packages, under `src/test/kotlin/`
 (JVM modules) or `src/test/java/` (Android modules), and end in `Test`.
 
-## Domain — `core/domain/src/main/kotlin/dev/sadakat/qit/core/domain/`
+## Domain — `core/domain/src/main/kotlin/dev/sadakat/qandeel/core/domain/`
 | File | Contents |
 | --- | --- |
 | `model/QuranMeta.kt` | `QuranMeta` — surah structure, global ayah numbering |
@@ -17,7 +17,7 @@ Paths are relative to the repo root. Test files mirror the main packages, under 
 | `repository/SurahDownloads.kt` | port + `SurahDownloadState` + `stateOf` helpers |
 | `player/QuranPlayer.kt` | port + `NowPlaying` |
 
-## Data — `core/data/src/main/kotlin/dev/sadakat/qit/core/data/`
+## Data — `core/data/src/main/kotlin/dev/sadakat/qandeel/core/data/`
 | File | Contents |
 | --- | --- |
 | `text/AssetQuranText.kt` | `QuranText` adapter (assets + LRU cache) |
@@ -34,10 +34,10 @@ Paths are relative to the repo root. Test files mirror the main packages, under 
 Assets: `core/data/src/main/assets/quran/surahs.json` and `quran/text/001..114.json`.
 Manifest (merged into both apps): `core/data/src/main/AndroidManifest.xml`.
 
-## Phone app — `app/src/main/java/dev/sadakat/qit/`
+## Phone app — `app/src/main/java/dev/sadakat/qandeel/`
 | Path | Contents |
 | --- | --- |
-| `QItApplication.kt`, `MainActivity.kt` | entry points |
+| `QandeelApplication.kt`, `MainActivity.kt` | entry points |
 | `di/QuranModule.kt`, `di/MediaModule.kt`, `di/WatchModule.kt` | Hilt |
 | `presentation/QuranApp.kt` | root composable (nav + player bar) |
 | `presentation/navigation/QuranDestinations.kt` | routes |
@@ -49,7 +49,7 @@ Manifest (merged into both apps): `core/data/src/main/AndroidManifest.xml`.
 | `service/QuranPlaybackService.kt` | `MediaSessionService` |
 | `watch/WatchConnection.kt`, `watch/WatchLink.kt` | watch link (interface + Wearable impl) |
 
-## Watch app — `wear/src/main/java/dev/sadakat/qit/wear/`
+## Watch app — `wear/src/main/java/dev/sadakat/qandeel/wear/`
 | Path | Contents |
 | --- | --- |
 | `WearApplication.kt`, `presentation/MainActivity.kt` | entry points |
@@ -63,10 +63,10 @@ Manifest (merged into both apps): `core/data/src/main/AndroidManifest.xml`.
 | `network/WifiForDownloads.kt` | Wi-Fi while downloads run |
 
 ## Testing
-- `core/testing/src/main/kotlin/dev/sadakat/qit/core/testing/` — `FakeQuranText`,
+- `core/testing/src/main/kotlin/dev/sadakat/qandeel/core/testing/` — `FakeQuranText`,
   `FakeSurahDownloads`, `FakeQuranSettings`, `FakeQuranPlayer`, `TestQuran`,
   `MainDispatcherRule`
-- `architecture-test/src/test/kotlin/dev/sadakat/qit/architecture/` — `DomainIsolationTest`,
+- `architecture-test/src/test/kotlin/dev/sadakat/qandeel/architecture/` — `DomainIsolationTest`,
   `PresentationIsolationTest`, `ViewModelArchitectureTest`, `UiStateArchitectureTest`,
   `TestNamingArchitectureTest`
 - `src/test/resources/robolectric.properties` (in `:core:data`, `:app`, `:wear`) pins sdk=34

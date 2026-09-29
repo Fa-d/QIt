@@ -20,7 +20,7 @@ flowchart TD
     data --> domain
 ```
 
-### Domain (`:core:domain`, package `dev.sadakat.qit.core.domain`)
+### Domain (`:core:domain`, package `dev.sadakat.qandeel.core.domain`)
 Pure Kotlin/JVM — no Android, no androidx, no imports from outer layers
 (`DomainIsolationTest` fails the build otherwise).
 
@@ -32,7 +32,7 @@ Pure Kotlin/JVM — no Android, no androidx, no imports from outer layers
   (+ `SurahDownloadState` and `stateOf` helpers)
 - `player/` — the port `QuranPlayer` (+ `NowPlaying`)
 
-### Data (`:core:data`, package `dev.sadakat.qit.core.data`)
+### Data (`:core:data`, package `dev.sadakat.qandeel.core.data`)
 Android library; one adapter per port:
 
 | Port | Adapter |
@@ -46,7 +46,7 @@ Plus `audio/QuranDownloadService` (foreground download service), `audio/QuranMed
 (queue → media items) and `link/` (`QuranDownloadMessage`, `WearPaths`).
 
 ### Presentation (`..presentation..` in `:app` and `:wear`)
-- Talks to **domain ports only** — importing `dev.sadakat.qit.core.data` fails
+- Talks to **domain ports only** — importing `dev.sadakat.qandeel.core.data` fails
   `PresentationIsolationTest`.
 - `@HiltViewModel` ViewModels expose one immutable `StateFlow<XxxUiState>` (data class) plus
   plain functions for user actions (unidirectional data flow).

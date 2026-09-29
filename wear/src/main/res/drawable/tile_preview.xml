@@ -9,10 +9,10 @@
         android:fillColor="#FF000000"
         android:pathData="M100,0 A100,100 0 1,1 99.99,0 Z" />
     <path
-        android:fillColor="@color/qit_icon_foreground"
+        android:fillColor="@color/qandeel_icon_foreground"
         android:fillType="evenOdd"
         android:pathData="M100.00,36.00 L109.96,45.96 L124.04,45.96 L124.04,60.04 L134.00,70.00 L124.04,79.96 L124.04,94.04 L109.96,94.04 L100.00,104.00 L90.04,94.04 L75.96,94.04 L75.96,79.96 L66.00,70.00 L75.96,60.04 L75.96,45.96 L90.04,45.96 Z M100.00,42.00 L108.20,50.20 L119.80,50.20 L119.80,61.80 L128.00,70.00 L119.80,78.20 L119.80,89.80 L108.20,89.80 L100.00,98.00 L91.80,89.80 L80.20,89.80 L80.20,78.20 L72.00,70.00 L80.20,61.80 L80.20,50.20 L91.80,50.20 Z" />
     <path
-        android:fillColor="@color/qit_tile_button"
+        android:fillColor="@color/qandeel_tile_button"
         android:pathData="M40,150 L160,150 A40,40 0 0,1 100,196 A40,40 0 0,1 40,150 Z" />
 </vector>

@@ -21,7 +21,7 @@
         <item quantity="one">Sent to %d watch</item>
         <item quantity="other">Sent to %d watches</item>
     </plurals>
-    <string name="no_watch_found">No watch with QIt found</string>
+    <string name="no_watch_found">No watch with Qandeel found</string>
 
     <!-- Listening progress in the reader -->
     <string name="ayah_heard_short">×%1$d</string>

@@ -11,7 +11,7 @@
 
     <application>
         <service
-            android:name="dev.sadakat.qit.core.data.audio.QuranDownloadService"
+            android:name="dev.sadakat.qandeel.core.data.audio.QuranDownloadService"
             android:exported="false"
             android:foregroundServiceType="dataSync">
             <intent-filter>

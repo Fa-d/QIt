@@ -49,7 +49,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS_DIR = os.path.join(REPO, "core", "data", "src", "main", "assets", "quran")
 
 API = "https://api.quran.com/api/v4"
-USER_AGENT = "QIt-word-meanings-builder/1.0 (offline asset build for the QIt Quran app)"
+USER_AGENT = "Qandeel-word-meanings-builder/1.0 (offline asset build for the Qandeel Quran app)"
 LANGS = ("en", "bn")
 DEFAULT_CACHE = os.path.join(os.path.expanduser("~"), ".cache", "qit-word-meanings")
 

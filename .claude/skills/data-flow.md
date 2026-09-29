@@ -55,7 +55,7 @@ their UiState **and** keep the latest value in a field for synchronous actions (
 ```
 Reader "send to watch" ──> SurahReaderViewModel.sendToWatch()
   └─ WatchConnection (interface, :app)
-       └─ WatchLink: capability qit_watch_app → nodes → sendMessage(/quran/download, JSON)
+       └─ WatchLink: capability qandeel_watch_app → nodes → sendMessage(/quran/download, JSON)
             watch: QuranMessageService.onMessageReceived
               └─ handleQuranMessage → SurahDownloads.download(surah, tracks)
 ```

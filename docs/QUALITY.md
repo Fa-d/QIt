@@ -61,7 +61,7 @@ Roborazzi renders composables under Robolectric and compares them with the golde
   opens its own window, which the capture doesn't see.
 - The helpers also run the accessibility checks (touch targets, contrast, labels) and fail on
   errors.
-- `snapshot(…, style = QItStyle.GLASS, tone = QItTone.SEPIA)` renders a look other than the
+- `snapshot(…, style = QandeelStyle.GLASS, tone = QandeelTone.SEPIA)` renders a look other than the
   default Mushaf light. App goldens pin glass to its unblurred tint, so they're the same on every
   machine; `:core:ui` renders through the hardware renderer (`robolectric.pixelCopyRenderMode`),
   so its kit goldens (every style × tone, and glass tinted and solid) show real blur.

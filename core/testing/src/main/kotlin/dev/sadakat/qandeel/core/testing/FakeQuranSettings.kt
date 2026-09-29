@@ -1,0 +1,46 @@
+package dev.sadakat.qandeel.core.testing
+
+import dev.sadakat.qandeel.core.domain.model.BanglaVoice
+import dev.sadakat.qandeel.core.domain.model.ReadingPrefs
+import dev.sadakat.qandeel.core.domain.model.RecitationMode
+import dev.sadakat.qandeel.core.domain.player.PlaybackSpeed
+import dev.sadakat.qandeel.core.domain.repository.LastPosition
+import dev.sadakat.qandeel.core.domain.repository.QuranSettings
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
+
+/** In-memory [QuranSettings]. */
+class FakeQuranSettings(
+    mode: RecitationMode = RecitationMode.ARABIC_BANGLA,
+    lastPosition: LastPosition? = null,
+    readingPrefs: ReadingPrefs = ReadingPrefs(),
+    playbackSpeed: PlaybackSpeed = PlaybackSpeed.X1,
+    banglaVoice: BanglaVoice = BanglaVoice.DEFAULT,
+) : QuranSettings {
+
+    override val mode = MutableStateFlow(mode)
+    override val lastPosition = MutableStateFlow(lastPosition)
+    override val readingPrefs = MutableStateFlow(readingPrefs)
+    override val playbackSpeed = MutableStateFlow(playbackSpeed)
+    override val banglaVoice = MutableStateFlow(banglaVoice)
+
+    override suspend fun setMode(mode: RecitationMode) {
+        this.mode.value = mode
+    }
+
+    override suspend fun setBanglaVoice(voice: BanglaVoice) {
+        banglaVoice.value = voice
+    }
+
+    override suspend fun saveLastPosition(position: LastPosition) {
+        lastPosition.value = position
+    }
+
+    override suspend fun updateReadingPrefs(transform: (ReadingPrefs) -> ReadingPrefs) {
+        readingPrefs.update(transform)
+    }
+
+    override suspend fun setPlaybackSpeed(speed: PlaybackSpeed) {
+        playbackSpeed.value = speed
+    }
+}

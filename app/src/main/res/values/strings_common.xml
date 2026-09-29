@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Shared by several screens -->
-    <string name="app_name">QIt</string>
+    <string name="app_name">Qandeel</string>
     <plurals name="ayah_count">
         <item quantity="one">%d ayah</item>
         <item quantity="other">%d ayahs</item>

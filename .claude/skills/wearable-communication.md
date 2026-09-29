@@ -7,7 +7,7 @@ CapabilityClient). playServicesWearable 18.1.0.
 
 - `WearPaths.kt` — `object WearPaths`:
   - `QURAN_DOWNLOAD = "/quran/download"` — the phone → watch message path
-  - `CAPABILITY_PHONE_APP = "qit_phone_app"`, `CAPABILITY_WATCH_APP = "qit_watch_app"` — capability
+  - `CAPABILITY_PHONE_APP = "qandeel_phone_app"`, `CAPABILITY_WATCH_APP = "qandeel_watch_app"` — capability
     names, declared in each app's `res/values/wear.xml`
 - `QuranDownloadMessage.kt` — `@Serializable data class QuranDownloadMessage(surah, trackCodes)`;
   `of(surah, tracks)` / `toBytes()` on the sender, `fromBytes(bytes)` on the receiver; `tracks`
@@ -17,7 +17,7 @@ CapabilityClient). playServicesWearable 18.1.0.
 
 - `watch/WatchConnection.kt` — the interface (`isWatchReachable()`, `sendDownload(surah, tracks):
   Result<Int>`), abstracted so ViewModels test without Play services
-- `watch/WatchLink.kt` — the implementation: looks up reachable nodes by the `qit_watch_app`
+- `watch/WatchLink.kt` — the implementation: looks up reachable nodes by the `qandeel_watch_app`
   capability, sends the JSON payload on `/quran/download` to each (counts nodes that acknowledge ≥
   0 bytes; fails when none did; `ApiException` — no Wear OS services — means "no watch")
 - `di/WatchModule.kt` binds `WatchLink` as `WatchConnection`
