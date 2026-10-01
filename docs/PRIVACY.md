@@ -49,4 +49,4 @@ Changes to this policy will be published at this address with a new date.
 
 ## Contact
 
-contact@liveintently.app
+qandeel@liveintently.app (policy also published at https://qandeel.liveintently.app/privacy)
